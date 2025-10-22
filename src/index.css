@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+
+@theme {
+  --color-main-color:#100000;
+  --color-second-color:#dc2626;
+  
+}
