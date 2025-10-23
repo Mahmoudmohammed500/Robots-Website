@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Facebook, Twitter, Linkedin, Mail } from "lucide-react";
+import LogoImg from "../assets/logo omega-2022.png";
 
 export default function Footer() {
   return (
@@ -9,7 +10,7 @@ export default function Footer() {
         <div className="flex flex-col items-center md:items-start">
           <div className="flex items-center justify-center md:justify-start gap-3 mb-5 cursor-pointer select-none">
             <img
-              src="/images/logo omega-2022.png"
+              src={LogoImg}
               alt="Omega Robotics Logo"
               className="h-12 w-auto object-contain drop-shadow-lg"
             />

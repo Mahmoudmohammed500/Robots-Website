@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, RefreshCcw, Play, StopCircle, ChevronUp, ChevronDown, Calendar } from "lucide-react";
+import RobotImg from "../assets/Robot1.jpeg";
 
 export default function RobotDetails() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ export default function RobotDetails() {
     voltage: 27,
     cycles: 20,
     status: "Running",
-    image: "/images/Robot1.jpeg",
+    image: RobotImg,
   };
 
   return (

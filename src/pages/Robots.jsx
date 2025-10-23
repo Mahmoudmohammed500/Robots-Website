@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import ProductCard from "../components/RobotCard";
 import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
+import RobotImg from "../assets/Robot1.jpeg";
 
 export default function Robots() {
   const navigate = useNavigate();
@@ -10,13 +11,13 @@ export default function Robots() {
 
   // dummy robots data
   const robots = [
-    { id: 1, name: "Omega Robot X1", image: "/images/Robot1.jpeg" },
-    { id: 2, name: "Omega Robot X2", image: "/images/Robot1.jpeg" },
-    { id: 3, name: "Omega Robot X3", image: "/images/Robot1.jpeg" },
-    { id: 4, name: "Omega Robot X4", image: "/images/Robot1.jpeg" },
-    { id: 5, name: "Omega Robot X5", image: "/images/Robot1.jpeg" },
-    { id: 6, name: "Omega Robot X6", image: "/images/Robot1.jpeg" },
-    { id: 7, name: "Omega Robot X7", image: "/images/Robot1.jpeg" },
+    { id: 1, name: "Omega Robot X1", image: RobotImg },
+    { id: 2, name: "Omega Robot X2", image: RobotImg },
+    { id: 3, name: "Omega Robot X3", image: RobotImg },
+    { id: 4, name: "Omega Robot X4", image: RobotImg },
+    { id: 5, name: "Omega Robot X5", image: RobotImg },
+    { id: 6, name: "Omega Robot X6", image: RobotImg },
+    { id: 7, name: "Omega Robot X7", image: RobotImg },
   ];
 
   // navigate to robot details
@@ -57,7 +58,6 @@ export default function Robots() {
         </div>
       </section>
 
-      <Footer />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import LogoImg from "../assets/logo omega-2022.png";
 
 export default function Navbar() {
   const { logout, user } = useAuth(); 
@@ -27,7 +28,7 @@ export default function Navbar() {
           onClick={() => navigate("/home")}
         >
           <motion.img
-            src="/images/logo omega-2022.png"
+              src={LogoImg}
             alt="Logo"
             className="h-9 w-auto object-contain"
             whileHover={{ scale: 1.05 }}

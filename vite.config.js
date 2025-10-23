@@ -10,6 +10,7 @@ export default defineConfig({
         tailwindcss(),
 
   ],
+  base: '/Robots-Website/',
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

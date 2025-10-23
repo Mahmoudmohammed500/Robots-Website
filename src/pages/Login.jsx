@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Mail, Lock } from "lucide-react";
+import LogoImg from "../assets/logo omega-2022.png";
 
 export default function Login() {
   const { login } = useAuth();
@@ -69,7 +70,7 @@ export default function Login() {
         <Card className="shadow-2xl border border-gray-100 bg-white rounded-3xl overflow-hidden">
           <CardHeader className="text-center space-y-3">
             <motion.img
-              src="/images/logo omega-2022.png"
+              src={LogoImg}
               alt="Omega Logo"
               className="h-16 mx-auto object-contain "
               initial={{ opacity: 0, scale: 0.8 }}
