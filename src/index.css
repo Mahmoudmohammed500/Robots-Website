@@ -3,7 +3,17 @@
 
 
 @theme {
-  --color-main-color:#100000;
-  --color-second-color:#dc2626;
+  --color-main-color:#102c5c;
+  --color-second-color:#e67616;
+  --color-btn-red-bg:#ef4444;
+  --color-btn-red-hover:#dc2626;
+  --color-btn-green-bg:#22c55e;
+  --color-btn-green-hover:#16a34a;
+  --color-btn-yellow-bg:#facc15;
+  --color-btn-yellow-hover:#eab308;
+  --color-btn-blue-bg:#3b82f6;
+  --color-btn-blue-hover:#2563eb;
+  --color-btn-indigo-bg:#6366f1;
+  --color-btn-indigo-hover:#4f46e5;
   
 }
