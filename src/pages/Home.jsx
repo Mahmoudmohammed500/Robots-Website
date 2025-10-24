@@ -22,7 +22,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            Omega for Solar Panel Cleaning
+            Intelligent Robots for Solar Panel Cleaning
           </motion.h1>
 
           <motion.p
@@ -31,9 +31,8 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
-            Revolutionizing solar maintenance with intelligent, autonomous, and
-            sustainable cleaning robots — keeping your panels spotless and
-            efficient all year long.
+            <span className="text-second-color">OMEGA </span>develops advanced solar cleaning robots — combining innovation,
+            precision, and sustainability to keep your panels efficient year-round.
           </motion.p>
 
           <motion.div
@@ -48,7 +47,7 @@ export default function Home() {
                          hover:bg-main-color hover:text-white 
                          transition-all duration-300 shadow-sm"
             >
-              Your Robots
+              Explore Your Robots
             </Button>
           </motion.div>
         </div>

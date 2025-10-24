@@ -23,20 +23,25 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  //handle form submit
+  const USER_EMAIL = "admin@example.com";
+  const USER_PASSWORD = "admin@example.com";
+
+  const ADMIN_EMAIL = "admin@omega.com";
+  const ADMIN_PASSWORD = "admin@omega.com";
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const validEmail = "admin@example.com";
-    const validPassword = "admin@example.com";
-
-    //simulate daployment dalay
     setTimeout(() => {
-      if (email === validEmail && password === validPassword) {
+      if (email === USER_EMAIL && password === USER_PASSWORD) {
         login();
-        toast.success("Welcome back");
+        toast.success("Welcome back, User!");
         navigate("/home", { replace: true });
+      } else if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        login();
+        toast.success("Welcome back, Admin!");
+        navigate("/homeDashboard", { replace: true }); 
       } else {
         toast.error("Invalid email or password");
       }
@@ -46,7 +51,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-main-color/20 via-white to-second-color/20 relative overflow-hidden">
-      {/* animated bg  */}
+      {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
           className="absolute top-[-10%] left-[-10%] w-[300px] h-[300px] bg-main-color/20 rounded-full blur-3xl"
@@ -60,7 +65,7 @@ export default function Login() {
         />
       </div>
 
-      {/* form */}
+      {/* Form */}
       <motion.div
         className="relative w-full max-w-md p-8"
         initial={{ opacity: 0, y: 40 }}
@@ -97,7 +102,7 @@ export default function Login() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@example.com"
+                    placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -132,7 +137,7 @@ export default function Login() {
                   disabled={loading}
                   className="relative w-full py-3 mt-4 text-lg font-semibold 
                              border-2 border-main-color text-white
-                             bg-linear-to-r from-main-color to-second-color
+                             bg-linear-to-r bg-main-color
                              rounded-xl shadow-md hover:shadow-xl transition-all duration-300"
                 >
                   <span className="relative z-10">
