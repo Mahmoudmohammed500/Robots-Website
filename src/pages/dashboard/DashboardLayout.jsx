@@ -18,10 +18,8 @@ export default function DashboardLayout({ children }) {
     <div className="flex h-screen overflow-hidden">
       <DashboardSidebar isOpen={sidebarOpen} onToggle={setSidebarOpen} />
 
-      {/* Main Area */}
       <div className="flex flex-col flex-1 bg-gray-50 min-w-0 transition-all duration-300 ease-in-out">
-        {/* Header */}
-        <header className="h-16 bg-white shadow-md border-b border-gray-200 flex items-center justify-between px-6">
+        {/* <header className="h-16 bg-white shadow-md border-b border-gray-200 flex items-center justify-between px-6">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -37,10 +35,9 @@ export default function DashboardLayout({ children }) {
             <h1 className="font-semibold text-gray-800">Admin Dashboard</h1>
             <p className="text-sm text-gray-500">Welcome back!</p>
           </div>
-        </header>
+        </header> */}
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-auto   max-lg:pt-22">{children}</main>
       </div>
     </div>
   );

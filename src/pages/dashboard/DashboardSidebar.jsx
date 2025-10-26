@@ -1,7 +1,5 @@
-// src/components/dashboard/DashboardSidebar.jsx
 import { useState } from "react";
 import {
-  X,
   FolderKanban,
   PlusCircle,
   Users,
@@ -9,40 +7,41 @@ import {
   LogOut,
   ShieldCheck,
   LayoutDashboard,
-  ChevronRight,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "../../assets/logo omega-2022.png";
 
 export default function DashboardSidebar({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(true);
 
   const menuItems = [
     { name: "All Projects", icon: FolderKanban, path: "/homeDashboard" },
-    { name: "Add Project", icon: PlusCircle, path: "/homeDashboard/projects/add" },
-    { name: "All Users", icon: Users, path: "/homeDashboard/users" },
-    { name: "Add User", icon: UserPlus, path: "/homeDashboard/users/add" },
+    { name: "Add Project", icon: PlusCircle, path: "/homeDashboard/projectForm" },
+    { name: "All Users", icon: Users, path: "/homeDashboard/allUsers" },
+    { name: "Add User", icon: UserPlus, path: "/homeDashboard/addUser" },
   ];
 
   const handleNavigation = (path) => {
     navigate(path);
-    setIsOpen(false);
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Sidebar */}
+    <div className="flex bg-gray-50 min-h-screen max-lg:w-0">
       <div
-        className={`bg-linear-to-b from-main-color to-second-color text-white
-        shadow-2xl border-r border-main-color/20 z-40 transition-all duration-300 ease-in-out
-        ${isOpen ? "w-72" : "w-16"} flex flex-col justify-between`}
+        className={`hidden lg:flex fixed top-0 left-0 h-screen bg-linear-to-b from-main-color to-second-color text-white 
+        shadow-2xl border-r border-main-color/20 z-50 transition-all duration-300 ease-in-out 
+        ${isOpen ? "w-72" : "w-16"} flex-col justify-between`}
       >
-        {/* Header */}
         <div>
           <div className="flex items-center justify-between px-3 py-5 border-b border-white/10">
             {isOpen ? (
-              <div className="flex items-center gap-3 pl-2">
+              <div
+                className="flex items-center gap-3 pl-2 cursor-pointer"
+                onClick={() => navigate("/login")}
+                title="Go to Login"
+              >
                 <img
                   src={Logo}
                   alt="Admin Logo"
@@ -57,50 +56,69 @@ export default function DashboardSidebar({ children }) {
               <img
                 src={Logo}
                 alt="Logo"
-                className="h-10 w-10 object-contain mx-auto rounded-full bg-white p-1"
+                onClick={() => navigate("/login")}
+                title="Go to Login"
+                className="h-10 w-10 object-contain mx-auto rounded-full bg-white p-1 cursor-pointer"
               />
             )}
 
-            {/* Toggle Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`p-2 ml-auto rounded-full transition shadow-md
-                ${isOpen
-                  ? "hover:bg-white/20 text-white"
-                  : "bg-white text-main-color hover:bg-white/90"}`}
+                ${
+                  isOpen
+                    ? "hover:bg-white/20 text-white"
+                    : "bg-white text-main-color hover:bg-white/90"
+                }`}
               title={isOpen ? "Close Menu" : "Open Menu"}
             >
-              {isOpen ? <X size={18} /> : <ChevronRight size={18} />}
+              {isOpen ? "×" : "›"}
             </button>
           </div>
 
           {/* Menu items */}
-          <nav className="flex flex-col gap-2 p-4">
+          <nav
+            className={`flex flex-col gap-2 p-4 ${
+              isOpen ? "overflow-y-auto" : "overflow-hidden"
+            }`}
+          >
             {menuItems.map((item, index) => {
               const Icon = item.icon;
+              const active = location.pathname === item.path;
               return (
-                <button
-                  key={index}
-                  onClick={() => handleNavigation(item.path)}
-                  className={`flex items-center gap-3 py-3 px-3 rounded-lg text-white/90 font-medium
-                  hover:bg-white/15 hover:text-white transition duration-300 ${
-                    !isOpen ? "justify-center" : ""
-                  }`}
-                >
-                  <Icon size={20} />
-                  {isOpen && <span>{item.name}</span>}
-                </button>
+                <div key={index} className="relative group">
+                  <button
+                    onClick={() => handleNavigation(item.path)}
+                    className={`flex items-center gap-3 py-3 px-3 rounded-lg font-medium w-full
+                    transition duration-300 ${
+                      active
+                        ? "bg-white/20 text-white"
+                        : "text-white/80 hover:bg-white/15 hover:text-white"
+                    } ${!isOpen ? "justify-center" : ""}`}
+                  >
+                    <Icon size={20} />
+                    {isOpen && <span>{item.name}</span>}
+                  </button>
+
+                  {!isOpen && (
+                    <span
+                      className="absolute left-1/2 -translate-x-1/2 bottom-[110%] bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md"
+                    >
+                      {item.name}
+                    </span>
+                  )}
+                </div>
               );
             })}
           </nav>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-white/10 p-4">
+        <div className="border-t border-white/10 p-4 flex flex-col items-center">
           <button
             onClick={() => navigate("/login")}
-            className={`flex items-center gap-3 text-white/90 font-medium py-2 px-3 rounded-lg hover:bg-white/15 transition ${
-              !isOpen ? "justify-center" : ""
+            className={`flex items-center gap-3 text-white/90 font-medium py-2 px-3 rounded-lg hover:bg-white/15 transition w-full ${
+              !isOpen ? "justify-center" : "justify-start"
             }`}
           >
             <LogOut size={20} />
@@ -108,17 +126,68 @@ export default function DashboardSidebar({ children }) {
           </button>
 
           {isOpen && (
-            <div className="mt-6 text-center text-xs text-white/60">
-              <LayoutDashboard size={14} className="inline-block mr-1" />
+            <div className="mt-3 text-xs text-white/60 flex flex-col items-center">
+              <LayoutDashboard size={14} className="mb-1" />
               <span>© 2025 Dashboard</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Main Content Area */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-linear-to-r from-main-color to-second-color text-white flex items-center justify-between px-4 py-3 z-50 shadow-md">
+        <div
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => navigate("/login")}
+          title="Go to Login"
+        >
+          <img
+            src={Logo}
+            alt="Logo"
+            className="h-9 w-9 object-contain rounded-full bg-white p-1"
+          />
+          <div className="flex items-center gap-1 text-sm text-white/80">
+            <ShieldCheck size={16} className="text-green-400" />
+            <span className="font-medium text-xs sm:text-sm">Admin</span>
+          </div>
+        </div>
+
+        <nav className="flex items-center gap-4 sm:gap-5">
+          {menuItems.map((item, index) => {
+            const Icon = item.icon;
+            const active = location.pathname === item.path;
+            return (
+              <button
+                key={index}
+                onClick={() => handleNavigation(item.path)}
+                title={item.name}
+                className={`relative group transition ${
+                  active
+                    ? "text-white drop-shadow-md"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                <Icon size={22} />
+                <span
+                  className="absolute bottom-[120%] left-1/2 -translate-x-1/2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition"
+                >
+                  {item.name}
+                </span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => navigate("/login")}
+            title="Logout"
+            className="text-white/70 hover:text-white transition"
+          >
+            <LogOut size={22} />
+          </button>
+        </nav>
+      </header>
+
       <main
-        className={`flex-1 transition-all duration-300 ease-in-out p-6 overflow-y-auto`}
+        className={`flex-1 transition-all duration-300 ease-in-out overflow-y-auto pt-[70px] lg:pt-0 
+        ${isOpen ? "lg:pl-[18rem]" : "lg:pl-[4rem]"}`}
       >
         {children}
       </main>
