@@ -84,6 +84,7 @@ export default function RobotSettings({ robots }) {
                 </Tooltip>
               ))}
             </TooltipProvider>
+            
           </div>
         </motion.div>
 
