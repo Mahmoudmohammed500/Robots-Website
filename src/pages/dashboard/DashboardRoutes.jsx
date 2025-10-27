@@ -67,8 +67,8 @@ export default function Dashboard() {
         <Route path="addRobot" element={<RobotForm/>} />
         <Route path="robotDetails/:id/robotSettings/:id" element={<RobotSettings robots={robots} />} />
         <Route
-          path="robotSettings/:id/buttonSettings/:buttonName"
-          element={<ButtonSetting robots={robots} />}
+          path="robotSettings/:id/button/:buttonName"
+          element={<ButtonSetting  />}
         />
       </Routes>
     </DashboardLayout>

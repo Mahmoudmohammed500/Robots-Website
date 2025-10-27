@@ -1,23 +1,54 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useEffect, useState } from "react";
 
-export default function RobotSettings({ robots }) {
+export default function RobotSettings() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const robot = robots.find((r) => r.id === parseInt(id)) || {
-    name: "Unknown Robot",
-    activeButtons: ["STOP", "START", "BACKWARD", "FORWARD"],
-    availableButtons: ["SCHEDULING"],
-  };
+  const [robot, setRobot] = useState(null);
+
+  const allRobots = [
+    {
+      id: 1,
+      name: "Robot Alpha",
+      activeButtons: ["STOP", "START", "BACKWARD", "FORWARD"],
+      availableButtons: ["SCHEDULING"],
+    },
+    {
+      id: 2,
+      name: "Robot Beta",
+      activeButtons: ["STOP", "FORWARD"],
+      availableButtons: ["SCHEDULING", "BACKWARD"],
+    },
+    {
+      id: 3,
+      name: "Robot Gamma",
+      activeButtons: ["START", "FORWARD", "BACKWARD"],
+      availableButtons: ["STOP"],
+    },
+  ];
+
+  useEffect(() => {
+    const found = allRobots.find((r) => r.id === parseInt(id));
+    setRobot(found || null);
+  }, [id]);
+
+  if (!robot) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen text-gray-600">
+        <p className="mb-4 text-lg font-medium">Loading robot settings...</p>
+        <Button
+          onClick={() => navigate(-1)}
+          className="bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color"
+        >
+          <ArrowLeft size={18} /> Back
+        </Button>
+      </div>
+    );
+  }
 
   const buttonColors = {
     STOP: "bg-red-500 hover:bg-red-600",
@@ -29,6 +60,7 @@ export default function RobotSettings({ robots }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-200 flex flex-col p-6 sm:p-10">
+      {/* Back button */}
       <div className="w-full max-w-4xl mx-auto mb-8">
         <Button
           onClick={() => navigate(-1)}
@@ -41,6 +73,7 @@ export default function RobotSettings({ robots }) {
         </Button>
       </div>
 
+      {/* Title */}
       <motion.h1
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -49,80 +82,72 @@ export default function RobotSettings({ robots }) {
         {robot.name} Settings
       </motion.h1>
 
-      <div className="w-full max-w-4xl mx-auto flex flex-col gap-12">
+      {/* Lists */}
+      <div className="w-full max-w-4xl mx-auto flex flex-col gap-10">
+
+        {/* Active Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/90 backdrop-blur-md shadow-xl rounded-3xl border border-gray-200 p-8"
+        >
+          <h2 className="text-2xl font-semibold text-green-700 mb-6 text-center">
+            Active Buttons
+          </h2>
+          {robot.activeButtons.length > 0 ? (
+            <div className="flex flex-wrap justify-center gap-5">
+              {robot.activeButtons.map((btn) => (
+                <Button
+                  key={btn}
+                  onClick={() =>
+                    navigate(`/homeDashboard/robotSettings/${id}/button/${btn}`)
+                  }
+                  className={`${buttonColors[btn] || "bg-gray-400"} 
+                              text-white text-lg font-semibold px-8 py-4 rounded-2xl 
+                              shadow-md hover:shadow-lg transition`}
+                >
+                  {btn}
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center">No active buttons</p>
+          )}
+        </motion.div>
+
+        {/* Available Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white/80 backdrop-blur-md shadow-xl rounded-3xl border border-gray-200 p-8"
+          className="bg-white/90 backdrop-blur-md shadow-xl rounded-3xl border border-gray-200 p-8"
         >
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-            Active Buttons
-          </h2>
-
-          <div className="flex flex-wrap gap-5">
-            <TooltipProvider>
-              {robot.activeButtons.map((btn) => (
-                <Tooltip key={btn}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={() =>
-                        navigate(`/dashboard/robotSettings/${id}/button/${btn}`)
-                      }
-                      className={`${buttonColors[btn] || "bg-gray-400"} text-white text-lg font-semibold px-8 py-4 rounded-2xl shadow-md hover:shadow-lg transition relative`}
-                    >
-                      {btn}
-                      <Settings
-                        size={18}
-                        className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition"
-                      />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p className="text-sm font-medium text-gray-700">Setting</p>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </TooltipProvider>
-            
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white/80 backdrop-blur-md shadow-xl rounded-3xl border border-gray-200 p-8"
-        >
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+          <h2 className="text-2xl font-semibold text-blue-700 mb-6 text-center">
             Available Buttons
           </h2>
-
-          <div className="flex flex-wrap gap-5">
-            <TooltipProvider>
+          {robot.availableButtons.length > 0 ? (
+            <div className="flex flex-wrap justify-center gap-5">
               {robot.availableButtons.map((btn) => (
-                <Tooltip key={btn}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={() =>
-                        navigate(`buttonSettings/${btn}`)
-                      }
-                      className={`${buttonColors[btn] || "bg-gray-400"} text-white text-lg font-semibold px-8 py-4 rounded-2xl shadow-md hover:shadow-lg transition relative`}
-                    >
-                      {btn}
-                      <Settings
-                        size={18}
-                        className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition"
-                      />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p className="text-sm font-medium text-gray-700">Setting</p>
-                  </TooltipContent>
-                </Tooltip>
+                <div
+                  key={btn}
+                  className="flex flex-col items-center gap-2 bg-gray-50 border rounded-2xl p-4 shadow-sm"
+                >
+                  <span className="text-gray-700 font-medium">{btn}</span>
+                  <Button
+                    onClick={() =>
+                      navigate(`/homeDashboard/robotSettings/${id}/button/${btn}`)
+                    }
+                    className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-lg transition"
+                  >
+                    <PlusCircle size={16} />
+                    Add
+                  </Button>
+                </div>
               ))}
-            </TooltipProvider>
-          </div>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center">No available buttons</p>
+          )}
         </motion.div>
       </div>
     </div>

@@ -136,7 +136,7 @@ export default function ProjectForm({ projects = [], onSubmit }) {
             />
           </div>
 
-          <div className="pt-4 flex justify-end">
+          <div className="pt-4 flex md:justify-end">
             <Button
               type="submit"
               className="flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all"

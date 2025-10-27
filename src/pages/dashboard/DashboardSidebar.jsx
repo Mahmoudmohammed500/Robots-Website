@@ -89,20 +89,20 @@ export default function DashboardSidebar({ children }) {
                 <div key={index} className="relative group">
                   <button
                     onClick={() => handleNavigation(item.path)}
-                    className={`flex items-center gap-3 py-3 px-3 rounded-lg font-medium w-full
+                    className={`flex items-center gap-3 py-2 px-2  rounded-lg font-medium w-full
                     transition duration-300 ${
                       active
-                        ? "bg-white/20 text-white"
-                        : "text-white/80 hover:bg-white/15 hover:text-white"
+                        ? "bg-white/20 text-white "
+                        : "text-white/80 hover:bg-white/15 hover:text-white "
                     } ${!isOpen ? "justify-center" : ""}`}
                   >
-                    <Icon size={20} />
+                    <Icon size={22} />
                     {isOpen && <span>{item.name}</span>}
                   </button>
 
                   {!isOpen && (
                     <span
-                      className="absolute left-1/2 -translate-x-1/2 bottom-[110%] bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md"
+                      className="absolute left-1/2 -translate-x-1/2 bottom-[110%] bg-black/80 text-white text-xs px-2  rounded opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md"
                     >
                       {item.name}
                     </span>
@@ -114,10 +114,10 @@ export default function DashboardSidebar({ children }) {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-white/10 p-4 flex flex-col items-center">
+        <div className="border-t border-white/10 p-4 flex flex-col ">
           <button
             onClick={() => navigate("/login")}
-            className={`flex items-center gap-3 text-white/90 font-medium py-2 px-3 rounded-lg hover:bg-white/15 transition w-full ${
+            className={`flex items-center gap-3 text-white/90 font-medium py-2 px-1 rounded-lg hover:bg-white/15 transition w-full ${
               !isOpen ? "justify-center" : "justify-start"
             }`}
           >
@@ -126,9 +126,9 @@ export default function DashboardSidebar({ children }) {
           </button>
 
           {isOpen && (
-            <div className="mt-3 text-xs text-white/60 flex flex-col items-center">
-              <LayoutDashboard size={14} className="mb-1" />
-              <span>© 2025 Dashboard</span>
+            <div className="mt-3 text-xs text-white/60 flex  ">
+              <LayoutDashboard size={14} className="mb-1 me-2" />
+              <span> © 2025 Dashboard</span>
             </div>
           )}
         </div>

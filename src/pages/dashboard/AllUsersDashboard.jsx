@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Edit3, Trash2, UserPlus, XCircle } from "lucide-react";
-import DashboardSidebar from "./DashboardSidebar";
 import { Button } from "@/components/ui/button";
 import imgRobot from "../../assets/Robot1.jpeg";
 
@@ -95,7 +94,7 @@ function AllUsers({ users, onDeleteClick, onEdit }) {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">All Users</h1>
         <Button
-          onClick={() => navigate("add")}
+          onClick={() => navigate("/homeDashboard/addUser")}
           className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color transition-all duration-300 rounded-xl"
         >
           <UserPlus size={18} />
@@ -136,7 +135,7 @@ function AllUsers({ users, onDeleteClick, onEdit }) {
 
             <div className="flex gap-3 mt-5">
               <Button
-                onClick={() => onEdit(user.id)}
+                onClick={() => navigate("/homeDashboard/addUser")}
                 className="flex items-center gap-2 bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color rounded-lg px-4 py-2"
               >
                 <Edit3 size={16} />
@@ -189,7 +188,6 @@ export default function UsersDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <DashboardSidebar />
 
       <div className="flex-1 flex flex-col min-h-screen overflow-auto relative">
         <Routes>

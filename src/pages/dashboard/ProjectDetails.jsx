@@ -151,11 +151,27 @@ export default function ProjectDetails({ projects }) {
               </CardHeader>
 
               <CardContent className="px-4 pb-4 flex gap-2 mt-2">
+                {/* Go to Robot Details */}
+                <div className="relative group">
+                  <Button
+                    variant="outline"
+                    className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
+                    onClick={() =>
+                      navigate(`/homeDashboard/robotDetails/${robot.id}`)
+                    }
+                  >
+                    <ArrowRight size={16} />
+                  </Button>
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition">
+                    Go
+                  </span>
+                </div>
                 {/* Edit Robot */}
                 <div className="relative group">
                   <Button
                     variant="outline"
                     className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors"
+                    onClick={() => navigate("/homeDashboard/addRobot")}
                   >
                     <Edit3 size={16} />
                   </Button>
@@ -181,21 +197,6 @@ export default function ProjectDetails({ projects }) {
                   </span>
                 </div>
 
-                {/* Go to Robot Details */}
-                <div className="relative group">
-                  <Button
-                    variant="outline"
-                    className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
-                    onClick={() =>
-                      navigate(`/homeDashboard/robotDetails/${robot.id}`)
-                    }
-                  >
-                    <ArrowRight size={16} />
-                  </Button>
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition">
-                    Go
-                  </span>
-                </div>
               </CardContent>
             </Card>
           ))}
