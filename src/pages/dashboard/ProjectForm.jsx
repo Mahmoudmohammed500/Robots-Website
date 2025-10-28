@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,32 @@ export default function ProjectForm({ projects = [], onSubmit }) {
   const { id } = useParams();
 
   const editing = Boolean(id);
-  const projectToEdit = projects.find((p) => p.id === parseInt(id));
 
-  const [formData, setFormData] = useState(
-    projectToEdit || {
-      title: "",
-      location: "",
-      description: "",
-      image: null,
-      imagePreview: null,
+  const [formData, setFormData] = useState({
+    title: "",
+    location: "",
+    description: "",
+    image: null,
+    imagePreview: null,
+  });
+
+  // ✅ التعديل هنا — نحسب projectToEdit داخل useEffect
+  useEffect(() => {
+    if (editing && projects.length > 0) {
+      const projectToEdit = projects.find(
+        (p) => String(p.id) === String(id)
+      );
+      if (projectToEdit) {
+        setFormData({
+          title: projectToEdit.title || "",
+          location: projectToEdit.location || "",
+          description: projectToEdit.description || "",
+          image: projectToEdit.image || null,
+          imagePreview: projectToEdit.image || null,
+        });
+      }
     }
-  );
+  }, [editing, id, projects]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -49,14 +64,16 @@ export default function ProjectForm({ projects = [], onSubmit }) {
       <div className="max-w-5xl w-full mx-auto mb-6 flex justify-between items-center">
         <Button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+          className="cursor-pointer flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
         >
           <ArrowLeft size={18} />
           Back
         </Button>
 
         <h1 className="text-3xl font-bold text-main-color text-center w-full pt-16">
-          {editing ? "Edit Robot" : "Add New Project"}
+          {editing
+            ? `Edit Project ${formData.title || ""}`
+            : "Add New Project"}
         </h1>
       </div>
 
@@ -67,7 +84,7 @@ export default function ProjectForm({ projects = [], onSubmit }) {
         onSubmit={handleSubmit}
         className="max-w-5xl w-full mx-auto bg-white/80 backdrop-blur-md border border-gray-200 shadow-2xl rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row gap-10"
       >
-        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl p-6 hover:border-main-color transition relative">
+        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl p-6 hover:border-main-color transition relative cursor-pointer">
           {formData.imagePreview ? (
             <img
               src={formData.imagePreview}
@@ -102,7 +119,7 @@ export default function ProjectForm({ projects = [], onSubmit }) {
               onChange={handleChange}
               placeholder="Enter project name"
               required
-              className="border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
+              className="cursor-pointer border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
             />
           </div>
 
@@ -117,7 +134,7 @@ export default function ProjectForm({ projects = [], onSubmit }) {
               onChange={handleChange}
               placeholder="Enter location"
               required
-              className="border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
+              className="cursor-pointer border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
             />
           </div>
 
@@ -132,14 +149,14 @@ export default function ProjectForm({ projects = [], onSubmit }) {
               placeholder="Describe the project..."
               rows={5}
               required
-              className="border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
+              className="cursor-pointer border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
             />
           </div>
 
           <div className="pt-4 flex md:justify-end">
             <Button
               type="submit"
-              className="flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all"
+              className="cursor-pointer flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all"
             >
               <Save size={22} />
               {editing ? "Save Changes" : "Add Project"}

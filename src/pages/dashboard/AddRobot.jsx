@@ -49,7 +49,8 @@ export default function RobotForm({ robots = [], onSubmit }) {
       <div className="max-w-5xl w-full mx-auto mb-6">
         <Button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+          className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color 
+          rounded-xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
         >
           <ArrowLeft size={18} />
           Back
@@ -67,7 +68,7 @@ export default function RobotForm({ robots = [], onSubmit }) {
         onSubmit={handleSubmit}
         className="max-w-5xl w-full mx-auto bg-white/80 backdrop-blur-md border border-gray-200 shadow-2xl rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row gap-10"
       >
-        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl p-6 hover:border-main-color transition relative">
+        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl p-6 hover:border-main-color transition relative cursor-pointer">
           {formData.imagePreview ? (
             <img
               src={formData.imagePreview}
@@ -138,7 +139,8 @@ export default function RobotForm({ robots = [], onSubmit }) {
           <div className="pt-4 flex justify-end">
             <Button
               type="submit"
-              className="flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all"
+              className="flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color 
+              px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all cursor-pointer"
             >
               <Save size={22} />
               {editing ? "Save Changes" : "Add Robot"}

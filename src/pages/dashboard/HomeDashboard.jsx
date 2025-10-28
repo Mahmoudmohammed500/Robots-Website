@@ -47,7 +47,7 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
                          hover:bg-white hover:text-second-color transition-colors
                          text-sm sm:text-base md:text-lg 
                          px-3 py-2 sm:px-4 sm:py-2 md:px-5 md:py-3
-                         rounded-xl shadow-md hover:shadow-lg"
+                         rounded-xl shadow-md hover:shadow-lg cursor-pointer"
               onClick={() => setShowConfirm(true)}
             >
               <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
@@ -91,7 +91,7 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
                     <div className="relative group">
                       <Button
                         variant="outline"
-                        className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
+                        className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors cursor-pointer"
                         onClick={() => navigate(`projectDetails/${project.id}`)}
                       >
                         <ArrowRight size={16} />
@@ -105,8 +105,8 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
                     <div className="relative group">
                       <Button
                         variant="outline"
-                        className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors"
-                        onClick={() => navigate(`projectForm`)}
+                        className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors cursor-pointer"
+                        onClick={() => navigate(`projectForm/${project.id}`)}
                       >
                         <Edit3 size={16} />
                       </Button>
@@ -119,7 +119,7 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
                     <div className="relative group">
                       <Button
                         variant="outline"
-                        className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-second-color text-white hover:bg-white hover:text-second-color transition-colors"
+                        className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-second-color text-white hover:bg-white hover:text-second-color transition-colors cursor-pointer"
                         onClick={() => {
                           setSelectedProject(project);
                           setShowProjectConfirm(true);
@@ -148,7 +148,7 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
             <div className="bg-white rounded-xl shadow-2xl w-80 p-6 relative">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -162,12 +162,12 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
                 <Button
                   variant="outline"
                   onClick={() => setShowConfirm(false)}
-                  className="border-second-color text-second-color hover:bg-second-color hover:text-white transition-colors"
+                  className="border-second-color text-second-color hover:bg-second-color hover:text-white transition-colors cursor-pointer"
                 >
                   No
                 </Button>
                 <Button
-                  className="bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color transition-colors"
+                  className="bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color transition-colors cursor-pointer"
                   onClick={handleDeleteAll}
                 >
                   Yes
@@ -183,7 +183,7 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
             <div className="bg-white rounded-xl shadow-2xl w-80 p-6 relative">
               <button
                 onClick={() => setShowProjectConfirm(false)}
-                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -197,15 +197,13 @@ export default function HomeDashboard({ projects, onDeleteProject }) {
                 <Button
                   variant="outline"
                   onClick={() => setShowProjectConfirm(false)}
-                  className="border-second-color text-second-color hover:bg-second-color hover:text-white transition-colors"
+                  className="border-second-color text-second-color hover:bg-second-color hover:text-white transition-colors cursor-pointer"
                 >
                   No
                 </Button>
                 <Button
-                  className="bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color transition-colors"
-                  onClick={() =>
-                    handleDeleteSingleProject(selectedProject.id)
-                  }
+                  className="bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color transition-colors cursor-pointer"
+                  onClick={() => handleDeleteSingleProject(selectedProject.id)}
                 >
                   Yes
                 </Button>

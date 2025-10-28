@@ -29,19 +29,17 @@ export default function DashboardSidebar({ children }) {
 
   return (
     <div className="flex bg-gray-50 min-h-screen max-lg:w-0">
+      {/* ===== Sidebar (Desktop) ===== */}
       <div
         className={`hidden lg:flex fixed top-0 left-0 h-screen bg-linear-to-b from-main-color to-second-color text-white 
         shadow-2xl border-r border-main-color/20 z-50 transition-all duration-300 ease-in-out 
         ${isOpen ? "w-72" : "w-16"} flex-col justify-between`}
       >
         <div>
+          {/* ===== Logo & Admin Info ===== */}
           <div className="flex items-center justify-between px-3 py-5 border-b border-white/10">
             {isOpen ? (
-              <div
-                className="flex items-center gap-3 pl-2 cursor-pointer"
-                onClick={() => navigate("/login")}
-                title="Go to Login"
-              >
+              <div className="flex items-center gap-3 pl-2 select-none">
                 <img
                   src={Logo}
                   alt="Admin Logo"
@@ -56,15 +54,13 @@ export default function DashboardSidebar({ children }) {
               <img
                 src={Logo}
                 alt="Logo"
-                onClick={() => navigate("/login")}
-                title="Go to Login"
-                className="h-10 w-10 object-contain mx-auto rounded-full bg-white p-1 cursor-pointer"
+                className="h-10 w-10 object-contain mx-auto rounded-full bg-white p-1 select-none"
               />
             )}
 
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className={`p-2 ml-auto rounded-full transition shadow-md
+              className={`p-2 ml-auto rounded-full transition shadow-md cursor-pointer
                 ${
                   isOpen
                     ? "hover:bg-white/20 text-white"
@@ -76,7 +72,7 @@ export default function DashboardSidebar({ children }) {
             </button>
           </div>
 
-          {/* Menu items */}
+          {/* ===== Menu items ===== */}
           <nav
             className={`flex flex-col gap-2 p-4 ${
               isOpen ? "overflow-y-auto" : "overflow-hidden"
@@ -89,11 +85,11 @@ export default function DashboardSidebar({ children }) {
                 <div key={index} className="relative group">
                   <button
                     onClick={() => handleNavigation(item.path)}
-                    className={`flex items-center gap-3 py-2 px-2  rounded-lg font-medium w-full
+                    className={`flex items-center gap-3 py-2 px-2 rounded-lg font-medium w-full cursor-pointer
                     transition duration-300 ${
                       active
-                        ? "bg-white/20 text-white "
-                        : "text-white/80 hover:bg-white/15 hover:text-white "
+                        ? "bg-white/20 text-white"
+                        : "text-white/80 hover:bg-white/15 hover:text-white"
                     } ${!isOpen ? "justify-center" : ""}`}
                   >
                     <Icon size={22} />
@@ -102,7 +98,7 @@ export default function DashboardSidebar({ children }) {
 
                   {!isOpen && (
                     <span
-                      className="absolute left-1/2 -translate-x-1/2 bottom-[110%] bg-black/80 text-white text-xs px-2  rounded opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md"
+                      className="absolute left-1/2 -translate-x-1/2 bottom-[110%] bg-black/80 text-white text-xs px-2 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md"
                     >
                       {item.name}
                     </span>
@@ -113,11 +109,11 @@ export default function DashboardSidebar({ children }) {
           </nav>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-white/10 p-4 flex flex-col ">
+        {/* ===== Footer ===== */}
+        <div className="border-t border-white/10 p-4 flex flex-col">
           <button
             onClick={() => navigate("/login")}
-            className={`flex items-center gap-3 text-white/90 font-medium py-2 px-1 rounded-lg hover:bg-white/15 transition w-full ${
+            className={`flex items-center gap-3 text-white/90 font-medium py-2 px-1 rounded-lg hover:bg-white/15 transition w-full cursor-pointer ${
               !isOpen ? "justify-center" : "justify-start"
             }`}
           >
@@ -126,7 +122,7 @@ export default function DashboardSidebar({ children }) {
           </button>
 
           {isOpen && (
-            <div className="mt-3 text-xs text-white/60 flex  ">
+            <div className="mt-3 text-xs text-white/60 flex">
               <LayoutDashboard size={14} className="mb-1 me-2" />
               <span> © 2025 Dashboard</span>
             </div>
@@ -134,12 +130,9 @@ export default function DashboardSidebar({ children }) {
         </div>
       </div>
 
+      {/* ===== Mobile Header ===== */}
       <header className="lg:hidden fixed top-0 left-0 right-0 bg-linear-to-r from-main-color to-second-color text-white flex items-center justify-between px-4 py-3 z-50 shadow-md">
-        <div
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => navigate("/login")}
-          title="Go to Login"
-        >
+        <div className="flex items-center gap-2 select-none">
           <img
             src={Logo}
             alt="Logo"
@@ -160,7 +153,7 @@ export default function DashboardSidebar({ children }) {
                 key={index}
                 onClick={() => handleNavigation(item.path)}
                 title={item.name}
-                className={`relative group transition ${
+                className={`relative group transition cursor-pointer ${
                   active
                     ? "text-white drop-shadow-md"
                     : "text-white/70 hover:text-white"
@@ -178,13 +171,14 @@ export default function DashboardSidebar({ children }) {
           <button
             onClick={() => navigate("/login")}
             title="Logout"
-            className="text-white/70 hover:text-white transition"
+            className="text-white/70 hover:text-white transition cursor-pointer"
           >
             <LogOut size={22} />
           </button>
         </nav>
       </header>
 
+      {/* ===== Main Content ===== */}
       <main
         className={`flex-1 transition-all duration-300 ease-in-out overflow-y-auto pt-[70px] lg:pt-0 
         ${isOpen ? "lg:pl-[18rem]" : "lg:pl-[4rem]"}`}

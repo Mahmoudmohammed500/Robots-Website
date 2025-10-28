@@ -13,7 +13,7 @@ export default function AddUser() {
       <div className="w-full max-w-2xl relative">
         <Button
           onClick={() => navigate(-1)}
-          className="absolute -top-10 left-0 flex items-center gap-2 bg-transparent text-main-color border border-main-color hover:bg-main-color/10"
+          className="absolute -top-10 left-0 flex items-center gap-2 bg-transparent text-main-color border border-main-color hover:bg-main-color/10 cursor-pointer"
         >
           <ArrowLeft size={18} />
           Back
@@ -96,7 +96,7 @@ export default function AddUser() {
 
               {/* Submit Button */}
               <div className="sm:col-span-2 flex justify-center pt-4">
-                <Button className="w-full sm:w-1/2 h-12 bg-main-color text-white text-lg rounded-xl hover:bg-main-color/90 transition-all">
+                <Button className="w-full sm:w-1/2 h-12 bg-main-color text-white text-lg rounded-xl hover:bg-main-color/90 transition-all cursor-pointer">
                   Add User
                 </Button>
               </div>

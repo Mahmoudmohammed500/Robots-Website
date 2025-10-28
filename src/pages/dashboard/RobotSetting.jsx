@@ -42,7 +42,7 @@ export default function RobotSettings() {
         <p className="mb-4 text-lg font-medium">Loading robot settings...</p>
         <Button
           onClick={() => navigate(-1)}
-          className="bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color"
+          className="cursor-pointer bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color"
         >
           <ArrowLeft size={18} /> Back
         </Button>
@@ -64,7 +64,7 @@ export default function RobotSettings() {
       <div className="w-full max-w-4xl mx-auto mb-8">
         <Button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 bg-main-color text-white 
+          className="cursor-pointer flex items-center gap-2 bg-main-color text-white 
                      hover:bg-white hover:text-main-color border border-main-color 
                      rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
         >
@@ -84,7 +84,6 @@ export default function RobotSettings() {
 
       {/* Lists */}
       <div className="w-full max-w-4xl mx-auto flex flex-col gap-10">
-
         {/* Active Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -102,7 +101,7 @@ export default function RobotSettings() {
                   onClick={() =>
                     navigate(`/homeDashboard/robotSettings/${id}/button/${btn}`)
                   }
-                  className={`${buttonColors[btn] || "bg-gray-400"} 
+                  className={`cursor-pointer ${buttonColors[btn] || "bg-gray-400"} 
                               text-white text-lg font-semibold px-8 py-4 rounded-2xl 
                               shadow-md hover:shadow-lg transition`}
                 >
@@ -137,7 +136,7 @@ export default function RobotSettings() {
                     onClick={() =>
                       navigate(`/homeDashboard/robotSettings/${id}/button/${btn}`)
                     }
-                    className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-lg transition"
+                    className="cursor-pointer flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-lg transition"
                   >
                     <PlusCircle size={16} />
                     Add

@@ -63,7 +63,7 @@ export default function ProjectDetails({ projects }) {
       <div className="mb-6">
         <Button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 bg-main-color text-white border border-main-color 
+          className="cursor-pointer flex items-center gap-2 bg-main-color text-white border border-main-color 
                      hover:bg-white hover:text-main-color transition-colors
                      px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
         >
@@ -93,33 +93,27 @@ export default function ProjectDetails({ projects }) {
         <h2 className="text-2xl font-bold text-gray-800">Project Robots</h2>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Add Robot */}
           <Button
             onClick={() => navigate("/homeDashboard/addRobot")}
-            className="
-              flex items-center justify-center gap-2 
+            className="cursor-pointer flex items-center justify-center gap-2 
               bg-main-color text-white border border-main-color 
               hover:bg-white hover:text-main-color transition-colors
               text-sm sm:text-base md:text-lg 
               px-3 py-2 sm:px-4 sm:py-2 md:px-5 md:py-3
-              rounded-xl shadow-md hover:shadow-lg
-            "
+              rounded-xl shadow-md hover:shadow-lg"
           >
             <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
             <span>Add Robot</span>
           </Button>
 
-          {/* Delete All Robots */}
           <Button
             onClick={handleDeleteAll}
-            className="
-              flex items-center justify-center gap-2 
+            className="cursor-pointer flex items-center justify-center gap-2 
               bg-second-color text-white border border-second-color 
               hover:bg-white hover:text-second-color transition-colors
               text-sm sm:text-base md:text-lg 
               px-3 py-2 sm:px-4 sm:py-2 md:px-5 md:py-3
-              rounded-xl shadow-md hover:shadow-lg
-            "
+              rounded-xl shadow-md hover:shadow-lg"
           >
             <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
             <span>Delete All</span>
@@ -151,11 +145,10 @@ export default function ProjectDetails({ projects }) {
               </CardHeader>
 
               <CardContent className="px-4 pb-4 flex gap-2 mt-2">
-                {/* Go to Robot Details */}
                 <div className="relative group">
                   <Button
                     variant="outline"
-                    className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
+                    className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
                     onClick={() =>
                       navigate(`/homeDashboard/robotDetails/${robot.id}`)
                     }
@@ -166,12 +159,12 @@ export default function ProjectDetails({ projects }) {
                     Go
                   </span>
                 </div>
-                {/* Edit Robot */}
+
                 <div className="relative group">
                   <Button
                     variant="outline"
-                    className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors"
-                    onClick={() => navigate("/homeDashboard/addRobot")}
+                    className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors"
+                    onClick={() => navigate(`/homeDashboard/addRobot/${robot.id}`)}
                   >
                     <Edit3 size={16} />
                   </Button>
@@ -180,11 +173,10 @@ export default function ProjectDetails({ projects }) {
                   </span>
                 </div>
 
-                {/* Delete Robot */}
                 <div className="relative group">
                   <Button
                     variant="outline"
-                    className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-second-color text-white hover:bg-white hover:text-second-color transition-colors"
+                    className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-second-color text-white hover:bg-white hover:text-second-color transition-colors"
                     onClick={() => {
                       setSelectedRobot(robot);
                       setShowRobotConfirm(true);
@@ -196,7 +188,6 @@ export default function ProjectDetails({ projects }) {
                     Delete
                   </span>
                 </div>
-
               </CardContent>
             </Card>
           ))}
@@ -221,12 +212,12 @@ export default function ProjectDetails({ projects }) {
               <Button
                 variant="outline"
                 onClick={() => setShowRobotConfirm(false)}
-                className="border-second-color text-second-color hover:bg-second-color hover:text-white transition-colors"
+                className="cursor-pointer border-second-color text-second-color hover:bg-second-color hover:text-white transition-colors"
               >
                 No
               </Button>
               <Button
-                className="bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color transition-colors"
+                className="cursor-pointer bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color transition-colors"
                 onClick={() => handleDeleteRobot(selectedRobot.id)}
               >
                 Yes

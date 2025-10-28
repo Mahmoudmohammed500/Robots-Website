@@ -62,9 +62,12 @@ export default function Dashboard() {
         <Route path="projectDetails/:id" element={<ProjectDetails projects={projects} />} />
         <Route path="robotDetails/:id" element={<RobotDetails />} />
         <Route path="projectForm" element={<ProjectForm/>} />
+        <Route path="projectForm/:id" element={<ProjectForm />} />
+
         <Route path="allUsers" element={<AllUsersDashboard/>} />
         <Route path="adduser" element={<AddUser/>} />
         <Route path="addRobot" element={<RobotForm/>} />
+        <Route path="addRobot/:id" element={<RobotForm/>} />
         <Route path="robotDetails/:id/robotSettings/:id" element={<RobotSettings robots={robots} />} />
         <Route
           path="robotSettings/:id/button/:buttonName"

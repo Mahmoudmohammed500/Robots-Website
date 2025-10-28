@@ -23,7 +23,7 @@ export default function RobotDetails({ projects }) {
       <div className="w-3/4 mb-8 mx-auto">
         <Button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 bg-main-color text-white 
+          className="cursor-pointer flex items-center gap-2 bg-main-color text-white 
                      hover:bg-white hover:text-main-color border border-main-color 
                      rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
         >
@@ -35,7 +35,7 @@ export default function RobotDetails({ projects }) {
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
         className="w-6/7 md:w-3/4 bg-white/80 backdrop-blur-md shadow-2xl mx-auto
                    rounded-3xl border border-gray-200 overflow-hidden 
                    grid grid-cols-1 lg:grid-cols-2"
@@ -100,7 +100,7 @@ export default function RobotDetails({ projects }) {
           >
             <Button
               onClick={() => navigate(`robotSettings/${robot.id}`)}
-              className="flex items-center gap-2 bg-second-color text-white border border-second-color 
+              className="cursor-pointer flex items-center gap-2 bg-second-color text-white border border-second-color 
                          hover:bg-white hover:text-second-color transition-all duration-300
                          px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium"
             >

@@ -68,13 +68,13 @@ function ConfirmDeleteModal({ user, onConfirm, onCancel }) {
             <div className="flex justify-center gap-4">
               <Button
                 onClick={onCancel}
-                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-6 rounded-xl transition-all"
+                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-6 rounded-xl transition-all cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 onClick={() => onConfirm(user.id)}
-                className="bg-red-500 text-white hover:bg-white hover:text-red-500 border border-red-500 px-6 rounded-xl transition-all"
+                className="bg-red-500 text-white hover:bg-white hover:text-red-500 border border-red-500 px-6 rounded-xl transition-all cursor-pointer"
               >
                 Confirm
               </Button>
@@ -95,7 +95,7 @@ function AllUsers({ users, onDeleteClick, onEdit }) {
         <h1 className="text-2xl font-bold text-gray-800">All Users</h1>
         <Button
           onClick={() => navigate("/homeDashboard/addUser")}
-          className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color transition-all duration-300 rounded-xl"
+          className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color transition-all duration-300 rounded-xl cursor-pointer"
         >
           <UserPlus size={18} />
           Add User
@@ -123,10 +123,12 @@ function AllUsers({ users, onDeleteClick, onEdit }) {
 
             <div className="text-left w-full border-t border-gray-100 pt-3 text-sm text-gray-600 space-y-1">
               <p>
-                <strong className="text-main-color">Project:</strong> {user.project}
+                <strong className="text-main-color">Project:</strong>{" "}
+                {user.project}
               </p>
               <p>
-                <strong className="text-main-color">Password:</strong> {user.password}
+                <strong className="text-main-color">Password:</strong>{" "}
+                {user.password}
               </p>
               <p>
                 <strong className="text-main-color">Phone:</strong> {user.phone}
@@ -136,14 +138,14 @@ function AllUsers({ users, onDeleteClick, onEdit }) {
             <div className="flex gap-3 mt-5">
               <Button
                 onClick={() => navigate("/homeDashboard/addUser")}
-                className="flex items-center gap-2 bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color rounded-lg px-4 py-2"
+                className="flex items-center gap-2 bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color rounded-lg px-4 py-2 cursor-pointer"
               >
                 <Edit3 size={16} />
                 Edit
               </Button>
               <Button
                 onClick={() => onDeleteClick(user)}
-                className="flex items-center gap-2 bg-red-500 text-white hover:bg-white hover:text-red-500 border border-red-500 rounded-lg px-4 py-2"
+                className="flex items-center gap-2 bg-red-500 text-white hover:bg-white hover:text-red-500 border border-red-500 rounded-lg px-4 py-2 cursor-pointer"
               >
                 <Trash2 size={16} />
                 Delete
@@ -188,7 +190,6 @@ export default function UsersDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-
       <div className="flex-1 flex flex-col min-h-screen overflow-auto relative">
         <Routes>
           <Route
