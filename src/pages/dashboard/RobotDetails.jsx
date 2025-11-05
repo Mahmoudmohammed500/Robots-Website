@@ -93,6 +93,7 @@ export default function RobotDetails() {
           </div>
 
           <div className="pt-6">
+            
             <Button
               onClick={() => navigate(`/homeDashboard/robotSettings/${robot.id}`)}
               className="flex items-center gap-2 bg-second-color text-white border border-second-color 
