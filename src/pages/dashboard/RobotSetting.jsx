@@ -3,151 +3,182 @@ import { ArrowLeft, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { getData } from "@/services/getServices";
+import { postData } from "@/services/postServices";
 
 export default function RobotSettings() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [robot, setRobot] = useState(null);
+  const [buttons, setButtons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
 
-  const allRobots = [
-    {
-      id: 1,
-      name: "Robot Alpha",
-      activeButtons: ["STOP", "START", "BACKWARD", "FORWARD"],
-      availableButtons: ["SCHEDULING"],
-    },
-    {
-      id: 2,
-      name: "Robot Beta",
-      activeButtons: ["STOP", "FORWARD"],
-      availableButtons: ["SCHEDULING", "BACKWARD"],
-    },
-    {
-      id: 3,
-      name: "Robot Gamma",
-      activeButtons: ["START", "FORWARD", "BACKWARD"],
-      availableButtons: ["STOP"],
-    },
-  ];
+  const ALL_NAMES = ["start", "stop", "forward", "backward", "scheduling"];
+
+  const defaultButtonColors = {
+    STOP: "#ef4444",
+    START: "#22c55e",
+    BACKWARD: "#facc15",
+    SCHEDULING: "#0ea5e9",
+    FORWARD: "#6366f1",
+  };
+
+  const fetchRobotData = async () => {
+    try {
+      setLoading(true);
+      const robotData = await getData(`/robots.php/${id}`);
+      setRobot(robotData);
+
+      const rawButtons = await getData(`/buttons.php`);
+      const arr = Array.isArray(rawButtons)
+        ? rawButtons
+        : rawButtons?.data || [];
+
+      const robotButtons = arr
+        .filter((b) => String(b.RobotId) === String(id))
+        .map((b) => ({
+          id: b.BtnID ?? b.id,
+          name: (b.BtnName ?? b.name ?? "").toString(),
+          color: b.Color ?? null,
+          operation: b.Operation ?? null,
+          RobotId: b.RobotId ?? b.robotId ?? null,
+        }));
+
+      setButtons(robotButtons);
+    } catch (err) {
+      console.error(" Failed to fetch robot data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const found = allRobots.find((r) => r.id === parseInt(id));
-    setRobot(found || null);
+    fetchRobotData();
+
+    const updated = sessionStorage.getItem("robotUpdated");
+    if (updated === "true") {
+      fetchRobotData();
+      sessionStorage.removeItem("robotUpdated");
+    }
   }, [id]);
 
-  if (!robot) {
+  const refreshButtons = async () => {
+    try {
+      const rawButtons = await getData(`/buttons.php`);
+      const arr = Array.isArray(rawButtons)
+        ? rawButtons
+        : rawButtons?.data || [];
+
+      const robotButtons = arr
+        .filter((b) => String(b.RobotId) === String(id))
+        .map((b) => ({
+          id: b.BtnID ?? b.id,
+          name: (b.BtnName ?? b.name ?? "").toString(),
+          color: b.Color ?? null,
+          operation: b.Operation ?? null,
+          RobotId: b.RobotId ?? b.robotId ?? null,
+        }));
+
+      setButtons(robotButtons);
+    } catch (err) {
+      console.error(" Failed to refresh buttons:", err);
+    }
+  };
+
+  const activeNames = buttons.map((b) => b.name.toLowerCase());
+  const availableNames = ALL_NAMES.filter((n) => !activeNames.includes(n));
+
+  if (loading)
     return (
-      <div className="flex flex-col items-center justify-center h-screen text-gray-600">
-        <p className="mb-4 text-lg font-medium">Loading robot settings...</p>
+      <div className="flex justify-center items-center h-screen text-gray-600">
+        Loading...
+      </div>
+    );
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
+      <div className="w-full max-w-4xl mx-auto mb-6">
         <Button
           onClick={() => navigate(-1)}
-          className="cursor-pointer bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color"
+          className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color"
         >
           <ArrowLeft size={18} /> Back
         </Button>
       </div>
-    );
-  }
 
-  const buttonColors = {
-    STOP: "bg-red-500 hover:bg-red-600",
-    START: "bg-green-500 hover:bg-green-600",
-    BACKWARD: "bg-yellow-400 hover:bg-yellow-500 text-black",
-    SCHEDULING: "bg-sky-500 hover:bg-sky-600",
-    FORWARD: "bg-indigo-500 hover:bg-indigo-600",
-  };
+      <h1 className="text-3xl font-bold text-center mb-10 text-gray-800">
+        {robot?.RobotName} Settings
+      </h1>
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-200 flex flex-col p-6 sm:p-10">
-      {/* Back button */}
-      <div className="w-full max-w-4xl mx-auto mb-8">
-        <Button
-          onClick={() => navigate(-1)}
-          className="cursor-pointer flex items-center gap-2 bg-main-color text-white 
-                     hover:bg-white hover:text-main-color border border-main-color 
-                     rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
-        >
-          <ArrowLeft size={18} />
-          Back
-        </Button>
+      {/*  Active Buttons */}
+      <div className="bg-white p-8 rounded-3xl shadow-lg mb-10">
+        <h2 className="text-2xl text-green-700 text-center mb-6">
+          Active Buttons
+        </h2>
+
+        {buttons.length > 0 ? (
+          <div className="flex flex-wrap justify-center gap-5">
+            {buttons.map((btn) => {
+              const color =
+                btn.color ||
+                defaultButtonColors[btn.name?.toUpperCase()] ||
+                "#6b7280";
+              return (
+                <Button
+                  key={btn.id}
+                  onClick={() =>
+                    navigate(
+                      `/homeDashboard/robotSettings/${id}/button/${btn.id}`
+                    )
+                  }
+                  style={{ backgroundColor: color, color: "#fff" }}
+                  className="px-8 py-4 rounded-2xl text-lg font-semibold shadow hover:shadow-lg transition"
+                >
+                  {btn.name}
+                </Button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500">No active buttons</p>
+        )}
       </div>
 
-      {/* Title */}
-      <motion.h1
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-3xl sm:text-4xl font-bold text-gray-800 text-center mb-10"
-      >
-        {robot.name} Settings
-      </motion.h1>
+      {/*  Available Buttons */}
+      <div className="bg-white p-8 rounded-3xl shadow-lg">
+        <h2 className="text-2xl text-blue-700 text-center mb-6">
+          Available Buttons
+        </h2>
 
-      {/* Lists */}
-      <div className="w-full max-w-4xl mx-auto flex flex-col gap-10">
-        {/* Active Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white/90 backdrop-blur-md shadow-xl rounded-3xl border border-gray-200 p-8"
-        >
-          <h2 className="text-2xl font-semibold text-green-700 mb-6 text-center">
-            Active Buttons
-          </h2>
-          {robot.activeButtons.length > 0 ? (
-            <div className="flex flex-wrap justify-center gap-5">
-              {robot.activeButtons.map((btn) => (
+        {availableNames.length > 0 ? (
+          <div className="flex flex-wrap justify-center gap-5">
+            {availableNames.map((name) => (
+              <div
+                key={name}
+                className="flex flex-col items-center gap-3 bg-gray-50 border border-gray-200 rounded-3xl p-5 w-40 shadow-sm hover:shadow-md transition"
+              >
                 <Button
-                  key={btn}
-                  onClick={() =>
-                    navigate(`/homeDashboard/robotSettings/${id}/button/${btn}`)
-                  }
-                  className={`cursor-pointer ${buttonColors[btn] || "bg-gray-400"} 
-                              text-white text-lg font-semibold px-8 py-4 rounded-2xl 
-                              shadow-md hover:shadow-lg transition`}
-                >
-                  {btn}
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center">No active buttons</p>
-          )}
-        </motion.div>
+  onClick={() =>
+    navigate(
+      `/homeDashboard/robotSettings/${id}/button/new?name=${name}`
+    )
+  }
+  disabled={adding}
+  className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl px-5 py-2 transition-all"
+>
+  <PlusCircle size={16} />
+  {adding ? "Adding..." : "Add"}
+</Button>
 
-        {/* Available Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white/90 backdrop-blur-md shadow-xl rounded-3xl border border-gray-200 p-8"
-        >
-          <h2 className="text-2xl font-semibold text-blue-700 mb-6 text-center">
-            Available Buttons
-          </h2>
-          {robot.availableButtons.length > 0 ? (
-            <div className="flex flex-wrap justify-center gap-5">
-              {robot.availableButtons.map((btn) => (
-                <div
-                  key={btn}
-                  className="flex flex-col items-center gap-2 bg-gray-50 border rounded-2xl p-4 shadow-sm"
-                >
-                  <span className="text-gray-700 font-medium">{btn}</span>
-                  <Button
-                    onClick={() =>
-                      navigate(`/homeDashboard/robotSettings/${id}/button/${btn}`)
-                    }
-                    className="cursor-pointer flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-lg transition"
-                  >
-                    <PlusCircle size={16} />
-                    Add
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center">No available buttons</p>
-          )}
-        </motion.div>
+                <p className="capitalize text-gray-700">{name}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500">No available buttons</p>
+        )}
       </div>
     </div>
   );

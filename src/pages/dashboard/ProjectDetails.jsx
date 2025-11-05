@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Trash2, Edit3, PlusCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Trash2, Edit3, PlusCircle, ArrowLeft, ArrowRight, XCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,51 +9,163 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
+import { getData } from "@/services/getServices";
+import { deleteData } from "@/services/deleteServices";
 import RobotImg from "../../assets/Robot1.jpeg";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function ProjectDetails({ projects }) {
-  const { id } = useParams();
+// Confirm Delete Modal Component
+function ConfirmDeleteModal({
+  robot = null,
+  deleteAll = false,
+  onConfirm,
+  onCancel,
+}) {
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: -30 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: -30 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white rounded-2xl shadow-2xl p-8 w-[90%] max-w-md text-center border border-gray-200"
+        >
+          <XCircle
+            size={48}
+            className="mx-auto text-red-500 mb-4 animate-pulse"
+          />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Confirm Delete
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {deleteAll ? (
+              <>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-main-color">
+                  all robots
+                </span>
+                ? This action cannot be undone.
+              </>
+            ) : (
+              <>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-main-color">
+                  {robot?.RobotName}
+                </span>
+                ? This action cannot be undone.
+              </>
+            )}
+          </p>
+
+          <div className="flex justify-center gap-4">
+            <Button
+              onClick={onCancel}
+              className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-6 rounded-xl transition-all cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={onConfirm}
+              className="bg-red-500 text-white hover:bg-white hover:text-red-500 border border-red-500 px-6 rounded-xl transition-all cursor-pointer"
+            >
+              Confirm
+            </Button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+export default function ProjectDetails() {
+  const { id } = useParams(); // projectId
   const navigate = useNavigate();
-  const project = projects.find((p) => p.id === parseInt(id));
 
-  const [robots, setRobots] = useState([
-    {
-      id: 1,
-      name: "Robot Alpha",
-      description: "Performs automated assembly tasks.",
-      image: RobotImg,
-    },
-    {
-      id: 2,
-      name: "Robot Beta",
-      description: "Handles quality inspection in production line.",
-      image: RobotImg,
-    },
-    {
-      id: 3,
-      name: "Robot Gamma",
-      description: "Supports logistics and material handling.",
-      image: RobotImg,
-    },
-  ]);
+  const [project, setProject] = useState(null);
+  const [robots, setRobots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // States for delete modals
+  const [robotToDelete, setRobotToDelete] = useState(null);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
-  const [showRobotConfirm, setShowRobotConfirm] = useState(false);
-  const [selectedRobot, setSelectedRobot] = useState(null);
+  useEffect(() => {
+    const fetchProjectAndRobots = async () => {
+      try {
+        const projectData = await getData(`/projects.php/${id}`);
+        setProject(projectData);
 
-  const handleDeleteRobot = (id) => {
-    setRobots((prev) => prev.filter((r) => r.id !== id));
-    setShowRobotConfirm(false);
-    setSelectedRobot(null);
+        // Fetch robots and filter locally if API doesn't support query param
+        try {
+          const robotsData = await getData(`/robots.php/${id}`);
+          if (Array.isArray(robotsData)) {
+            setRobots(robotsData);
+          } else {
+            const all = await getData("/robots.php/${id}");
+            setRobots((all || []).filter((r) => String(r.projectId) === String(id) || String(r.project_id) === String(id)));
+          }
+        } catch (err) {
+          const all = await getData("/robots.php/${id}");
+          setRobots((all || []).filter((r) => String(r.projectId) === String(id) || String(r.project_id) === String(id)));
+        }
+      } catch (error) {
+        console.error("Error fetching project or robots:", error);
+        toast.error("Failed to load project details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjectAndRobots();
+  }, [id]);
+
+  const handleDeleteRobot = async (robotId) => {
+    try {
+      await deleteData(`/robots.php/${robotId}`);
+      setRobots((prev) => prev.filter((r) => r.id !== robotId));
+      toast.success("Robot deleted successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete robot.");
+    } finally {
+      setRobotToDelete(null);
+    }
   };
 
-  const handleDeleteAll = () => {
-    setRobots([]);
+  const handleDeleteAllRobots = async () => {
+    try {
+      for (const robot of robots) {
+        await deleteData(`/robots.php/${robot.id}`);
+      }
+      setRobots([]);
+      toast.success("All robots deleted successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete all robots.");
+    } finally {
+      setShowDeleteAllModal(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center">
+        <div className="text-gray-500 mb-4 text-lg">Loading project...</div>
+      </div>
+    );
+  }
 
   if (!project) {
     return (
       <div className="p-6 text-center">
-        <div className="text-gray-500 mb-4 text-lg">Project not found.</div>
+        <div className="text-second-color text-lg">Project not found.</div>
       </div>
     );
   }
@@ -72,56 +184,57 @@ export default function ProjectDetails({ projects }) {
         </Button>
       </div>
 
-      {/* Project Info Card */}
+      {/* Project card */}
       <Card className="mb-8 shadow-lg rounded-xl border border-gray-200 pt-0">
-        <CardHeader className="bg-gradient-to-r from-main-color to-second-color text-white rounded-t-xl">
+        <CardHeader className="bg-linear-to-r from-main-color to-second-color text-white rounded-t-xl">
           <CardTitle className="text-2xl font-bold py-2">
-            {project.title}
+            {project.ProjectName}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <p className="text-gray-600 mb-4 text-lg">{project.description}</p>
+          <p className="text-gray-600 mb-4 text-lg">{project.Description}</p>
           <div className="flex items-center gap-2 text-gray-500">
             <span className="font-semibold">Location:</span>
-            <span>{project.location}</span>
+            <span>{project.Location}</span>
           </div>
+
+          {project.Image && project.Image !== "Array" && (
+            <img
+              src={`http://localhost/robots_web_apis/${project.Image}`}
+              alt={project.ProjectName}
+              className="h-64 w-full object-cover rounded-lg mt-4"
+            />
+          )}
         </CardContent>
       </Card>
 
-      {/* Robots Section Header */}
+      {/* Robots header + actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Project Robots</h2>
-
         <div className="flex items-center gap-3 flex-wrap">
           <Button
-            onClick={() => navigate("/homeDashboard/addRobot")}
-            className="cursor-pointer flex items-center justify-center gap-2 
-              bg-main-color text-white border border-main-color 
-              hover:bg-white hover:text-main-color transition-colors
-              text-sm sm:text-base md:text-lg 
-              px-3 py-2 sm:px-4 sm:py-2 md:px-5 md:py-3
-              rounded-xl shadow-md hover:shadow-lg"
+            onClick={() =>
+              navigate(`/homeDashboard/addRobot/${id}`, {
+                state: { projectId: id, projectName: project.ProjectName },
+              })
+            }
+            className="flex items-center gap-2 cursor-pointer bg-main-color text-white border border-main-color hover:bg-white hover:text-main-color px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
           >
-            <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-            <span>Add Robot</span>
+            <PlusCircle size={18} /> Add Robot
           </Button>
 
-          <Button
-            onClick={handleDeleteAll}
-            className="cursor-pointer flex items-center justify-center gap-2 
-              bg-second-color text-white border border-second-color 
-              hover:bg-white hover:text-second-color transition-colors
-              text-sm sm:text-base md:text-lg 
-              px-3 py-2 sm:px-4 sm:py-2 md:px-5 md:py-3
-              rounded-xl shadow-md hover:shadow-lg"
-          >
-            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-            <span>Delete All</span>
-          </Button>
+          {robots.length > 0 && (
+            <Button
+              onClick={() => setShowDeleteAllModal(true)}
+              className="flex items-center gap-2 cursor-pointer bg-second-color text-white border border-secondbg-second-color hover:bg-white hover:text-second-color px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
+            >
+              <Trash2 size={18} /> Delete All Robots
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Robots Grid */}
+      {/* Robots grid */}
       {robots.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {robots.map((robot) => (
@@ -130,63 +243,100 @@ export default function ProjectDetails({ projects }) {
               className="overflow-hidden shadow-lg pt-0 hover:shadow-xl transition rounded-xl border border-gray-200"
             >
               <img
-                src={robot.image}
-                alt={robot.name}
+                src={
+                  robot.Image
+                    ? `http://localhost/robots_web_apis/${robot.Image}`
+                    : RobotImg
+                }
+                alt={robot.RobotName}
                 className="h-56 w-full object-cover"
               />
-
               <CardHeader className="pb-2 px-4 pt-4">
                 <CardTitle className="text-xl font-semibold text-gray-800">
-                  {robot.name}
+                  {robot.RobotName}
                 </CardTitle>
                 <CardDescription className="text-gray-600 mt-1">
-                  {robot.description}
+                  Voltage: {robot.Voltage}V — Cycles: {robot.Cycles}
                 </CardDescription>
+                <div className="text-gray-500 text-sm mt-1">
+                  Status:{" "}
+                  <span
+                    className={`font-semibold ${
+                      robot.Status === "Running" ? "text-green-600" : "text-secondbg-second-color"
+                    }`}
+                  >
+                    {robot.Status}
+                  </span>
+                </div>
               </CardHeader>
+
+              <CardContent className="px-4 pb-4 flex flex-wrap gap-2 mt-2">
+                {(() => {
+                  let activeBtns = [];
+
+                  if (Array.isArray(robot.ActiveBtns)) {
+                    activeBtns = robot.ActiveBtns;
+                  } else if (typeof robot.ActiveBtns === "string") {
+                    try {
+                      activeBtns = JSON.parse(robot.ActiveBtns);
+                    } catch {
+                      activeBtns = [];
+                    }
+                  }
+
+                 //  ignore undefined or empty BtnName
+return activeBtns
+  .filter(
+    (btn) =>
+      btn &&
+      (btn.BtnName || btn.name) &&
+      (btn.BtnName !== "undefined" && btn.name !== "undefined")
+  )
+  .map((btn, i) => (
+    <Button
+      key={btn.BtnID || btn.id || i}
+      className="bg-gray-100 text-gray-700 border border-gray-300 hover:bg-main-color hover:text-white transition-all px-3 py-1 text-sm rounded-lg"
+    >
+      {btn.BtnName || btn.name || "Button"}
+    </Button>
+  ));
+
+                })()}
+              </CardContent>
 
               <CardContent className="px-4 pb-4 flex gap-2 mt-2">
                 <div className="relative group">
                   <Button
                     variant="outline"
                     className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
-                    onClick={() =>
-                      navigate(`/homeDashboard/robotDetails/${robot.id}`)
-                    }
+                    onClick={() => navigate(`/homeDashboard/robotDetails/${robot.id}`)}
                   >
                     <ArrowRight size={16} />
                   </Button>
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition">
-                    Go
-                  </span>
                 </div>
 
                 <div className="relative group">
                   <Button
                     variant="outline"
                     className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors"
-                    onClick={() => navigate(`/homeDashboard/addRobot/${robot.id}`)}
+                    onClick={() =>
+                      navigate(`/homeDashboard/editRobot/${robot.id}`, {
+                        state: { projectId: id, projectName: project.ProjectName },
+                      })
+                    }
                   >
                     <Edit3 size={16} />
                   </Button>
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition">
-                    Edit
-                  </span>
                 </div>
 
                 <div className="relative group">
                   <Button
                     variant="outline"
                     className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-second-color text-white hover:bg-white hover:text-second-color transition-colors"
-                    onClick={() => {
-                      setSelectedRobot(robot);
-                      setShowRobotConfirm(true);
-                    }}
+                    onClick={() => setRobotToDelete(robot)}
                   >
                     <Trash2 size={16} />
                   </Button>
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition">
-                    Delete
-                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -198,33 +348,22 @@ export default function ProjectDetails({ projects }) {
         </div>
       )}
 
-      {/* Confirm Delete Robot */}
-      {showRobotConfirm && selectedRobot && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-80 p-6 relative">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Delete "{selectedRobot.name}"?
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this robot?
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowRobotConfirm(false)}
-                className="cursor-pointer border-second-color text-second-color hover:bg-second-color hover:text-white transition-colors"
-              >
-                No
-              </Button>
-              <Button
-                className="cursor-pointer bg-second-color text-white hover:bg-white hover:text-second-color border border-second-color transition-colors"
-                onClick={() => handleDeleteRobot(selectedRobot.id)}
-              >
-                Yes
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Confirm delete single robot modal */}
+      {robotToDelete && (
+        <ConfirmDeleteModal
+          robot={robotToDelete}
+          onConfirm={() => handleDeleteRobot(robotToDelete.id)}
+          onCancel={() => setRobotToDelete(null)}
+        />
+      )}
+
+      {/* Confirm delete all robots modal */}
+      {showDeleteAllModal && (
+        <ConfirmDeleteModal
+          deleteAll={true}
+          onConfirm={handleDeleteAllRobots}
+          onCancel={() => setShowDeleteAllModal(false)}
+        />
       )}
     </div>
   );

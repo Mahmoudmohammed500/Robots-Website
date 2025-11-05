@@ -13,40 +13,48 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Mail, Lock } from "lucide-react";
+import { User, Lock } from "lucide-react"; 
 import LogoImg from "../assets/logo omega-2022.png";
+import { postData } from "@/services/postServices"; 
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const USER_EMAIL = "admin@example.com";
-  const USER_PASSWORD = "admin@example.com";
 
   const ADMIN_EMAIL = "admin@omega.com";
   const ADMIN_PASSWORD = "admin@omega.com";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      if (email === USER_EMAIL && password === USER_PASSWORD) {
-        login();
-        toast.success("Welcome back, User!");
-        navigate("/home", { replace: true });
-      } else if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    try {
+      if (username === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
         login();
         toast.success("Welcome back, Admin!");
-        navigate("/homeDashboard", { replace: true }); 
+        navigate("/homeDashboard", { replace: true });
       } else {
-        toast.error("Invalid email or password");
+        const data = await postData("/login.php", { username, password });
+
+        if (data?.token) {
+          login();
+          toast.success(`Welcome back, ${username}!`);
+          navigate("/home", { replace: true });
+        } else {
+          toast.error("Invalid username or password");
+        }
       }
+    } catch (error) {
+      console.error(" Login error:", error);
+      toast.error(
+        error.response?.data?.message || "Login failed. Please try again."
+      );
+    } finally {
       setLoading(false);
-    }, 700);
+    }
   };
 
   return (
@@ -77,7 +85,7 @@ export default function Login() {
             <motion.img
               src={LogoImg}
               alt="Omega Logo"
-              className="h-16 mx-auto object-contain "
+              className="h-16 mx-auto object-contain"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7 }}
@@ -92,19 +100,19 @@ export default function Login() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
+              {/* Username */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-medium">
-                  Email Address
+                <Label htmlFor="username" className="text-gray-700 font-medium">
+                  Username
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <User className="absolute left-3 top-3 text-gray-400" size={18} />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                     className="pl-9 bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-main-color focus:border-main-color rounded-xl"
                   />
