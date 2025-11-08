@@ -25,14 +25,30 @@ function ConfirmDeleteModal({ user, onConfirm, onCancel, deleteAll = false }) {
             transition={{ duration: 0.3 }}
             className="bg-white rounded-2xl shadow-2xl p-8 w-[90%] max-w-md text-center border border-gray-200"
           >
-            <XCircle size={48} className="mx-auto text-second-color mb-4 animate-pulse" />
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Confirm Delete</h2>
+            <XCircle
+              size={48}
+              className="mx-auto text-second-color mb-4 animate-pulse"
+            />
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              Confirm Delete
+            </h2>
             <p className="text-gray-600 mb-6">
               {deleteAll ? (
-                <>Are you sure you want to delete <span className="font-semibold text-main-color">all users</span>? This action cannot be undone.</>
+                <>
+                  Are you sure you want to delete{" "}
+                  <span className="font-semibold text-main-color">
+                    all users
+                  </span>
+                  ? This action cannot be undone.
+                </>
               ) : (
-                <>Are you sure you want to delete{" "}
-                  <span className="font-semibold text-main-color">{user?.Username}</span>? This action cannot be undone.</>
+                <>
+                  Are you sure you want to delete{" "}
+                  <span className="font-semibold text-main-color">
+                    {user?.Username}
+                  </span>
+                  ? This action cannot be undone.
+                </>
               )}
             </p>
 
@@ -101,13 +117,24 @@ function AllUsers({ users, onDeleteClick, onDeleteAll }) {
               alt={user.Username}
               className="w-24 h-24 rounded-full object-cover mb-4 border-4 border-main-color shadow-md"
             />
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">{user.Username}</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-1">
+              {user.Username}
+            </h2>
             <p className="text-sm text-gray-500 mb-2">{user.email}</p>
 
             <div className="text-left w-full border-t border-gray-100 pt-3 text-sm text-gray-600 space-y-1">
-              <p><strong className="text-main-color">Project:</strong> {user.ProjectName}</p>
-              <p><strong className="text-main-color">Password:</strong> {user.Password}</p>
-              <p><strong className="text-main-color">Phone:</strong> {user.TelephoneNumber}</p>
+              <p>
+                <strong className="text-main-color">Project:</strong>{" "}
+                {user.ProjectName}
+              </p>
+              <p>
+                <strong className="text-main-color">Password:</strong>{" "}
+                {user.Password}
+              </p>
+              <p>
+                <strong className="text-main-color">Phone:</strong>{" "}
+                {user.TelephoneNumber}
+              </p>
             </div>
 
             <div className="flex gap-2 mt-5">
@@ -142,7 +169,7 @@ export default function UsersDashboard() {
       try {
         const response = await getData("/users.php");
         setUsers(Array.isArray(response) ? response : response?.data || []);
-        console.log("all users:",response)
+        console.log("all users:", response);
       } catch (error) {
         console.error("Error fetching users:", error);
       }
