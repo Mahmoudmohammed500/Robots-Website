@@ -24,14 +24,15 @@ export default function RobotSettings() {
     SCHEDULING: "#0ea5e9",
     FORWARD: "#6366f1",
   };
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const fetchRobotData = async () => {
     try {
       setLoading(true);
-      const robotData = await getData(`/robots.php/${id}`);
+      const robotData = await getData(`${BASE_URL}/robots/${id}`);
       setRobot(robotData);
 
-      const rawButtons = await getData(`/buttons.php`);
+      const rawButtons = await getData(`${BASE_URL}/buttons`);
       const arr = Array.isArray(rawButtons)
         ? rawButtons
         : rawButtons?.data || [];
@@ -66,7 +67,7 @@ export default function RobotSettings() {
 
   const refreshButtons = async () => {
     try {
-      const rawButtons = await getData(`/buttons.php`);
+      const rawButtons = await getData(`${BASE_URL}/buttons`);
       const arr = Array.isArray(rawButtons)
         ? rawButtons
         : rawButtons?.data || [];
@@ -160,17 +161,17 @@ export default function RobotSettings() {
                 className="flex flex-col items-center gap-3 bg-gray-50 border border-gray-200 rounded-3xl p-5 w-40 shadow-sm hover:shadow-md transition"
               >
                 <Button
-  onClick={() =>
-    navigate(
-      `/homeDashboard/robotSettings/${id}/button/new?name=${name}`
-    )
-  }
-  disabled={adding}
-  className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl px-5 py-2 transition-all"
->
-  <PlusCircle size={16} />
-  {adding ? "Adding..." : "Add"}
-</Button>
+                  onClick={() =>
+                    navigate(
+                      `/homeDashboard/robotSettings/${id}/button/new?name=${name}`
+                    )
+                  }
+                  disabled={adding}
+                  className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl px-5 py-2 transition-all"
+                >
+                  <PlusCircle size={16} />
+                  {adding ? "Adding..." : "Add"}
+                </Button>
 
                 <p className="capitalize text-gray-700">{name}</p>
               </div>

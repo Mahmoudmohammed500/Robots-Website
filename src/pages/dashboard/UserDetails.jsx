@@ -11,11 +11,11 @@ export default function UserDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await getData(`/users.php/${id}`);
+        const response = await getData(`${BASE_URL}/users/${id}`);
         const userData = Array.isArray(response) ? response[0] : response;
         setUser(userData);
         console.log("User details:", userData);
@@ -27,7 +27,9 @@ export default function UserDetails() {
   }, [id]);
 
   if (!user) {
-    return <div className="p-10 text-center text-gray-600">Loading user data...</div>;
+    return (
+      <div className="p-10 text-center text-gray-600">Loading user data...</div>
+    );
   }
 
   return (
@@ -42,13 +44,24 @@ export default function UserDetails() {
           alt={user.Username}
           className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-main-color shadow-md mb-6"
         />
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">{user.Username}</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">
+          {user.Username}
+        </h2>
         <p className="text-center text-gray-500 mb-6">{user.email}</p>
 
         <div className="text-sm text-gray-700 space-y-2">
-          <p><strong className="text-main-color">Project:</strong> {user.ProjectName}</p>
-          <p><strong className="text-main-color">Phone:</strong> {user.TelephoneNumber}</p>
-          <p><strong className="text-main-color">Password:</strong> {user.Password}</p>
+          <p>
+            <strong className="text-main-color">Project:</strong>{" "}
+            {user.ProjectName}
+          </p>
+          <p>
+            <strong className="text-main-color">Phone:</strong>{" "}
+            {user.TelephoneNumber}
+          </p>
+          <p>
+            <strong className="text-main-color">Password:</strong>{" "}
+            {user.Password}
+          </p>
         </div>
 
         <Button

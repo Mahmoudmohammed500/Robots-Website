@@ -12,9 +12,10 @@ import { toast } from "sonner";
 
 export default function ProjectForm() {
   const navigate = useNavigate();
-  const { id } = useParams(); 
+  const { id } = useParams();
   const editing = Boolean(id);
-
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
   const [formData, setFormData] = useState({
     ProjectName: "",
     Location: "",
@@ -29,7 +30,7 @@ export default function ProjectForm() {
     if (!editing) return;
     setLoading(true);
     try {
-      const data = await getData(`/projects.php/${id}`);
+      const data = await getData(`${BASE_URL}/projects/${id}`);
       if (data) {
         const project = Array.isArray(data) ? data[0] : data;
         setFormData({
@@ -38,7 +39,7 @@ export default function ProjectForm() {
           Description: project.Description || "",
           Image: project.Image || null,
           imagePreview: project.Image
-            ? `${import.meta.env.VITE_UPLOADS_URL}/${project.Image}`
+            ? `${UPLOADS_URL}/${project.Image}`
             : null,
         });
       }
@@ -94,7 +95,10 @@ export default function ProjectForm() {
         dataToSend.projectId = id;
         dataToSend.id = id;
 
-        const response = await putData(`/projects.php/${id}`, dataToSend);
+        const response = await putData(
+          `${BASE_URL}/projects/${id}`,
+          dataToSend
+        );
 
         if (response?.message?.toLowerCase().includes("success")) {
           toast.success("Project updated successfully!", {
@@ -107,7 +111,7 @@ export default function ProjectForm() {
           toast.error(response?.message || "Failed to update project");
         }
       } else {
-        await postData("/projects.php", dataToSend);
+        await postData(`${BASE_URL}/projects`, dataToSend);
         toast.success("Project added successfully!", {
           icon: <CheckCircle2 className="text-green-500" />,
           description: "New project has been added.",
@@ -122,7 +126,8 @@ export default function ProjectForm() {
     }
   };
 
-  if (loading) return <p className="text-center mt-10">Loading project data...</p>;
+  if (loading)
+    return <p className="text-center mt-10">Loading project data...</p>;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-6 sm:p-10">

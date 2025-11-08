@@ -17,6 +17,7 @@ export default function AddUser() {
     TelephoneNumber: "",
     ProjectName: "",
   });
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -25,7 +26,7 @@ export default function AddUser() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await postData("users.php", formData);
+      await postData(`${BASE_URL}/users`, formData);
       toast.success("User added successfully!");
       navigate(-1);
     } catch (error) {

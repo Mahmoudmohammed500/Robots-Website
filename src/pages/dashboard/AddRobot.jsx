@@ -21,6 +21,9 @@ export default function RobotForm() {
   const projectId = isEditMode ? location.state?.projectId : id;
   const projectName = location.state?.projectName || "";
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
+
   const [formData, setFormData] = useState({
     RobotName: "",
     Voltage: "",
@@ -39,16 +42,14 @@ export default function RobotForm() {
       if (isEditMode && id) {
         setLoading(true);
         try {
-          const data = await getData(`/robots.php/${id}`);
+          const data = await getData(`${BASE_URL}/robots/${id}`);
           setFormData({
             RobotName: data.RobotName || "",
             Voltage: data.Voltage?.toString() || "",
             Cycles: data.Cycles?.toString() || "",
             Status: data.Status || "Stopped",
             Image: data.Image || null,
-            imagePreview: data.Image
-              ? `http://localhost/robots_web_apis/${data.Image}`
-              : null,
+            imagePreview: data.Image ? `${UPLOADS_URL}/${data.Image}` : null,
             ActiveBtns: data.ActiveBtns || [],
           });
         } catch (error) {
@@ -94,17 +95,27 @@ export default function RobotForm() {
 
   const getLatestRobotId = async () => {
     try {
-      const robots = await getData("/robots.php");
+      const robots = await getData(`${BASE_URL}/robots`);
       console.log(" Raw robots data:", robots);
-      
+
       if (robots && Array.isArray(robots) && robots.length > 0) {
         const latestRobot = robots.reduce((prev, current) => {
-          const prevId = prev.RobotID || prev.id || prev.robotId || prev.robotID || 0;
-          const currentId = current.RobotID || current.id || current.robotId || current.robotID || 0;
-          return (prevId > currentId) ? prev : current;
+          const prevId =
+            prev.RobotID || prev.id || prev.robotId || prev.robotID || 0;
+          const currentId =
+            current.RobotID ||
+            current.id ||
+            current.robotId ||
+            current.robotID ||
+            0;
+          return prevId > currentId ? prev : current;
         });
-        
-        const latestId = latestRobot.RobotID || latestRobot.id || latestRobot.robotId || latestRobot.robotID;
+
+        const latestId =
+          latestRobot.RobotID ||
+          latestRobot.id ||
+          latestRobot.robotId ||
+          latestRobot.robotID;
         console.log(" Latest robot ID found:", latestId);
         return latestId;
       }
@@ -118,14 +129,17 @@ export default function RobotForm() {
 
   const findRobotIdByName = async (robotName) => {
     try {
-      const robots = await getData("/robots.php");
+      const robots = await getData(`${BASE_URL}/robots`);
       if (robots && Array.isArray(robots)) {
-        const robot = robots.find(r => 
-          r.RobotName === robotName || 
-          r.robotName === robotName ||
-          r.name === robotName
+        const robot = robots.find(
+          (r) =>
+            r.RobotName === robotName ||
+            r.robotName === robotName ||
+            r.name === robotName
         );
-        return robot ? (robot.RobotID || robot.id || robot.robotId || robot.robotID) : null;
+        return robot
+          ? robot.RobotID || robot.id || robot.robotId || robot.robotID
+          : null;
       }
       return null;
     } catch (error) {
@@ -176,26 +190,30 @@ export default function RobotForm() {
       let robotId;
 
       if (isEditMode) {
-        response = await putData(`/robots.php/${id}`, dataToSend);
+        response = await putData(`${BASE_URL}/robots/${id}`, dataToSend);
         robotId = id;
         console.log(" Edit mode - Robot ID:", robotId);
       } else {
-        response = await postData("/robots.php", dataToSend);
+        response = await postData(`${BASE_URL}/robots`, dataToSend);
         console.log(" Robot creation response:", response);
 
-        robotId = response?.insertedId || response?.id || response?.RobotID || response?.robotId;
-        
+        robotId =
+          response?.insertedId ||
+          response?.id ||
+          response?.RobotID ||
+          response?.robotId;
+
         if (!robotId) {
           console.log(" Trying alternative methods to get robot ID...");
-          
+
           robotId = await findRobotIdByName(formData.RobotName);
           console.log(" Robot ID found by name:", robotId);
-          
+
           if (!robotId) {
             robotId = await getLatestRobotId();
             console.log(" Latest robot ID:", robotId);
           }
-          
+
           if (!robotId) {
             const url = response?.request?.responseURL || window.location.href;
             const match = url.match(/[?&]id=(\d+)/);
@@ -221,7 +239,7 @@ export default function RobotForm() {
       try {
         console.log(" Processing buttons for robot:", robotId);
         console.log(" Buttons to process:", formData.ActiveBtns);
-        
+
         await postButtons(robotId, formData.ActiveBtns);
         console.log(" Buttons added successfully!");
       } catch (btnError) {
@@ -231,17 +249,22 @@ export default function RobotForm() {
         );
       }
 
-      if (response?.success || response?.message?.toLowerCase().includes("success")) {
+      if (
+        response?.success ||
+        response?.message?.toLowerCase().includes("success")
+      ) {
         toast.success(
-          isEditMode ? "Robot updated successfully!" : "Robot added successfully!",
+          isEditMode
+            ? "Robot updated successfully!"
+            : "Robot added successfully!",
           { icon: <CheckCircle2 className="text-green-500" /> }
         );
         navigate(-1);
       } else {
-        const errorMsg = response?.error || response?.message || "Failed to save robot";
+        const errorMsg =
+          response?.error || response?.message || "Failed to save robot";
         toast.error(errorMsg);
       }
-
     } catch (error) {
       console.error(" Main operation failed:", error);
       toast.error("Failed to save robot. Please check connection.");
@@ -250,7 +273,6 @@ export default function RobotForm() {
     }
   };
 
-  
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-6 sm:p-10">
       <div className="max-w-5xl w-full mx-auto mb-6 flex justify-start">
@@ -307,7 +329,9 @@ export default function RobotForm() {
             <div className="text-gray-400 text-center">
               <Upload size={40} className="mx-auto mb-3" />
               <p>Upload robot image</p>
-              <p className="text-sm text-gray-500 mt-1">Click to browse files</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Click to browse files
+              </p>
             </div>
           )}
           <input
@@ -424,8 +448,8 @@ export default function RobotForm() {
               {submitting
                 ? "Saving..."
                 : isEditMode
-                ? "Update Robot"
-                : "Add Robot"}
+                  ? "Update Robot"
+                  : "Add Robot"}
             </Button>
           </div>
         </div>

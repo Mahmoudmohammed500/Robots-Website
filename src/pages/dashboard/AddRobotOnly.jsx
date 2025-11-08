@@ -38,6 +38,9 @@ export default function AddRobotOnly() {
   const [tab, setTab] = useState("control");
   const [loading, setLoading] = useState(false);
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
+
   // ✅ Toggle button selection
   const toggleButtonSelection = (btn) => {
     setRobot((prev) => {
@@ -69,7 +72,7 @@ export default function AddRobotOnly() {
       // ✅ Create payload with exact structure from Documentation
       const payload = {
         RobotName: robot.RobotName.trim(),
-        Image: robot.Image.includes('blob:') ? "warehousebot.png" : robot.Image,
+        Image: robot.Image.includes("blob:") ? "warehousebot.png" : robot.Image,
         projectId: Number(robot.projectId),
         mqttUrl: "mqtt://192.168.1.50:1883",
         isTrolley: robot.isTrolley,
@@ -78,12 +81,13 @@ export default function AddRobotOnly() {
             Voltage: Number(robot.Voltage) || 24,
             Cycles: Number(robot.Cycles) || 500,
             Status: robot.Status || "Running",
-            ActiveBtns: robot.ActiveBtns.length > 0 
-              ? robot.ActiveBtns 
-              : [
-                  { Name: "Forward", id: "1" },
-                  { Name: "stop", id: "2" }
-                ],
+            ActiveBtns:
+              robot.ActiveBtns.length > 0
+                ? robot.ActiveBtns
+                : [
+                    { Name: "Forward", id: "1" },
+                    { Name: "stop", id: "2" },
+                  ],
             Topic_subscribe: "robot/main/in",
             Topic_main: "robot/main/out",
           },
@@ -93,17 +97,18 @@ export default function AddRobotOnly() {
               Voltage: Number(robot.Voltage) || 24,
               Cycles: Number(robot.Cycles) || 500,
               Status: robot.Status || "Running",
-              ActiveBtns: robot.ActiveBtns.length > 0 
-                ? robot.ActiveBtns 
-                : [
-                    { Name: "Forward", id: "1" },
-                    { Name: "stop", id: "2" }
-                  ],
+              ActiveBtns:
+                robot.ActiveBtns.length > 0
+                  ? robot.ActiveBtns
+                  : [
+                      { Name: "Forward", id: "1" },
+                      { Name: "stop", id: "2" },
+                    ],
               Topic_subscribe: "robot/main/in",
               Topic_main: "robot/main/out",
-            }
-          })
-        }
+            },
+          }),
+        },
       };
 
       // ✅ Ensure car section is completely removed when isTrolley is false
@@ -111,19 +116,26 @@ export default function AddRobotOnly() {
         delete payload.Sections.car;
       }
 
-      console.log("📦 Final Payload (Exact Documentation Match):", JSON.stringify(payload, null, 2));
+      console.log(
+        "📦 Final Payload (Exact Documentation Match):",
+        JSON.stringify(payload, null, 2)
+      );
 
-      const response = await postData("/robots.php", payload);
+      const response = await postData(`${BASE_URL}/robots`, payload);
       console.log("✅ Robot added successfully:", response);
       toast.success("Robot added successfully!");
       navigate(-1);
     } catch (error) {
       console.error("❌ Error saving robot:", error);
-      
-      if (error.code === 'ERR_NETWORK') {
-        toast.error("Network error! Please check:\n1. Server is running\n2. CORS is configured");
+
+      if (error.code === "ERR_NETWORK") {
+        toast.error(
+          "Network error! Please check:\n1. Server is running\n2. CORS is configured"
+        );
       } else if (error.response) {
-        toast.error(`Server error: ${error.response.status} - ${error.response.statusText}`);
+        toast.error(
+          `Server error: ${error.response.status} - ${error.response.statusText}`
+        );
       } else {
         toast.error("Failed to save robot. Check console for details.");
       }
@@ -134,9 +146,9 @@ export default function AddRobotOnly() {
 
   // ✅ Toggle isTrolley state
   const toggleTrolley = () => {
-    setRobot(prev => ({
+    setRobot((prev) => ({
       ...prev,
-      isTrolley: !prev.isTrolley
+      isTrolley: !prev.isTrolley,
     }));
   };
 
@@ -189,37 +201,37 @@ export default function AddRobotOnly() {
           <div className="mt-6">
             {tab === "control" && (
               <>
-                <RobotMainPanel
-                  robot={robot}
-                  setRobot={setRobot}
-                />
+                <RobotMainPanel robot={robot} setRobot={setRobot} />
 
                 {/* ------- Trolley Toggle ------- */}
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                   <label className="flex items-center space-x-3 cursor-pointer">
                     <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only" 
+                      <input
+                        type="checkbox"
+                        className="sr-only"
                         checked={robot.isTrolley}
                         onChange={toggleTrolley}
                       />
-                      <div className={`block w-14 h-8 rounded-full transition ${
-                        robot.isTrolley ? 'bg-green-500' : 'bg-gray-300'
-                      }`}></div>
-                      <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${
-                        robot.isTrolley ? 'transform translate-x-6' : ''
-                      }`}></div>
+                      <div
+                        className={`block w-14 h-8 rounded-full transition ${
+                          robot.isTrolley ? "bg-green-500" : "bg-gray-300"
+                        }`}
+                      ></div>
+                      <div
+                        className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${
+                          robot.isTrolley ? "transform translate-x-6" : ""
+                        }`}
+                      ></div>
                     </div>
                     <span className="text-gray-700 font-medium">
-                      Is Trolley: {robot.isTrolley ? 'Yes' : 'No'}
+                      Is Trolley: {robot.isTrolley ? "Yes" : "No"}
                     </span>
                   </label>
                   <p className="text-sm text-gray-500 mt-1">
-                    {robot.isTrolley 
-                      ? 'Trolley mode: Both main and car sections will be included' 
-                      : 'Robot mode: Only main section will be included (car section will be completely removed)'
-                    }
+                    {robot.isTrolley
+                      ? "Trolley mode: Both main and car sections will be included"
+                      : "Robot mode: Only main section will be included (car section will be completely removed)"}
                   </p>
                 </div>
 
@@ -250,7 +262,8 @@ export default function AddRobotOnly() {
                   </div>
                   {robot.ActiveBtns.length > 0 && (
                     <p className="text-sm text-green-600 mt-2">
-                      Selected: {robot.ActiveBtns.map(btn => btn.Name).join(", ")}
+                      Selected:{" "}
+                      {robot.ActiveBtns.map((btn) => btn.Name).join(", ")}
                     </p>
                   )}
                 </div>

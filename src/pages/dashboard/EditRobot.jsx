@@ -31,12 +31,15 @@ export default function EditRobot() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
+
   // Fetch robot data by ID
   useEffect(() => {
     const fetchRobot = async () => {
       try {
         setLoading(true);
-        const data = await getData(`/robots.php/${robotId}`);
+        const data = await getData(`${BASE_URL}/robots/${robotId}`);
         if (!data) throw new Error("No robot data found");
 
         setOriginalData(data);
@@ -48,7 +51,7 @@ export default function EditRobot() {
           Status: section.Status || "Stopped",
           Image: data.Image || null,
           imagePreview: data.Image
-            ? `http://localhost/robots_web_apis/${data.Image}?t=${Date.now()}`
+            ? `${UPLOADS_URL}/${data.Image}?t=${Date.now()}`
             : null,
         });
 
@@ -122,13 +125,14 @@ export default function EditRobot() {
       const updatedData = {
         // الحفاظ على كل البيانات الأصلية
         ...originalData,
-        
+
         // تحديث الحقول التي تم تعديلها
         id: parseInt(robotId), // تأكد أن الـ ID رقم صحيح
         RobotName: formData.RobotName,
         // الحفاظ على الـ Image القديم إذا لم يتم تغييره
-        Image: formData.Image instanceof File ? formData.Image : originalData.Image,
-        
+        Image:
+          formData.Image instanceof File ? formData.Image : originalData.Image,
+
         // تحديث الـ Sections مع الحفاظ على الهيكل الكامل
         Sections: {
           ...originalData.Sections, // الحفاظ على كل الـ sections الأخرى
@@ -142,8 +146,10 @@ export default function EditRobot() {
               id: (idx + 1).toString(), // جعله string كما في البيانات الأصلية
             })),
             // الحفاظ على الحقول الأخرى مثل Topic_subscribe و Topic_main
-            Topic_subscribe: originalData.Sections?.main?.Topic_subscribe || "robot/main/in",
-            Topic_main: originalData.Sections?.main?.Topic_main || "robot/main/out",
+            Topic_subscribe:
+              originalData.Sections?.main?.Topic_subscribe || "robot/main/in",
+            Topic_main:
+              originalData.Sections?.main?.Topic_main || "robot/main/out",
           },
         },
       };
@@ -151,7 +157,7 @@ export default function EditRobot() {
       console.log("Data being sent:", updatedData);
 
       const payload = new FormData();
-      
+
       // ✅ إرسال البيانات كاملة
       payload.append("data", JSON.stringify(updatedData));
 
@@ -160,9 +166,12 @@ export default function EditRobot() {
         payload.append("image", formData.Image);
       }
 
-      const res = await putData(`/robots.php/${robotId}`, payload);
+      const res = await putData(`${BASE_URL}/robots/${robotId}`, payload);
 
-      if (!res || (!res.success && !res.message?.toLowerCase().includes("success"))) {
+      if (
+        !res ||
+        (!res.success && !res.message?.toLowerCase().includes("success"))
+      ) {
         toast.error("Failed to update robot info.");
         setSubmitting(false);
         return;
@@ -175,7 +184,6 @@ export default function EditRobot() {
 
       // العودة للصفحة السابقة مع تحديث البيانات
       navigate(-1, { state: { shouldRefresh: true } });
-
     } catch (err) {
       console.error("Update error:", err);
       toast.error("Error while updating robot.");
@@ -224,7 +232,9 @@ export default function EditRobot() {
               <div className="text-gray-400 text-center">
                 <Upload size={40} className="mx-auto mb-3" />
                 <p>Upload robot image</p>
-                <p className="text-sm text-gray-500 mt-1">Click to browse files</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Click to browse files
+                </p>
               </div>
             )}
             <input

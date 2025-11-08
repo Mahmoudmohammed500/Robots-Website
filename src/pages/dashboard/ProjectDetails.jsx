@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Trash2, Edit3, PlusCircle, ArrowLeft, ArrowRight, XCircle } from "lucide-react";
+import {
+  Trash2,
+  Edit3,
+  PlusCircle,
+  ArrowLeft,
+  ArrowRight,
+  XCircle,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -16,7 +23,12 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ConfirmDeleteModal component remains exactly the same
-function ConfirmDeleteModal({ robot = null, deleteAll = false, onConfirm, onCancel }) {
+function ConfirmDeleteModal({
+  robot = null,
+  deleteAll = false,
+  onConfirm,
+  onCancel,
+}) {
   return (
     <AnimatePresence>
       <motion.div
@@ -32,18 +44,29 @@ function ConfirmDeleteModal({ robot = null, deleteAll = false, onConfirm, onCanc
           transition={{ duration: 0.3 }}
           className="bg-white rounded-2xl shadow-2xl p-8 w-[90%] max-w-md text-center border border-gray-200"
         >
-          <XCircle size={48} className="mx-auto text-red-500 mb-4 animate-pulse" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Confirm Delete</h2>
+          <XCircle
+            size={48}
+            className="mx-auto text-red-500 mb-4 animate-pulse"
+          />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Confirm Delete
+          </h2>
           <p className="text-gray-600 mb-6">
             {deleteAll ? (
               <>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold text-main-color">all robots</span>? This action cannot be undone.
+                <span className="font-semibold text-main-color">
+                  all robots
+                </span>
+                ? This action cannot be undone.
               </>
             ) : (
               <>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold text-main-color">{robot?.RobotName}</span>? This action cannot be undone.
+                <span className="font-semibold text-main-color">
+                  {robot?.RobotName}
+                </span>
+                ? This action cannot be undone.
               </>
             )}
           </p>
@@ -81,38 +104,40 @@ export default function ProjectDetails() {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   useEffect(() => {
     const fetchProjectAndRobots = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch project data
-        const projectData = await getData(`/projects.php/${id}`);
+        const projectData = await getData(`${BASE_URL}/projects/${id}`);
         setProject(projectData);
 
-        const allRobots = await getData(`/robots.php`);
-        
+        const allRobots = await getData(`${BASE_URL}/robots`);
+
         if (Array.isArray(allRobots)) {
-          const projectRobots = allRobots.filter(robot => {
+          const projectRobots = allRobots.filter((robot) => {
             console.log("Robot data:", robot);
-            
+
             const possibleProjectIds = [
               robot.projectId,
-              robot.project_id, 
+              robot.project_id,
               robot.ProjectId,
               robot.projectID,
-              robot.ProjectID
+              robot.ProjectID,
             ];
-            
-            const hasMatch = possibleProjectIds.some(projectId => 
-              projectId != null && String(projectId) === String(id)
+
+            const hasMatch = possibleProjectIds.some(
+              (projectId) =>
+                projectId != null && String(projectId) === String(id)
             );
-            
+
             console.log(`Robot ${robot.id} match:`, hasMatch);
             return hasMatch;
           });
-          
+
           console.log("Filtered robots for project:", projectRobots);
           setRobots(projectRobots);
         } else {
@@ -130,26 +155,26 @@ export default function ProjectDetails() {
     fetchProjectAndRobots();
   }, [id]);
 
-  
   useEffect(() => {
     if (location.state?.shouldRefresh) {
       console.log("Refreshing project data after navigation...");
-      
+
       const refreshData = async () => {
         try {
-          const allRobots = await getData(`/robots.php`);
+          const allRobots = await getData(`${BASE_URL}/robots`);
           if (Array.isArray(allRobots)) {
-            const projectRobots = allRobots.filter(robot => {
+            const projectRobots = allRobots.filter((robot) => {
               const possibleProjectIds = [
                 robot.projectId,
-                robot.project_id, 
+                robot.project_id,
                 robot.ProjectId,
                 robot.projectID,
-                robot.ProjectID
+                robot.ProjectID,
               ];
-              
-              return possibleProjectIds.some(projectId => 
-                projectId != null && String(projectId) === String(id)
+
+              return possibleProjectIds.some(
+                (projectId) =>
+                  projectId != null && String(projectId) === String(id)
               );
             });
             setRobots(projectRobots);
@@ -160,15 +185,14 @@ export default function ProjectDetails() {
       };
 
       refreshData();
-      
+
       window.history.replaceState({}, document.title);
     }
   }, [location.state, id]);
 
- 
   const handleDeleteRobot = async (robotId) => {
     try {
-      await deleteData(`/robots.php/${robotId}`);
+      await deleteData(`${BASE_URL}/robots/${robotId}`);
       setRobots((prev) => prev.filter((r) => r.id !== robotId));
       toast.success("Robot deleted successfully!");
     } catch (err) {
@@ -182,7 +206,7 @@ export default function ProjectDetails() {
   const handleDeleteAllRobots = async () => {
     try {
       for (const robot of robots) {
-        await deleteData(`/robots.php/${robot.id}`);
+        await deleteData(`${BASE_URL}/robots/${robot.id}`);
       }
       setRobots([]);
       toast.success("All robots deleted successfully!");
@@ -281,7 +305,11 @@ export default function ProjectDetails() {
             >
               {/* Robot Image */}
               <img
-                src={robot.Image ? `http://localhost/robots_web_apis/${robot.Image}?t=${Date.now()}` : RobotImg}
+                src={
+                  robot.Image
+                    ? `http://localhost/robots_web_apis/${robot.Image}?t=${Date.now()}`
+                    : RobotImg
+                }
                 alt={robot.RobotName}
                 className="h-56 w-full object-cover"
               />
@@ -293,11 +321,14 @@ export default function ProjectDetails() {
 
                 {/* Robot Stats */}
                 <CardDescription className="text-gray-600 mt-1">
-                  Voltage: {robot.Sections?.main?.Voltage || "-"}V — Cycles: {robot.Sections?.main?.Cycles || "-"}
+                  Voltage: {robot.Sections?.main?.Voltage || "-"}V — Cycles:{" "}
+                  {robot.Sections?.main?.Cycles || "-"}
                 </CardDescription>
                 <div className="text-gray-500 text-sm mt-1">
                   Status:{" "}
-                  <span className={`font-semibold ${robot.Sections?.main?.Status === "Running" ? "text-green-600" : "text-second-color"}`}>
+                  <span
+                    className={`font-semibold ${robot.Sections?.main?.Status === "Running" ? "text-green-600" : "text-second-color"}`}
+                  >
                     {robot.Sections?.main?.Status || "-"}
                   </span>
                 </div>
@@ -307,9 +338,13 @@ export default function ProjectDetails() {
                   <span>Trolley:</span>
                   <span className="font-semibold">
                     {robot.isTrolley ? (
-                      <span className="text-green-600 flex items-center gap-1">🟢 Yes</span>
+                      <span className="text-green-600 flex items-center gap-1">
+                        🟢 Yes
+                      </span>
                     ) : (
-                      <span className="text-red-500 flex items-center gap-1">🔴 No</span>
+                      <span className="text-red-500 flex items-center gap-1">
+                        🔴 No
+                      </span>
                     )}
                   </span>
                 </div>
@@ -321,7 +356,9 @@ export default function ProjectDetails() {
                   let activeBtns = [];
                   if (Array.isArray(robot.Sections?.main?.ActiveBtns)) {
                     activeBtns = robot.Sections.main.ActiveBtns;
-                  } else if (typeof robot.Sections?.main?.ActiveBtns === "string") {
+                  } else if (
+                    typeof robot.Sections?.main?.ActiveBtns === "string"
+                  ) {
                     try {
                       activeBtns = JSON.parse(robot.Sections.main.ActiveBtns);
                     } catch {
@@ -347,7 +384,9 @@ export default function ProjectDetails() {
                 <Button
                   variant="outline"
                   className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
-                  onClick={() => navigate(`/homeDashboard/robotDetails/${robot.id}`)}
+                  onClick={() =>
+                    navigate(`/homeDashboard/robotDetails/${robot.id}`)
+                  }
                 >
                   <ArrowRight size={16} />
                 </Button>
@@ -357,7 +396,10 @@ export default function ProjectDetails() {
                   className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors"
                   onClick={() =>
                     navigate(`/homeDashboard/editRobot/${robot.id}`, {
-                      state: { projectId: id, projectName: project.ProjectName },
+                      state: {
+                        projectId: id,
+                        projectName: project.ProjectName,
+                      },
                     })
                   }
                 >
@@ -427,7 +469,11 @@ export default function ProjectDetails() {
                   onClick={() => {
                     setShowAddModal(false);
                     navigate(`/homeDashboard/addRobotw/${id}`, {
-                      state: { projectId: id, projectName: project.ProjectName, type: "withTrolley" },
+                      state: {
+                        projectId: id,
+                        projectName: project.ProjectName,
+                        type: "withTrolley",
+                      },
                     });
                   }}
                   className="bg-main-color text-white border border-main-color hover:bg-white hover:text-main-color px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all"
@@ -439,7 +485,11 @@ export default function ProjectDetails() {
                   onClick={() => {
                     setShowAddModal(false);
                     navigate(`/homeDashboard/addRobotOnly/${id}`, {
-                      state: { projectId: id, projectName: project.ProjectName, type: "robotOnly" },
+                      state: {
+                        projectId: id,
+                        projectName: project.ProjectName,
+                        type: "robotOnly",
+                      },
                     });
                   }}
                   className="bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all"

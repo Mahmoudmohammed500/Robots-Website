@@ -13,9 +13,9 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { User, Lock } from "lucide-react"; 
+import { User, Lock } from "lucide-react";
 import LogoImg from "../assets/logo omega-2022.png";
-import { postData } from "@/services/postServices"; 
+import { postData } from "@/services/postServices";
 
 export default function Login() {
   const { login } = useAuth();
@@ -26,6 +26,7 @@ export default function Login() {
 
   const ADMIN_EMAIL = "admin@omega.com";
   const ADMIN_PASSWORD = "admin@omega.com";
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,7 +38,10 @@ export default function Login() {
         toast.success("Welcome back, Admin!");
         navigate("/homeDashboard", { replace: true });
       } else {
-        const data = await postData("/login.php", { username, password });
+        const data = await postData(`${BASE_URL}/login`, {
+          username,
+          password,
+        });
 
         if (data?.token) {
           login();
@@ -106,7 +110,10 @@ export default function Login() {
                   Username
                 </Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <User
+                    className="absolute left-3 top-3 text-gray-400"
+                    size={18}
+                  />
                   <Input
                     id="username"
                     type="text"
@@ -125,7 +132,10 @@ export default function Login() {
                   Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <Lock
+                    className="absolute left-3 top-3 text-gray-400"
+                    size={18}
+                  />
                   <Input
                     id="password"
                     type="password"

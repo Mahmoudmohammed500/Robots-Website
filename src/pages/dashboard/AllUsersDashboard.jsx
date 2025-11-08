@@ -164,10 +164,12 @@ export default function UsersDashboard() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleteAll, setDeleteAll] = useState(false);
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await getData("/users.php");
+        const response = await getData(`${BASE_URL}/users`);
         setUsers(Array.isArray(response) ? response : response?.data || []);
         console.log("all users:", response);
       } catch (error) {
@@ -179,7 +181,7 @@ export default function UsersDashboard() {
 
   const handleDeleteUser = async (id) => {
     try {
-      await deleteData(`/users.php/${id}`);
+      await deleteData(`${BASE_URL}/users/${id}`);
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -190,7 +192,7 @@ export default function UsersDashboard() {
 
   const handleDeleteAllUsers = async () => {
     try {
-      await deleteData("/users.php");
+      await deleteData(`${BASE_URL}/users`);
       setUsers([]);
     } catch (error) {
       console.error("Error deleting all users:", error);

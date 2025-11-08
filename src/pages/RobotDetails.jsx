@@ -2,15 +2,23 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, RefreshCcw, Play, StopCircle, ChevronUp, ChevronDown, Calendar } from "lucide-react";
+import {
+  RotateCcw,
+  RefreshCcw,
+  Play,
+  StopCircle,
+  ChevronUp,
+  ChevronDown,
+  Calendar,
+} from "lucide-react";
 import RobotImg from "../assets/Robot1.jpeg";
 
 export default function RobotDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const projectNumber = 1; 
-  const robotId = id ? Number(id) : 1; 
+  const projectNumber = 1;
+  const robotId = id ? Number(id) : 1;
 
   const getSecondsUntilMidnight = () => {
     const now = new Date();
@@ -22,17 +30,23 @@ export default function RobotDetails() {
   const [secondsLeft, setSecondsLeft] = useState(getSecondsUntilMidnight());
 
   useEffect(() => {
-    const interval = setInterval(() => setSecondsLeft(getSecondsUntilMidnight()), 1000);
+    const interval = setInterval(
+      () => setSecondsLeft(getSecondsUntilMidnight()),
+      1000
+    );
     return () => clearInterval(interval);
   }, []);
 
   const hours = String(Math.floor(secondsLeft / 3600)).padStart(2, "0");
-  const minutes = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, "0");
+  const minutes = String(Math.floor((secondsLeft % 3600) / 60)).padStart(
+    2,
+    "0"
+  );
   const seconds = String(secondsLeft % 60).padStart(2, "0");
 
   const robot = {
     id: robotId,
-    name: `X${robotId}-${projectNumber}`, 
+    name: `X${robotId}-${projectNumber}`,
     voltage: 27,
     cycles: 20,
     status: "Running",
@@ -41,7 +55,6 @@ export default function RobotDetails() {
 
   return (
     <div className="flex flex-col min-h-screen bg-linear-to-b from-white to-gray-50">
-
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
         <motion.div
           className="max-w-3xl mx-auto text-center bg-white rounded-3xl shadow-lg p-6 sm:p-10 border border-gray-100"
@@ -66,8 +79,12 @@ export default function RobotDetails() {
           {/* Info + Timer */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4 sm:gap-0">
             <div className="flex flex-col text-left text-base sm:text-lg font-medium text-gray-800 gap-2">
-              <div>Voltage: <span className="font-semibold">{robot.voltage}</span></div>
-              <div>Cycles: <span className="font-semibold">{robot.cycles}</span></div>
+              <div>
+                Voltage: <span className="font-semibold">{robot.voltage}</span>
+              </div>
+              <div>
+                Cycles: <span className="font-semibold">{robot.cycles}</span>
+              </div>
               <div className="flex items-center gap-2">
                 <RotateCcw className="w-5 h-5 text-main-color animate-spin-slow" />
                 <span>Status: {robot.status}</span>
@@ -75,7 +92,9 @@ export default function RobotDetails() {
             </div>
 
             <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
-              <span>⏱ {hours}:{minutes}:{seconds}</span>
+              <span>
+                ⏱ {hours}:{minutes}:{seconds}
+              </span>
               <RefreshCcw
                 className="w-6 sm:w-8 h-6 sm:h-8 text-main-color cursor-pointer hover:text-main-color/70 transition"
                 onClick={() => setSecondsLeft(getSecondsUntilMidnight())}
@@ -114,7 +133,6 @@ export default function RobotDetails() {
           </div>
         </motion.div>
       </main>
-
     </div>
   );
 }

@@ -19,6 +19,7 @@ export default function AddRobotWithTrolley() {
   const location = useLocation();
   const type = location.state?.type || "withTrolley";
   const showTrolley = type === "withTrolley";
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const [robot, setRobot] = useState({
     RobotName: "",
@@ -78,7 +79,7 @@ export default function AddRobotWithTrolley() {
     };
 
     try {
-      const res = await postData("/robots.php", payload);
+      const res = await postData(`${BASE_URL}/robots`, payload);
       toast.success("Robot saved successfully!");
       navigate(-1);
     } catch (err) {

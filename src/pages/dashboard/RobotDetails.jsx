@@ -13,11 +13,13 @@ export default function RobotDetails() {
   const [robot, setRobot] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   useEffect(() => {
     const fetchRobot = async () => {
       try {
         setLoading(true);
-        const data = await getData(`/robots.php/${id}`);
+        const data = await getData(`${BASE_URL}/robots/${id}`);
         setRobot(data);
       } catch (err) {
         console.error("Failed to fetch robot:", err);
@@ -32,11 +34,7 @@ export default function RobotDetails() {
   if (loading) return <Loading />;
 
   if (!robot) {
-    return (
-      <div className="p-6 text-center text-red-500">
-        Robot not found.
-      </div>
-    );
+    return <div className="p-6 text-center text-red-500">Robot not found.</div>;
   }
 
   return (
@@ -62,7 +60,11 @@ export default function RobotDetails() {
       >
         <motion.div className="relative order-1 lg:order-2">
           <img
-            src={robot.Image ? `http://localhost/robots_web_apis/${robot.Image}` : RobotImg}
+            src={
+              robot.Image
+                ? `http://localhost/robots_api/${robot.Image}`
+                : RobotImg
+            }
             alt={robot.RobotName}
             className="w-full h-64 sm:h-80 object-cover"
           />
@@ -84,21 +86,24 @@ export default function RobotDetails() {
           <div className="flex flex-col gap-2 text-gray-700">
             {robot.ProjectName && (
               <span className="font-medium">
-                <span className="text-main-color font-semibold">Project:</span> {robot.ProjectName}
+                <span className="text-main-color font-semibold">Project:</span>{" "}
+                {robot.ProjectName}
               </span>
             )}
             <span>
-              <span className="text-main-color font-semibold">Robot ID:</span> #{robot.id}
+              <span className="text-main-color font-semibold">Robot ID:</span> #
+              {robot.id}
             </span>
           </div>
 
           <div className="pt-6">
-            
             <Button
-              onClick={() => navigate(`/homeDashboard/robotSettings/${robot.id}`)}
+              onClick={() =>
+                navigate(`/homeDashboard/robotSettings/${robot.id}`)
+              }
               className="flex items-center gap-2 bg-second-color text-white border border-second-color 
                          hover:bg-white hover:text-second-color transition-all duration-300
-                         px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium cursor-pointer" 
+                         px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium cursor-pointer"
             >
               <Settings size={22} />
               Settings

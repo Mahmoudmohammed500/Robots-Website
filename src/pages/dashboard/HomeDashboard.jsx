@@ -14,8 +14,13 @@ import { getData } from "@/services/getServices";
 import { deleteData } from "@/services/deleteServices";
 import { toast } from "sonner";
 
-// Confirm Delete Modal 
-function ConfirmDeleteModal({ project, onConfirm, onCancel, deleteAll = false }) {
+// Confirm Delete Modal
+function ConfirmDeleteModal({
+  project,
+  onConfirm,
+  onCancel,
+  deleteAll = false,
+}) {
   return (
     <AnimatePresence>
       {(project || deleteAll) && (
@@ -88,10 +93,11 @@ export default function HomeDashboard() {
   const [deleteAll, setDeleteAll] = useState(false);
 
   // Fetch projects
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const data = await getData("/projects.php");
+        const data = await getData(`${BASE_URL}/projects`);
         setProjects(data || []);
       } catch (error) {
         console.error("Failed to fetch projects:", error);
@@ -99,12 +105,13 @@ export default function HomeDashboard() {
       }
     };
     fetchProjects();
+    console.log("projects =", projects);
   }, []);
 
   // DELETE ALL projects
   const handleDeleteAll = async () => {
     try {
-      const response = await deleteData("/projects.php");
+      const response = await deleteData(`${BASE_URL}/projects`);
       if (response?.success || response?.message?.includes("successfully")) {
         toast.success("All projects deleted successfully!");
         setProjects([]);
@@ -122,7 +129,7 @@ export default function HomeDashboard() {
   // DELETE single project
   const handleDeleteSingleProject = async (id) => {
     try {
-      const response = await deleteData(`/projects.php?id=${id}`);
+      const response = await deleteData(`${BASE_URL}/projects/${id}`);
       if (response?.success || response?.message?.includes("deleted")) {
         toast.success("Project deleted successfully!");
         setProjects((prev) => prev.filter((p) => p.projectId !== id));
@@ -165,7 +172,7 @@ export default function HomeDashboard() {
           {projects.map((project) => {
             const imageUrl = project.Image
               ? `${import.meta.env.VITE_UPLOADS_URL}/${project.Image.replace(/^uploads\//, "")}`
-              : `${import.meta.env.VITE_UPLOADS_URL}/default.png`; 
+              : `${import.meta.env.VITE_UPLOADS_URL}/default.png`;
             return (
               <Card
                 key={project.projectId}
