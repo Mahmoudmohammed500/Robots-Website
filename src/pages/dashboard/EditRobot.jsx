@@ -105,7 +105,7 @@ export default function EditRobot() {
     });
   };
 
-  // Handle save - FIXED TO INCLUDE ALL DATA
+  // Handle save
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -121,31 +121,26 @@ export default function EditRobot() {
     try {
       if (!originalData) throw new Error("Original data not loaded");
 
-      // ✅ بناء البيانات المحدثة مع الحفاظ على كل الحقول الأصلية
+      // ✅ بناء البيانات النهائية لإرسالها كـ JSON
       const updatedData = {
-        // الحفاظ على كل البيانات الأصلية
         ...originalData,
-
-        // تحديث الحقول التي تم تعديلها
-        id: parseInt(robotId), // تأكد أن الـ ID رقم صحيح
+        id: parseInt(robotId),
         RobotName: formData.RobotName,
-        // الحفاظ على الـ Image القديم إذا لم يتم تغييره
         Image:
-          formData.Image instanceof File ? formData.Image : originalData.Image,
-
-        // تحديث الـ Sections مع الحفاظ على الهيكل الكامل
+          formData.Image instanceof File
+            ? formData.Image.name
+            : originalData.Image,
         Sections: {
-          ...originalData.Sections, // الحفاظ على كل الـ sections الأخرى
+          ...originalData.Sections,
           main: {
-            ...originalData.Sections?.main, // الحفاظ على كل بيانات الـ main الأصلية
+            ...originalData.Sections?.main,
             Voltage: Number(sectionData.Voltage),
             Cycles: Number(sectionData.Cycles),
             Status: formData.Status,
             ActiveBtns: sectionData.ActiveBtns.map((name, idx) => ({
               Name: name,
-              id: (idx + 1).toString(), // جعله string كما في البيانات الأصلية
+              id: (idx + 1).toString(),
             })),
-            // الحفاظ على الحقول الأخرى مثل Topic_subscribe و Topic_main
             Topic_subscribe:
               originalData.Sections?.main?.Topic_subscribe || "robot/main/in",
             Topic_main:
@@ -156,17 +151,8 @@ export default function EditRobot() {
 
       console.log("Data being sent:", updatedData);
 
-      const payload = new FormData();
-
-      // ✅ إرسال البيانات كاملة
-      payload.append("data", JSON.stringify(updatedData));
-
-      // ✅ إذا كان هناك صورة جديدة، أضفها
-      if (formData.Image instanceof File) {
-        payload.append("image", formData.Image);
-      }
-
-      const res = await putData(`${BASE_URL}/robots/${robotId}`, payload);
+      // ✅ إرسال كـ JSON وليس FormData
+      const res = await putData(`${BASE_URL}/robots/${robotId}`, updatedData);
 
       if (
         !res ||
@@ -177,12 +163,8 @@ export default function EditRobot() {
         return;
       }
 
-      // Update local state immediately
       setOriginalData(updatedData);
-
       toast.success("Robot updated successfully!");
-
-      // العودة للصفحة السابقة مع تحديث البيانات
       navigate(-1, { state: { shouldRefresh: true } });
     } catch (err) {
       console.error("Update error:", err);

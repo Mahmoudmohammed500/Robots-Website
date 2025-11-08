@@ -43,7 +43,8 @@ export default function Login() {
           password,
         });
 
-        if (data?.token) {
+        // تعديل هنا: نتحقق من وجود message "Login successful" ووجود user
+        if (data?.message === "Login successful" && data?.user) {
           login();
           toast.success(`Welcome back, ${username}!`);
           navigate("/home", { replace: true });
@@ -52,7 +53,7 @@ export default function Login() {
         }
       }
     } catch (error) {
-      console.error(" Login error:", error);
+      console.error("Login error:", error);
       toast.error(
         error.response?.data?.message || "Login failed. Please try again."
       );

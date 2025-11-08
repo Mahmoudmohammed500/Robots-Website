@@ -133,7 +133,7 @@ export default function ButtonSetting() {
         };
         const currentButtons = robotData.buttons || [];
         const updatedButtons = [...currentButtons, newButtonObj];
-        await putData(`${BASE_URL}//robots.php/${robotId}`, {
+        await putData(`${BASE_URL}/robots/${robotId}`, {
           ...robotData,
           buttons: updatedButtons,
         });
