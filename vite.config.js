@@ -10,7 +10,15 @@ export default defineConfig({
         tailwindcss(),
 
   ],
-  base: '/Robots-Website/',
+  server: {
+  proxy: {
+    '/api': {
+      target: 'http://localhost/robotsback/api',
+      changeOrigin: true,
+      rewrite: (path) => path.replace(/^\/api/, '')
+    }}}
+  ,
+  base: '/robotsback/',
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
