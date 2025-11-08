@@ -12,6 +12,8 @@ import RobotSettings from "./RobotSetting";
 import ButtonSetting from "./ButtonSetting";
 import UserDetails from "./UserDetails";
 import EditRobot from "./EditRobot";
+import AddRobotOnly from "./AddRobotOnly";
+import AddRobotWithTrolley from "./AddRobotWithTrolley";
 
 const initialProjects = [
   {
@@ -65,7 +67,8 @@ export default function Dashboard() {
         <Route path="robotDetails/:id" element={<RobotDetails />} />
         <Route path="projectForm" element={<ProjectForm/>} />
         <Route path="projectForm/:id" element={<ProjectForm />} />
-
+<Route path="addRobotw/:id" element={<AddRobotWithTrolley/>} />
+<Route path="addRobotOnly/:id" element={<AddRobotOnly/>} />
         <Route path="allUsers" element={<AllUsersDashboard/>} />
         <Route path="user/:id" element={<UserDetails />} />
         <Route path="adduser" element={<AddUser/>} />

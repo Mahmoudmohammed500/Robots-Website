@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 export default function ProjectForm() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams(); 
   const editing = Boolean(id);
 
   const [formData, setFormData] = useState({
@@ -23,41 +23,45 @@ export default function ProjectForm() {
     imagePreview: null,
   });
 
-  useEffect(() => {
-    const fetchProject = async () => {
-      if (editing) {
-        try {
-          const data = await getData(`/projects.php?id=${id}`);
-          if (data) {
-            const project = Array.isArray(data) ? data[0] : data;
-            setFormData({
-              ProjectName: project.ProjectName || "",
-              Location: project.Location || "",
-              Description: project.Description || "",
-              Image: project.Image || null,
-              imagePreview: project.Image
-                ? `${import.meta.env.VITE_UPLOADS_URL}/${project.Image}`
-                : null,
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching project:", error);
-          toast.error("Failed to load project data");
-        }
+  const [loading, setLoading] = useState(false);
+
+  const fetchProjectData = async () => {
+    if (!editing) return;
+    setLoading(true);
+    try {
+      const data = await getData(`/projects.php/${id}`);
+      if (data) {
+        const project = Array.isArray(data) ? data[0] : data;
+        setFormData({
+          ProjectName: project.ProjectName || "",
+          Location: project.Location || "",
+          Description: project.Description || "",
+          Image: project.Image || null,
+          imagePreview: project.Image
+            ? `${import.meta.env.VITE_UPLOADS_URL}/${project.Image}`
+            : null,
+        });
       }
-    };
-    fetchProject();
-  }, [editing, id]);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      toast.error("Failed to load project data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjectData();
+  }, [id]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "Image" && files && files[0]) {
       const file = files[0];
-      const previewUrl = URL.createObjectURL(file);
       setFormData({
         ...formData,
         Image: file,
-        imagePreview: previewUrl,
+        imagePreview: URL.createObjectURL(file),
       });
     } else {
       setFormData({ ...formData, [name]: value });
@@ -67,14 +71,14 @@ export default function ProjectForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      if (!formData.ProjectName || !formData.Location || !formData.Description) {
-        toast.warning("Please fill all required fields!", {
-          icon: <XCircle className="text-yellow-500" />,
-        });
-        return;
-      }
+    if (!formData.ProjectName || !formData.Location || !formData.Description) {
+      toast.warning("Please fill all required fields!", {
+        icon: <XCircle className="text-yellow-500" />,
+      });
+      return;
+    }
 
+    try {
       const imagePath = formData.Image
         ? `uploads/${formData.Image.name || formData.Image}`
         : null;
@@ -97,6 +101,8 @@ export default function ProjectForm() {
             icon: <CheckCircle2 className="text-green-500" />,
             description: "Project details have been updated.",
           });
+
+          setTimeout(() => navigate(-1), 1000);
         } else {
           toast.error(response?.message || "Failed to update project");
         }
@@ -106,17 +112,17 @@ export default function ProjectForm() {
           icon: <CheckCircle2 className="text-green-500" />,
           description: "New project has been added.",
         });
+        setTimeout(() => navigate("/homeDashboard"), 1500);
       }
-
-      setTimeout(() => navigate("/homeDashboard"), 1500);
     } catch (error) {
       console.error("❌ Error saving project:", error);
       toast.error("Something went wrong!", {
         icon: <XCircle className="text-red-500" />,
-        description: "Please check your connection or server logs.",
       });
     }
   };
+
+  if (loading) return <p className="text-center mt-10">Loading project data...</p>;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-6 sm:p-10">
@@ -130,7 +136,7 @@ export default function ProjectForm() {
         </Button>
       </div>
 
-=      <motion.form
+      <motion.form
         initial={{ opacity: 0, y: 25 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}

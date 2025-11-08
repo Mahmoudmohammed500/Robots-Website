@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const BASE_URL = "https://mahmoudmohammed.42web.io/robots_web_apis/api";
+const BASE_URL = "/api";
 
 app.all("/api/:endpoint", async (req, res) => {
   try {

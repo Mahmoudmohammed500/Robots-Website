@@ -7,76 +7,62 @@ import { ArrowLeft, Upload, Save, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { getData } from "@/services/getServices";
 import { putData } from "@/services/putServices";
-import { postButtons } from "@/services/postButtons";
-import { putButtons } from "@/services/putButtons";
-import { deleteData } from "@/services/deleteServices";
 import Loading from "@/pages/Loading";
+
+const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
 
 export default function EditRobot() {
   const navigate = useNavigate();
   const { id: robotId } = useParams();
 
+  const [originalData, setOriginalData] = useState(null);
   const [formData, setFormData] = useState({
     RobotName: "",
-    Voltage: "",
-    Cycles: "",
-    Status: "Stopped",
     Image: null,
     imagePreview: null,
+    Status: "Stopped",
+  });
+  const [sectionData, setSectionData] = useState({
+    Voltage: "",
+    Cycles: "",
     ActiveBtns: [],
   });
 
-  const [availableButtons, setAvailableButtons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [originalButtons, setOriginalButtons] = useState([]); // buttons from server (objects with ids)
 
+  // Fetch robot data by ID
   useEffect(() => {
     const fetchRobot = async () => {
       try {
         setLoading(true);
         const data = await getData(`/robots.php/${robotId}`);
-        if (!data) throw new Error("No robot data");
+        if (!data) throw new Error("No robot data found");
 
-        // decode ActiveBtns from robot if present
-        let activeBtns = [];
-        if (data.ActiveBtns) {
-          if (typeof data.ActiveBtns === "string") {
-            try {
-              activeBtns = JSON.parse(data.ActiveBtns);
-            } catch {
-              activeBtns = Array.isArray(data.ActiveBtns) ? data.ActiveBtns : [];
-            }
-          } else if (Array.isArray(data.ActiveBtns)) {
-            activeBtns = data.ActiveBtns;
-          }
-        }
+        setOriginalData(data);
 
-        // set some static available buttons (you can fetch these from API if available)
-        const allButtons = [
-          { id: 1, name: "start" },
-          { id: 2, name: "stop" },
-          { id: 3, name: "forward" },
-          { id: 4, name: "backward" },
-          { id: 5, name: "scheduling" },
-        ];
-
-        setAvailableButtons(allButtons);
-        setOriginalButtons(activeBtns);
+        const section = data.Sections?.main || {};
 
         setFormData({
           RobotName: data.RobotName || "",
-          Voltage: data.Voltage?.toString() || "",
-          Cycles: data.Cycles?.toString() || "",
-          Status: data.Status || "Stopped",
+          Status: section.Status || "Stopped",
           Image: data.Image || null,
           imagePreview: data.Image
-            ? `http://localhost/robots_web_apis/${data.Image}`
+            ? `http://localhost/robots_web_apis/${data.Image}?t=${Date.now()}`
             : null,
+        });
+
+        let activeBtns = [];
+        if (Array.isArray(section.ActiveBtns))
+          activeBtns = section.ActiveBtns.map((b) => b.Name);
+
+        setSectionData({
+          Voltage: section.Voltage?.toString() || "",
+          Cycles: section.Cycles?.toString() || "",
           ActiveBtns: activeBtns,
         });
       } catch (err) {
-        console.error(" Error fetching robot:", err);
+        console.error("Error fetching robot:", err);
         toast.error("Failed to load robot data.");
       } finally {
         setLoading(false);
@@ -86,6 +72,7 @@ export default function EditRobot() {
     fetchRobot();
   }, [robotId]);
 
+  // Handle input changes
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "Image" && files?.[0]) {
@@ -95,26 +82,32 @@ export default function EditRobot() {
         Image: file,
         imagePreview: URL.createObjectURL(file),
       }));
+    } else if (name === "Voltage" || name === "Cycles") {
+      setSectionData((prev) => ({ ...prev, [name]: value }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleButtonSelect = (btn) => {
-    setFormData((prev) => {
-      const exists = prev.ActiveBtns.find((b) => (b.name || b.BtnName) === btn.name);
-      const updated = exists
-        ? prev.ActiveBtns.filter((b) => (b.name || b.BtnName) !== btn.name)
-        : [...prev.ActiveBtns, btn];
-      return { ...prev, ActiveBtns: updated };
+  // Toggle button selection
+  const toggleButton = (btnName) => {
+    setSectionData((prev) => {
+      const exists = prev.ActiveBtns.includes(btnName);
+      return {
+        ...prev,
+        ActiveBtns: exists
+          ? prev.ActiveBtns.filter((b) => b !== btnName)
+          : [...prev.ActiveBtns, btnName],
+      };
     });
   };
 
+  // Handle save - FIXED TO INCLUDE ALL DATA
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
-    if (!formData.RobotName || !formData.Voltage || !formData.Cycles) {
+    if (!formData.RobotName || !sectionData.Voltage || !sectionData.Cycles) {
       toast.warning("Please fill all required fields!", {
         icon: <XCircle className="text-yellow-500" />,
       });
@@ -123,18 +116,48 @@ export default function EditRobot() {
     }
 
     try {
-      // 1) Update robot basic info
-      const payload = new FormData();
-      payload.append("RobotName", formData.RobotName);
-      payload.append("Voltage", formData.Voltage);
-      payload.append("Cycles", formData.Cycles);
-      payload.append("Status", formData.Status);
-      payload.append("ActiveBtns", JSON.stringify(formData.ActiveBtns || []));
+      if (!originalData) throw new Error("Original data not loaded");
 
+      // ✅ بناء البيانات المحدثة مع الحفاظ على كل الحقول الأصلية
+      const updatedData = {
+        // الحفاظ على كل البيانات الأصلية
+        ...originalData,
+        
+        // تحديث الحقول التي تم تعديلها
+        id: parseInt(robotId), // تأكد أن الـ ID رقم صحيح
+        RobotName: formData.RobotName,
+        // الحفاظ على الـ Image القديم إذا لم يتم تغييره
+        Image: formData.Image instanceof File ? formData.Image : originalData.Image,
+        
+        // تحديث الـ Sections مع الحفاظ على الهيكل الكامل
+        Sections: {
+          ...originalData.Sections, // الحفاظ على كل الـ sections الأخرى
+          main: {
+            ...originalData.Sections?.main, // الحفاظ على كل بيانات الـ main الأصلية
+            Voltage: Number(sectionData.Voltage),
+            Cycles: Number(sectionData.Cycles),
+            Status: formData.Status,
+            ActiveBtns: sectionData.ActiveBtns.map((name, idx) => ({
+              Name: name,
+              id: (idx + 1).toString(), // جعله string كما في البيانات الأصلية
+            })),
+            // الحفاظ على الحقول الأخرى مثل Topic_subscribe و Topic_main
+            Topic_subscribe: originalData.Sections?.main?.Topic_subscribe || "robot/main/in",
+            Topic_main: originalData.Sections?.main?.Topic_main || "robot/main/out",
+          },
+        },
+      };
+
+      console.log("Data being sent:", updatedData);
+
+      const payload = new FormData();
+      
+      // ✅ إرسال البيانات كاملة
+      payload.append("data", JSON.stringify(updatedData));
+
+      // ✅ إذا كان هناك صورة جديدة، أضفها
       if (formData.Image instanceof File) {
-        payload.append("Image", formData.Image);
-      } else if (typeof formData.Image === "string" && formData.Image) {
-        payload.append("Image", formData.Image);
+        payload.append("image", formData.Image);
       }
 
       const res = await putData(`/robots.php/${robotId}`, payload);
@@ -145,85 +168,16 @@ export default function EditRobot() {
         return;
       }
 
-      // 2) Sync buttons with server safely
-      // fetch current buttons from API and filter by RobotId
-      const rawAllButtons = await getData("/buttons.php");
-      const allButtonsArr = Array.isArray(rawAllButtons)
-        ? rawAllButtons
-        : rawAllButtons?.data || [];
+      // Update local state immediately
+      setOriginalData(updatedData);
 
-      const currentButtons = allButtonsArr.filter(
-        (b) => String(b.RobotId ?? b.robotId) === String(robotId)
-      );
+      toast.success("Robot updated successfully!");
 
-      // normalize helpers
-      const nameOf = (obj) => (obj.BtnName ?? obj.name ?? "").toString().toLowerCase();
+      // العودة للصفحة السابقة مع تحديث البيانات
+      navigate(-1, { state: { shouldRefresh: true } });
 
-      const newBtns = (formData.ActiveBtns || []).map((b) => ({
-        name: (b.name ?? b.BtnName ?? "").toString(),
-        // keep any other props if present (Operation, Color)
-        Operation: b.Operation,
-        Color: b.Color,
-      }));
-
-      // determine deletions: currentButtons that are NOT in newBtns (by name)
-      const toDelete = currentButtons.filter(
-        (curr) => !newBtns.some((nb) => nb.name.toLowerCase() === nameOf(curr))
-      );
-
-      // determine additions: newBtns that are NOT in currentButtons (by name)
-      const toAdd = newBtns.filter(
-        (nb) => !currentButtons.some((curr) => nameOf(curr) === nb.name.toLowerCase())
-      );
-
-      // determine existing to update: intersection by name
-      const toUpdate = newBtns.filter((nb) =>
-        currentButtons.some((curr) => nameOf(curr) === nb.name.toLowerCase())
-      );
-
-      // 2.a Delete removed buttons (by using id or BtnID)
-      for (const del of toDelete) {
-        const delId = del.BtnID ?? del.id ?? del.BtnId ?? del.ID;
-        if (delId != null) {
-          try {
-            await deleteData(`/buttons.php/${delId}`);
-            console.log(`Deleted button id=${delId}`);
-          } catch (err) {
-            console.error("Error deleting button", del, err);
-            // continue to next (don't abort all)
-          }
-        } else {
-          console.warn("Cannot delete button (no id):", del);
-        }
-      }
-
-      // 2.b Add new buttons (use postButtons to create them)
-      if (toAdd.length > 0) {
-        // postButtons expects array of { name }
-        const addPayload = toAdd.map((b) => ({ name: b.name }));
-        try {
-          await postButtons(robotId, addPayload);
-          console.log("Added buttons:", addPayload);
-        } catch (err) {
-          console.error("Error adding buttons:", err);
-        }
-      }
-
-      // 2.c Update existing buttons (keep colors if present on server)
-      if (toUpdate.length > 0) {
-        try {
-          // call putButtons with toUpdate (it will preserve existing color for matches)
-          await putButtons(robotId, toUpdate);
-          console.log("Updated existing buttons via putButtons");
-        } catch (err) {
-          console.error("Error updating existing buttons:", err);
-        }
-      }
-
-      toast.success(" Robot and buttons updated successfully!");
-      navigate(-1);
     } catch (err) {
-      console.error(" Update error:", err);
+      console.error("Update error:", err);
       toast.error("Error while updating robot.");
     } finally {
       setSubmitting(false);
@@ -234,16 +188,18 @@ export default function EditRobot() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-6 sm:p-10">
+      {/* Back Button */}
       <div className="max-w-5xl w-full mx-auto mb-6 flex justify-start">
         <Button
           onClick={() => navigate(-1)}
-          className="cursor-pointer flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+          className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
         >
           <ArrowLeft size={18} />
           Back
         </Button>
       </div>
 
+      {/* Form */}
       <motion.form
         onSubmit={handleSubmit}
         initial={{ opacity: 0, y: 25 }}
@@ -256,7 +212,7 @@ export default function EditRobot() {
         </h1>
 
         <div className="flex flex-col md:flex-row gap-10">
-          {/* Image */}
+          {/* Image Section */}
           <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl p-6 hover:border-main-color transition relative cursor-pointer">
             {formData.imagePreview ? (
               <img
@@ -304,7 +260,7 @@ export default function EditRobot() {
               <Input
                 type="number"
                 name="Voltage"
-                value={formData.Voltage}
+                value={sectionData.Voltage}
                 onChange={handleChange}
                 required
                 step="0.1"
@@ -319,7 +275,7 @@ export default function EditRobot() {
               <Input
                 type="number"
                 name="Cycles"
-                value={formData.Cycles}
+                value={sectionData.Cycles}
                 onChange={handleChange}
                 required
                 className="border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
@@ -341,43 +297,38 @@ export default function EditRobot() {
               </select>
             </div>
 
-            {/* Buttons */}
+            {/* Active Buttons */}
             <div>
-              <label className="block text-gray-700 font-semibold mb-4">
+              <label className="block text-gray-700 font-semibold mb-2">
                 Active Buttons
-                <span className="text-sm font-normal text-gray-500 ml-2">
-                  ({formData.ActiveBtns.length} selected)
-                </span>
               </label>
-              <div className="flex flex-wrap gap-3">
-                {availableButtons.map((btn) => {
-                  const isSelected = formData.ActiveBtns.some(
-                    (b) => (b.name ?? b.BtnName) === btn.name
-                  );
+              <div className="flex flex-wrap gap-2">
+                {ALL_BUTTONS.map((btn) => {
+                  const isActive = sectionData.ActiveBtns.includes(btn);
                   return (
                     <Button
+                      key={btn}
                       type="button"
-                      key={btn.id}
-                      onClick={() => handleButtonSelect(btn)}
-                      className={`border rounded-xl px-5 py-2 transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-main-color text-white border-main-color shadow-md"
-                          : "bg-white text-main-color border-main-color hover:bg-main-color hover:text-white"
+                      onClick={() => toggleButton(btn)}
+                      className={`px-4 py-2 rounded-xl font-medium transition-all border ${
+                        isActive
+                          ? "bg-main-color text-white border-main-color"
+                          : "bg-white border-gray-300 text-gray-700 hover:bg-main-color hover:text-white"
                       }`}
                     >
-                      {btn.name}
+                      {btn} {isActive && "✓"}
                     </Button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Save */}
+            {/* Save Button */}
             <div className="pt-4 flex md:justify-end">
               <Button
                 type="submit"
                 disabled={submitting}
-                className="cursor-pointer flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all"
+                className="flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save size={22} />
                 {submitting ? "Saving..." : "Update Robot"}
