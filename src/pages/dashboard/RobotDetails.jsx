@@ -45,30 +45,33 @@ export default function RobotDetailsFull() {
   // دالة لدمج الأزرار الثابتة مع الأزرار النشطة من البيانات
   const getActiveButtons = () => {
     if (!robot || !robot.Sections?.main?.ActiveBtns) return ALL_BUTTONS;
-    
-    const activeBtns = Array.isArray(robot.Sections.main.ActiveBtns) 
-      ? robot.Sections.main.ActiveBtns 
+
+    const activeBtns = Array.isArray(robot.Sections.main.ActiveBtns)
+      ? robot.Sections.main.ActiveBtns
       : [];
 
     // 1. تصفية الأزرار الثابتة: نأخذ فقط الأزرار الموجودة في ActiveBtns من ALL_BUTTONS
-    const activeStaticButtons = ALL_BUTTONS.filter(staticBtn => {
-      return activeBtns.some(activeBtn => 
-        activeBtn && 
-        typeof activeBtn.Name === "string" && 
-        activeBtn.Name.toLowerCase() === staticBtn.toLowerCase()
+    const activeStaticButtons = ALL_BUTTONS.filter((staticBtn) => {
+      return activeBtns.some(
+        (activeBtn) =>
+          activeBtn &&
+          typeof activeBtn.Name === "string" &&
+          activeBtn.Name.toLowerCase() === staticBtn.toLowerCase()
       );
     });
 
     // 2. إضافة الأزرار الجديدة النشطة التي ليست في ALL_BUTTONS
     const newActiveButtons = activeBtns
-      .filter(activeBtn => 
-        activeBtn && 
-        typeof activeBtn.Name === "string" &&
-        !ALL_BUTTONS.some(staticBtn => 
-          staticBtn.toLowerCase() === activeBtn.Name.toLowerCase()
-        )
+      .filter(
+        (activeBtn) =>
+          activeBtn &&
+          typeof activeBtn.Name === "string" &&
+          !ALL_BUTTONS.some(
+            (staticBtn) =>
+              staticBtn.toLowerCase() === activeBtn.Name.toLowerCase()
+          )
       )
-      .map(activeBtn => activeBtn.Name);
+      .map((activeBtn) => activeBtn.Name);
 
     // 3. دمج النتيجتين مع إزالة التكرارات
     return [...new Set([...activeStaticButtons, ...newActiveButtons])];
@@ -104,7 +107,8 @@ export default function RobotDetailsFull() {
               {robot.RobotName || "Robot Details"}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Project ID: <span className="font-mono">{robot.projectId || "-"}</span>
+              Project ID:{" "}
+              <span className="font-mono">{robot.projectId || "-"}</span>
             </p>
           </div>
           <div className="flex gap-3">
@@ -130,7 +134,9 @@ export default function RobotDetailsFull() {
                 </p>
               </div>
               <Button
-                onClick={() => navigate(`/homeDashboard/robotSettings/${robot.id}`)}
+                onClick={() =>
+                  navigate(`/homeDashboard/robotSettings/${robot.id}`)
+                }
                 className="bg-main-color text-white h-10 self-start"
               >
                 Settings
@@ -159,12 +165,14 @@ export default function RobotDetailsFull() {
                 <NotificationsTab
                   projectId={robot.projectId || "-"}
                   robotId={robot.id || "-"}
+                  sectionName="car"
                 />
               )}
               {trolleyTab === "logs" && (
                 <LogsTab
                   projectId={robot.projectId || "-"}
                   robotId={robot.id || "-"}
+                  sectionName="car"
                 />
               )}
             </div>
@@ -176,7 +184,9 @@ export default function RobotDetailsFull() {
           <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <h2 className="text-xl font-semibold text-main-color">Schedule Settings</h2>
+                <h2 className="text-xl font-semibold text-main-color">
+                  Schedule Settings
+                </h2>
                 <p className="text-sm text-gray-500 mt-1">
                   Configure robot and trolley schedule
                 </p>
@@ -201,7 +211,9 @@ export default function RobotDetailsFull() {
               </p>
             </div>
             <Button
-              onClick={() => navigate(`/homeDashboard/robotSettings/${robot.id}`)}
+              onClick={() =>
+                navigate(`/homeDashboard/robotSettings/${robot.id}`)
+              }
               className="bg-main-color text-white h-10 self-start"
             >
               Settings
@@ -231,12 +243,14 @@ export default function RobotDetailsFull() {
               <NotificationsTab
                 projectId={robot.projectId || "-"}
                 robotId={robot.id || "-"}
+                sectionName="main"
               />
             )}
             {robotTab === "logs" && (
               <LogsTab
                 projectId={robot.projectId || "-"}
                 robotId={robot.id || "-"}
+                sectionName="main"
               />
             )}
           </div>

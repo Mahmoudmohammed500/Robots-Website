@@ -4,41 +4,32 @@ import axios from "axios";
 import { useParams, useLocation } from "react-router-dom";
 import { Trash2, X, Loader } from "lucide-react";
 
-export default function LogsTabView() {
+export default function LogsTabView({ sectionName }) {
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [clearingAll, setClearingAll] = useState(false);
-  
+  const [deviceData, setDeviceData] = useState(null);
+
   const params = useParams();
   const location = useLocation();
-  
-  
-
-  const pathParts = location.pathname.split('/').filter(part => part !== '');
+  const pathParts = location.pathname.split("/").filter(Boolean);
 
   let deviceType = null;
   let deviceId = null;
-  let projectId = "default";
 
-  if (pathParts.includes('robotDetails')) {
-    deviceType = 'robot';
-    const robotIndex = pathParts.indexOf('robotDetails');
-    deviceId = pathParts[robotIndex + 1];
-  } else if (pathParts.includes('trolleyDetails')) {
-    deviceType = 'trolley';
-    const trolleyIndex = pathParts.indexOf('trolleyDetails');
-    deviceId = pathParts[trolleyIndex + 1];
-  }
-
-  if (!deviceId && params.id) {
+  if (pathParts.includes("robotDetails")) {
+    deviceType = "robot";
+    deviceId = pathParts[pathParts.indexOf("robotDetails") + 1];
+  } else if (pathParts.includes("trolleyDetails")) {
+    deviceType = "trolley";
+    deviceId = pathParts[pathParts.indexOf("trolleyDetails") + 1];
+  } else if (params.id) {
     deviceId = params.id;
-    deviceType = 'robot';
+    deviceType = "robot";
   }
-
-  
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -48,295 +39,152 @@ export default function LogsTabView() {
       setLoading(false);
       return;
     }
+    fetchLogsAndDevice();
+  }, [deviceId, deviceType, sectionName]);
 
-    fetchLogs();
-  }, [deviceId, deviceType]);
-
-  const filterLogsByDeviceId = (logsData, targetDeviceId) => {
-    if (!Array.isArray(logsData)) return [];
-    
-    return logsData.filter(log => {
-      const logDeviceId = log.robot_id || log.device_id || log.robotId || log.deviceId;
-      
-      return String(logDeviceId) === String(targetDeviceId);
-    });
-  };
-
+  // 🔍 استخراج أي ID متاح للـ log
   const extractLogId = (log) => {
-    const possibleIdFields = ['id', 'log_id', 'logId', 'ID', 'Id'];
-    
-    for (const field of possibleIdFields) {
-      if (log[field] !== undefined && log[field] !== null && log[field] !== '') {
-        return log[field];
-      }
-    }
-    
-    // If no ID is found, use the index as a fallback (for testing only)
-    return null;
+    const fields = ["id", "log_id", "logId", "ID", "Id"];
+    return (
+      fields.find(
+        (f) => log[f] !== undefined && log[f] !== null && log[f] !== ""
+      ) || null
+    );
   };
 
-  const fetchLogs = async () => {
+  // 🔍 فلترة الـ logs حسب القسم الحالي + آخر 50 + أحدث واحد أولاً
+  const filterLogsBySection = (logsData, device, sectionName) => {
+    if (!device?.Sections?.[sectionName] || !Array.isArray(logsData)) return [];
+    const topic = device.Sections[sectionName].Topic_main;
+
+    // فلترة حسب topic
+    const filtered = logsData.filter((log) => log.topic_main === topic);
+
+    // ترتيب حسب التاريخ والوقت من الأقدم للأحدث
+    const sorted = filtered.sort((a, b) => {
+      const dateTimeA = new Date(`${a.date}T${a.time}`);
+      const dateTimeB = new Date(`${b.date}T${b.time}`);
+      return dateTimeA - dateTimeB; // تصاعدي
+    });
+
+    // أخذ آخر 50 log
+    const lastFifty = sorted.slice(-50);
+
+    // عكس الترتيب بحيث أحدث log يظهر أول
+    return lastFifty.reverse();
+  };
+
+  // 📥 تحميل كل الـ logs وبيانات الجهاز
+  const fetchLogsAndDevice = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const url = `${API_BASE}/logs.php?projectId=${projectId}`;
-      
-      const res = await axios.get(url, {
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      
-      let allLogs = [];
-      
-      if (res.data && Array.isArray(res.data)) {
-        allLogs = res.data;
-      } else if (res.data && res.data.logs) {
-        allLogs = res.data.logs;
-      } else if (res.data && res.data.success) {
-        allLogs = res.data.data || [];
-      } else {
-        allLogs = [];
-      }
 
-      // Check each log for an existing ID
-      allLogs.forEach((log, index) => {
-        const logId = extractLogId(log);
-        
+      // جلب كل الـ logs
+      const logsRes = await axios.get(`${API_BASE}/logs.php`, {
+        headers: { "Content-Type": "application/json" },
       });
-
+      const allLogs = Array.isArray(logsRes.data)
+        ? logsRes.data
+        : logsRes.data?.logs || [];
       setLogs(allLogs);
-      const deviceSpecificLogs = filterLogsByDeviceId(allLogs, deviceId);
-      setFilteredLogs(deviceSpecificLogs);
-      
+
+      // جلب بيانات الجهاز نفسه
+      const deviceRes = await axios.get(
+        `${API_BASE}/${deviceType}s/${deviceId}`
+      );
+      const device = deviceRes.data;
+      setDeviceData(device);
+
+      // فلترة الـ logs حسب القسم الحالي + آخر 50
+      const filtered = filterLogsBySection(allLogs, device, sectionName);
+      setFilteredLogs(filtered);
     } catch (err) {
-      setError(`Failed to load logs: ${err.message}`);
-      
-      // Use mock data for testing when API fails
-      const mockLogs = [
-        { 
-          id: 1, 
-          log_id: 1,
-          robot_id: 37,
-          message: `Log entry for robot 37 - Test message 1`, 
-          date: "2024-01-15", 
-          time: "10:30:00" 
-        },
-        { 
-          id: 2, 
-          log_id: 2,
-          robot_id: 37,
-          message: `Log entry for robot 37 - Test message 2`, 
-          date: "2024-01-15", 
-          time: "11:45:00" 
-        },
-        { 
-          id: 4, 
-          log_id: 4,
-          robot_id: 37,
-          message: `Log entry for robot 37 - Test message 3`, 
-          date: "2024-01-15", 
-          time: "13:20:00" 
-        }
-      ];
-      
-      setLogs(mockLogs);
-      const filteredMockLogs = filterLogsByDeviceId(mockLogs, deviceId);
-      setFilteredLogs(filteredMockLogs);
+      setError(`Failed to load logs or device data: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Delete a single log - updated and fixed
   const handleDeleteLog = async (log) => {
     const logId = extractLogId(log);
-    
-    if (!logId) {
-      alert("Cannot delete: No valid ID found for this log");
-      return;
-    }
-
-    if (!confirm("Are you sure you want to delete this log?")) {
-      return;
-    }
+    if (!logId) return alert("Cannot delete: No valid ID found for this log");
+    if (!confirm("Are you sure you want to delete this log?")) return;
 
     try {
       setDeletingId(logId);
-      
-      
-      // Attempt 1: direct endpoint
-      try {
-        const response = await axios.delete(`${API_BASE}/logs/${logId}`);
-        
-        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
-        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
-        
-        setLogs(updatedLogs);
-        setFilteredLogs(updatedFilteredLogs);
-        setDeletingId(null);
-        return;
-      } catch (err1) {
-      }
-
-      // Attempt 2: query parameter
-      try {
-        const response = await axios.delete(`${API_BASE}/logs.php?id=${logId}`);
-        
-        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
-        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
-        
-        setLogs(updatedLogs);
-        setFilteredLogs(updatedFilteredLogs);
-        setDeletingId(null);
-        return;
-      } catch (err2) {
-      }
-
-      // Attempt 3: POST with data
-      try {
-        const response = await axios.post(`${API_BASE}/logs.php`, {
-          action: 'delete',
-          id: logId
-        });
-        
-        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
-        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
-        
-        setLogs(updatedLogs);
-        setFilteredLogs(updatedFilteredLogs);
-        setDeletingId(null);
-        return;
-      } catch (err3) {
-      }
-
-      // Attempt 4: GET with action
-      try {
-        const response = await axios.get(`${API_BASE}/logs.php?action=delete&id=${logId}`);
-        
-        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
-        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
-        
-        setLogs(updatedLogs);
-        setFilteredLogs(updatedFilteredLogs);
-        setDeletingId(null);
-        return;
-      } catch (err4) {
-      }
-
-      throw new Error("All delete methods failed");
-
-    } catch (err) {
-      
-      // Simulate local delete for testing
-      const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
-      const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
-      
-      setLogs(updatedLogs);
-      setFilteredLogs(updatedFilteredLogs);
-      
-      alert("Log deleted locally (Check console for API details)");
+      await axios.delete(`${API_BASE}/logs/${logId}`);
+      setLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
+      setFilteredLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
+    } catch {
+      setLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
+      setFilteredLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
+      alert("Log deleted locally (check API)");
     } finally {
       setDeletingId(null);
     }
   };
 
-  // Delete all logs - updated
   const handleClearAllLogs = async () => {
-    if (!filteredLogs.length) {
-      alert("No logs to delete");
+    if (!filteredLogs.length) return alert("No logs to delete");
+    if (
+      !confirm(
+        `Are you sure you want to delete all ${filteredLogs.length} logs?`
+      )
+    )
       return;
-    }
 
-    if (!confirm(`Are you sure you want to delete all ${filteredLogs.length} logs? This action cannot be undone.`)) {
-      return;
-    }
+    const validLogs = filteredLogs.filter((log) => extractLogId(log));
+    const logIds = validLogs.map((log) => extractLogId(log));
 
     try {
       setClearingAll(true);
-      
-      // Collect all valid IDs
-      const validLogs = filteredLogs.filter(log => {
-        const logId = extractLogId(log);
-        if (!logId) {
-          return false;
-        }
-        return true;
-      });
-
-      if (validLogs.length === 0) {
-        alert("No logs with valid IDs found to delete");
-        return;
-      }
-
-      const logIds = validLogs.map(log => extractLogId(log));
-      
-      // Try bulk delete
-      try {
-        const response = await axios.delete(`${API_BASE}/logs`, {
-          data: { ids: logIds }
-        });
-      } catch (bulkErr) {
-        
-        for (const log of validLogs) {
-          try {
-            const logId = extractLogId(log);
-            await axios.delete(`${API_BASE}/logs/${logId}`);
-          } catch (singleErr) {
-          }
-        }
-      }
-      
-      const remainingLogs = logs.filter(log => 
-        !validLogs.some(validLog => extractLogId(validLog) === extractLogId(log))
+      await axios.delete(`${API_BASE}/logs`, { data: { ids: logIds } });
+      setLogs((prev) =>
+        prev.filter((log) => !logIds.includes(extractLogId(log)))
       );
-      
-      setLogs(remainingLogs);
       setFilteredLogs([]);
-      
-      alert(`Successfully deleted ${validLogs.length} logs`);
-      
-    } catch (err) {
-      
-      // Simulate local clear for testing
-      const remainingLogs = logs.filter(log => 
-        !filteredLogs.some(filteredLog => extractLogId(filteredLog) === extractLogId(log))
+      alert(`Deleted ${logIds.length} logs`);
+    } catch {
+      setLogs((prev) =>
+        prev.filter((log) => !logIds.includes(extractLogId(log)))
       );
-      
-      setLogs(remainingLogs);
       setFilteredLogs([]);
-      
       alert("All logs cleared locally");
     } finally {
       setClearingAll(false);
     }
   };
 
-  if (loading) return <p className="text-center py-10">Loading logs for {deviceType} {deviceId}...</p>;
-  if (error) return (
-    <div className="text-center py-10">
-      <p className="text-red-500 mb-4">{error}</p>
-      <button 
-        onClick={fetchLogs}
-        className="bg-main-color text-white px-4 py-2 rounded hover:bg-blue-700"
-      >
-        Try Again
-      </button>
-    </div>
-  );
+  if (loading)
+    return (
+      <p className="text-center py-10">
+        Loading logs for {deviceType} {deviceId}...
+      </p>
+    );
+
+  if (error)
+    return (
+      <div className="text-center py-10">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button
+          onClick={fetchLogsAndDevice}
+          className="bg-main-color text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
 
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-main-color">
-          {deviceType === 'robot' ? 'Robot' : 'Trolley'} Logs 
+          {deviceType === "robot" ? "Robot" : "Trolley"} Logs - Section "
+          {sectionName}"
         </h2>
-        
         {filteredLogs.length > 0 && (
-          <button 
+          <button
             onClick={handleClearAllLogs}
             disabled={clearingAll}
             className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed"
@@ -350,10 +198,10 @@ export default function LogsTabView() {
           </button>
         )}
       </div>
-      
+
       <div className="mb-4 p-3 bg-blue-50 rounded-lg">
         <p className="text-sm text-blue-700">
-          All Logs: {filteredLogs.length}
+          Total Logs: {filteredLogs.length}
         </p>
       </div>
 
@@ -361,12 +209,13 @@ export default function LogsTabView() {
         {filteredLogs.map((log, index) => {
           const logId = extractLogId(log);
           const hasValidId = !!logId;
-          
           return (
             <div
               key={logId || index}
               className={`border rounded-lg p-3 flex justify-between items-start gap-3 group transition-colors ${
-                hasValidId ? 'bg-gray-50 hover:bg-gray-100' : 'bg-yellow-50 hover:bg-yellow-100'
+                hasValidId
+                  ? "bg-gray-50 hover:bg-gray-100"
+                  : "bg-yellow-50 hover:bg-yellow-100"
               }`}
             >
               <div className="flex-1">
@@ -374,18 +223,14 @@ export default function LogsTabView() {
                 <div className="text-xs text-gray-400 mt-1">
                   {log.date} {log.time}
                 </div>
-                <div className={`text-xs mt-1 ${hasValidId ? 'text-green-600' : 'text-red-600'}`}>
-                  Log ID: {logId || 'NOT FOUND'} | Device ID: {log.robot_id || log.device_id || log.robotId || log.deviceId}
-                </div>
                 {!hasValidId && (
                   <div className="text-xs text-red-500 mt-1">
-                    ⚠️ This log cannot be deleted individually (no ID found)
+                    ⚠️ Cannot delete individually (no ID)
                   </div>
                 )}
               </div>
-              
               {hasValidId && (
-                <button 
+                <button
                   onClick={() => handleDeleteLog(log)}
                   disabled={deletingId === logId}
                   className="p-2 text-red-500 hover:bg-red-50 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-red-200"
@@ -402,28 +247,25 @@ export default function LogsTabView() {
           );
         })}
       </div>
-      
+
       {filteredLogs.length === 0 && logs.length > 0 && (
         <div className="text-center py-4 text-orange-500">
-          <p>No logs found specifically for {deviceType} {deviceId}</p>
+          <p>No logs found for section "{sectionName}"</p>
           <p className="text-sm">Total logs available: {logs.length}</p>
         </div>
       )}
-      
+
       {filteredLogs.length === 0 && logs.length === 0 && (
-        <div className="text-center py-4 text-gray-500">
-          <p>No logs available</p>
-        </div>
+        <div className="text-center py-4 text-gray-500">No logs available</div>
       )}
-      
+
       <div className="flex justify-between items-center mt-4">
-        <button 
-          onClick={fetchLogs}
+        <button
+          onClick={fetchLogsAndDevice}
           className="bg-main-color text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           Refresh Logs
         </button>
-        
         {filteredLogs.length > 0 && (
           <span className="text-sm text-gray-500">
             {filteredLogs.length} log(s) found
