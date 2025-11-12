@@ -2,14 +2,10 @@ import React, { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import TabsHeader from "@/components/robots/TabsHeader";
-import NotificationsTab from "@/components/robots/NotificationsTab";
-import LogsTab from "@/components/robots/LogsTab";
-import ScheduleSettings from "@/components/robots/ScheduleSettings";
-import RobotMainPanel from "@/components/robots/RobotMainPanel";
-import RobotTrolleyPanel from "@/components/robots/RobotTrolleyPanel";
 import { toast } from "sonner";
 import { postData } from "@/services/postServices";
+import RobotMainPanel from "@/components/robots/RobotMainPanel";
+import RobotTrolleyPanel from "@/components/robots/RobotTrolleyPanel";
 
 const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
 
@@ -23,26 +19,36 @@ export default function AddRobotWithTrolley() {
 
   const [robot, setRobot] = useState({
     RobotName: "",
-    Voltage: 24,
-    Cycles: 500,
-    Status: "Running",
     Image: null,
     imagePreview: null,
-    ActiveBtns: [],
-    TrolleyStatus: "Running",
-    carActiveBtns: [],
-    schedule: { days: [], hour: 8, minute: 0 },
     mqttUrl: "mqtt://192.168.1.50:1883",
+    Sections: {
+      main: {
+        Voltage: 24,
+        Cycles: 500,
+        Status: "Running",
+        ActiveBtns: [],
+        Topic_subscribe: "robot/main/in",
+        Topic_main: "robot/main/out",
+      },
+      car: showTrolley ? {
+        Voltage: 24,
+        Cycles: 500,
+        Status: "Running",
+        ActiveBtns: [],
+        Topic_subscribe: "robot/car/in",
+        Topic_main: "robot/car/out",
+      } : {}
+    }
   });
-
-  const [trolleyTab, setTrolleyTab] = useState("control");
-  const [robotTab, setRobotTab] = useState("control");
 
   const handleSubmit = async () => {
     if (!robot.RobotName) {
       toast.warning("Please enter robot name");
       return;
     }
+
+    console.log("Current robot state:", robot); // Debug
 
     const payload = {
       RobotName: robot.RobotName,
@@ -52,31 +58,29 @@ export default function AddRobotWithTrolley() {
       isTrolley: showTrolley,
       Sections: {
         main: {
-          Voltage: Number(robot.Voltage),
-          Cycles: Number(robot.Cycles),
-          Status: robot.Status,
-          ActiveBtns: robot.ActiveBtns.map((name, idx) => ({
-            Name: name,
+          ...robot.Sections.main,
+          Voltage: Number(robot.Sections.main.Voltage),
+          Cycles: Number(robot.Sections.main.Cycles),
+          ActiveBtns: robot.Sections.main.ActiveBtns.map((btn, idx) => ({
+            ...btn,
             id: (idx + 1).toString(),
-          })),
-          Topic_subscribe: "robot/main/in",
-          Topic_main: "robot/main/out",
+            section: "main"
+          }))
         },
-        car: showTrolley
-          ? {
-              Voltage: Number(robot.Voltage),
-              Cycles: Number(robot.Cycles),
-              Status: robot.TrolleyStatus,
-              ActiveBtns: robot.carActiveBtns.map((name, idx) => ({
-                Name: name,
-                id: (idx + 1).toString(),
-              })),
-              Topic_subscribe: "robot/car/in",
-              Topic_main: "robot/car/out",
-            }
-          : {},
+        car: showTrolley ? {
+          ...robot.Sections.car,
+          Voltage: Number(robot.Sections.car.Voltage),
+          Cycles: Number(robot.Sections.car.Cycles),
+          ActiveBtns: robot.Sections.car.ActiveBtns.map((btn, idx) => ({
+            ...btn,
+            id: (idx + 1).toString(),
+            section: "car"
+          }))
+        } : {}
       },
     };
+
+    console.log("Payload to send:", payload); // Debug
 
     try {
       const res = await postData(`${BASE_URL}/robots`, payload);
@@ -86,6 +90,42 @@ export default function AddRobotWithTrolley() {
       console.error("Save error:", err);
       toast.error("Failed to save robot.");
     }
+  };
+
+  // دالة لتحديث القسم الرئيسي
+  const updateMainSection = (updates) => {
+    setRobot(prev => ({
+      ...prev,
+      Sections: {
+        ...prev.Sections,
+        main: { ...prev.Sections.main, ...updates }
+      }
+    }));
+  };
+
+  // دالة لتحديث قسم التروولي
+  const updateCarSection = (updates) => {
+    setRobot(prev => ({
+      ...prev,
+      Sections: {
+        ...prev.Sections,
+        car: { ...prev.Sections.car, ...updates }
+      }
+    }));
+  };
+
+  // دالة لتحديث الاسم
+  const updateRobotName = (name) => {
+    setRobot(prev => ({ ...prev, RobotName: name }));
+  };
+
+  // دالة لرفع الصورة
+  const updateImage = (file, preview) => {
+    setRobot(prev => ({ 
+      ...prev, 
+      Image: file, 
+      imagePreview: preview 
+    }));
   };
 
   return (
@@ -130,48 +170,17 @@ export default function AddRobotWithTrolley() {
               </div>
             </div>
 
-            <TabsHeader
-              tabs={[
-                { id: "control", label: "Control" },
-                { id: "notifications", label: "Notifications" },
-                { id: "logs", label: "Logs" },
-              ]}
-              active={trolleyTab}
-              onChange={setTrolleyTab}
-              accent="main"
-            />
-
             <div className="mt-5 space-y-6">
-              {trolleyTab === "control" && (
-                <RobotTrolleyPanel
-                  robot={robot}
-                  setRobot={setRobot}
-                  allButtons={ALL_BUTTONS}
-                />
-              )}
-              {trolleyTab === "notifications" && <NotificationsTab />}
-              {trolleyTab === "logs" && <LogsTab />}
+              <RobotTrolleyPanel
+                carData={robot.Sections.car}
+                updateCarSection={updateCarSection}
+                allButtons={ALL_BUTTONS}
+                imagePreview={robot.imagePreview}
+                updateImage={updateImage}
+              />
             </div>
           </section>
         )}
-
-        <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-main-color">
-                Schedule Settings
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Configure robot and trolley schedule
-              </p>
-            </div>
-          </div>
-
-          <ScheduleSettings
-            schedule={robot.schedule}
-            setSchedule={(s) => setRobot((r) => ({ ...r, schedule: s }))}
-          />
-        </section>
 
         {/* ROBOT SECTION */}
         <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
@@ -184,27 +193,16 @@ export default function AddRobotWithTrolley() {
             </div>
           </div>
 
-          <TabsHeader
-            tabs={[
-              { id: "control", label: "Control" },
-              { id: "notifications", label: "Notifications" },
-              { id: "logs", label: "Logs" },
-            ]}
-            active={robotTab}
-            onChange={setRobotTab}
-            accent="main"
-          />
-
           <div className="mt-5 space-y-6">
-            {robotTab === "control" && (
-              <RobotMainPanel
-                robot={robot}
-                setRobot={setRobot}
-                allButtons={ALL_BUTTONS}
-              />
-            )}
-            {robotTab === "notifications" && <NotificationsTab />}
-            {robotTab === "logs" && <LogsTab />}
+            <RobotMainPanel
+              mainData={robot.Sections.main}
+              updateMainSection={updateMainSection}
+              robotName={robot.RobotName}
+              updateRobotName={updateRobotName}
+              imagePreview={robot.imagePreview}
+              updateImage={updateImage}
+              allButtons={ALL_BUTTONS}
+            />
           </div>
         </section>
       </div>

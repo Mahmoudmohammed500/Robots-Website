@@ -22,13 +22,8 @@ import RobotImg from "../../assets/Robot1.jpeg";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ConfirmDeleteModal component remains exactly the same
-function ConfirmDeleteModal({
-  robot = null,
-  deleteAll = false,
-  onConfirm,
-  onCancel,
-}) {
+// ConfirmDeleteModal component
+function ConfirmDeleteModal({ robot = null, deleteAll = false, onConfirm, onCancel }) {
   return (
     <AnimatePresence>
       <motion.div
@@ -55,33 +50,21 @@ function ConfirmDeleteModal({
             {deleteAll ? (
               <>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold text-main-color">
-                  all robots
-                </span>
-                ? This action cannot be undone.
+                <span className="font-semibold text-main-color">all robots</span>? This action cannot be undone.
               </>
             ) : (
               <>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold text-main-color">
-                  {robot?.RobotName}
-                </span>
-                ? This action cannot be undone.
+                <span className="font-semibold text-main-color">{robot?.RobotName || "-"}</span>? This action cannot be undone.
               </>
             )}
           </p>
 
           <div className="flex justify-center gap-4">
-            <Button
-              onClick={onCancel}
-              className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-6 rounded-xl transition-all cursor-pointer"
-            >
+            <Button onClick={onCancel} className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-6 rounded-xl transition-all cursor-pointer">
               Cancel
             </Button>
-            <Button
-              onClick={onConfirm}
-              className="bg-red-500 text-white hover:bg-white hover:text-red-500 border border-red-500 px-6 rounded-xl transition-all cursor-pointer"
-            >
+            <Button onClick={onConfirm} className="bg-red-500 text-white hover:bg-white hover:text-red-500 border border-red-500 px-6 rounded-xl transition-all cursor-pointer">
               Confirm
             </Button>
           </div>
@@ -111,16 +94,12 @@ export default function ProjectDetails() {
       try {
         setLoading(true);
 
-        // Fetch project data
         const projectData = await getData(`${BASE_URL}/projects/${id}`);
-        setProject(projectData);
+        setProject(projectData || {});
 
         const allRobots = await getData(`${BASE_URL}/robots`);
-
         if (Array.isArray(allRobots)) {
           const projectRobots = allRobots.filter((robot) => {
-            console.log("Robot data:", robot);
-
             const possibleProjectIds = [
               robot.projectId,
               robot.project_id,
@@ -128,25 +107,17 @@ export default function ProjectDetails() {
               robot.projectID,
               robot.ProjectID,
             ];
-
-            const hasMatch = possibleProjectIds.some(
-              (projectId) =>
-                projectId != null && String(projectId) === String(id)
-            );
-
-            console.log(`Robot ${robot.id} match:`, hasMatch);
-            return hasMatch;
+            return possibleProjectIds.some(pid => pid != null && String(pid) === String(id));
           });
-
-          console.log("Filtered robots for project:", projectRobots);
           setRobots(projectRobots);
         } else {
-          console.error("Robots data is not an array:", allRobots);
           setRobots([]);
         }
       } catch (error) {
-        console.error("Error fetching project or robots:", error);
+        console.error(error);
         toast.error("Failed to load project details.");
+        setProject({});
+        setRobots([]);
       } finally {
         setLoading(false);
       }
@@ -157,8 +128,6 @@ export default function ProjectDetails() {
 
   useEffect(() => {
     if (location.state?.shouldRefresh) {
-      console.log("Refreshing project data after navigation...");
-
       const refreshData = async () => {
         try {
           const allRobots = await getData(`${BASE_URL}/robots`);
@@ -171,11 +140,7 @@ export default function ProjectDetails() {
                 robot.projectID,
                 robot.ProjectID,
               ];
-
-              return possibleProjectIds.some(
-                (projectId) =>
-                  projectId != null && String(projectId) === String(id)
-              );
+              return possibleProjectIds.some(pid => pid != null && String(pid) === String(id));
             });
             setRobots(projectRobots);
           }
@@ -185,7 +150,6 @@ export default function ProjectDetails() {
       };
 
       refreshData();
-
       window.history.replaceState({}, document.title);
     }
   }, [location.state, id]);
@@ -193,7 +157,7 @@ export default function ProjectDetails() {
   const handleDeleteRobot = async (robotId) => {
     try {
       await deleteData(`${BASE_URL}/robots/${robotId}`);
-      setRobots((prev) => prev.filter((r) => r.id !== robotId));
+      setRobots(prev => prev.filter(r => r.id !== robotId));
       toast.success("Robot deleted successfully!");
     } catch (err) {
       console.error(err);
@@ -240,9 +204,7 @@ export default function ProjectDetails() {
       <div className="mb-6">
         <Button
           onClick={() => navigate(-1)}
-          className="cursor-pointer flex items-center gap-2 bg-main-color text-white border border-main-color 
-                     hover:bg-white hover:text-main-color transition-colors
-                     px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
+          className="cursor-pointer flex items-center gap-2 bg-main-color text-white border border-main-color hover:bg-white hover:text-main-color transition-colors px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
         >
           <ArrowLeft size={18} />
           <span>Back</span>
@@ -253,23 +215,23 @@ export default function ProjectDetails() {
       <Card className="mb-8 shadow-lg rounded-xl border border-gray-200 pt-0">
         <CardHeader className="bg-linear-to-r from-main-color to-second-color text-white rounded-t-xl">
           <CardTitle className="text-2xl font-bold py-2">
-            {project.ProjectName}
+            {project.ProjectName || "-"}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <p className="text-gray-600 mb-4 text-lg">{project.Description}</p>
+          <p className="text-gray-600 mb-4 text-lg">{project.Description || "-"}</p>
           <div className="flex items-center gap-2 text-gray-500">
             <span className="font-semibold">Location:</span>
-            <span>{project.Location}</span>
+            <span>{project.Location || "-"}</span>
           </div>
 
-          {project.Image && project.Image !== "Array" && (
+          {project.Image && project.Image !== "Array" ? (
             <img
               src={`http://localhost/robots_web_apis/${project.Image}`}
-              alt={project.ProjectName}
+              alt={project.ProjectName || "-"}
               className="h-64 w-full object-cover rounded-lg mt-4"
             />
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
@@ -300,7 +262,7 @@ export default function ProjectDetails() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {robots.map((robot) => (
             <Card
-              key={robot.id}
+              key={robot.id || Math.random()}
               className="overflow-hidden shadow-lg pt-0 hover:shadow-xl transition rounded-xl border border-gray-200"
             >
               {/* Robot Image */}
@@ -310,19 +272,18 @@ export default function ProjectDetails() {
                     ? `http://localhost/robots_web_apis/${robot.Image}?t=${Date.now()}`
                     : RobotImg
                 }
-                alt={robot.RobotName}
+                alt={robot.RobotName || "-"}
                 className="h-56 w-full object-cover"
               />
 
               <CardHeader className="pb-2 px-4 pt-4">
                 <CardTitle className="text-xl font-semibold text-gray-800">
-                  {robot.RobotName}
+                  {robot.RobotName || "-"}
                 </CardTitle>
 
                 {/* Robot Stats */}
                 <CardDescription className="text-gray-600 mt-1">
-                  Voltage: {robot.Sections?.main?.Voltage || "-"}V — Cycles:{" "}
-                  {robot.Sections?.main?.Cycles || "-"}
+                  Voltage: {robot.Sections?.main?.Voltage || "-"}V — Cycles: {robot.Sections?.main?.Cycles || "-"}
                 </CardDescription>
                 <div className="text-gray-500 text-sm mt-1">
                   Status:{" "}
@@ -338,44 +299,48 @@ export default function ProjectDetails() {
                   <span>Trolley:</span>
                   <span className="font-semibold">
                     {robot.isTrolley ? (
-                      <span className="text-green-600 flex items-center gap-1">
-                        🟢 Yes
-                      </span>
+                      <span className="text-green-600 flex items-center gap-1">🟢 Yes</span>
                     ) : (
-                      <span className="text-red-500 flex items-center gap-1">
-                        🔴 No
-                      </span>
+                      <span className="text-red-500 flex items-center gap-1">🔴 No</span>
                     )}
                   </span>
                 </div>
               </CardHeader>
 
-              {/* Active Buttons */}
+              {/* Active Buttons (main) */}
               <CardContent className="px-4 pb-4 flex flex-wrap gap-2 mt-2">
                 {(() => {
                   let activeBtns = [];
-                  if (Array.isArray(robot.Sections?.main?.ActiveBtns)) {
-                    activeBtns = robot.Sections.main.ActiveBtns;
-                  } else if (
-                    typeof robot.Sections?.main?.ActiveBtns === "string"
-                  ) {
-                    try {
+                  try {
+                    if (Array.isArray(robot.Sections?.main?.ActiveBtns)) {
+                      activeBtns = robot.Sections.main.ActiveBtns;
+                    } else if (typeof robot.Sections?.main?.ActiveBtns === "string") {
                       activeBtns = JSON.parse(robot.Sections.main.ActiveBtns);
-                    } catch {
-                      activeBtns = [];
                     }
+                  } catch {
+                    activeBtns = [];
                   }
 
-                  return activeBtns
-                    .filter((btn) => btn && (btn.Name || btn.name))
-                    .map((btn, i) => (
-                      <Button
-                        key={btn.id || i}
-                        className="bg-gray-100 text-gray-700 border border-gray-300 hover:bg-main-color hover:text-white transition-all px-3 py-1 text-sm rounded-lg"
-                      >
-                        {btn.Name || btn.name || "Button"}
-                      </Button>
-                    ));
+                  return activeBtns.length > 0 ? (
+                    activeBtns.map((btn, i) => {
+                      const btnLabel =
+                        typeof btn?.Name === "string"
+                          ? btn.Name
+                          : typeof btn?.name === "string"
+                          ? btn.name
+                          : "-";
+                      return (
+                        <button
+                          key={btn.id || i}
+                          className="px-4 py-1.5 rounded-lg border text-sm font-medium bg-main-color text-white border-main-color hover:bg-white hover:text-main-color transition-all"
+                        >
+                          {btnLabel}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <span className="text-gray-400 text-sm italic">No active buttons</span>
+                  );
                 })()}
               </CardContent>
 
@@ -384,9 +349,7 @@ export default function ProjectDetails() {
                 <Button
                   variant="outline"
                   className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-gray-600 text-white hover:bg-white hover:text-gray-600 transition-colors"
-                  onClick={() =>
-                    navigate(`/homeDashboard/robotDetails/${robot.id}`)
-                  }
+                  onClick={() => navigate(`/homeDashboard/robotDetails/${robot.id}`)}
                 >
                   <ArrowRight size={16} />
                 </Button>
@@ -394,14 +357,9 @@ export default function ProjectDetails() {
                 <Button
                   variant="outline"
                   className="cursor-pointer p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white hover:bg-white hover:text-main-color transition-colors"
-                  onClick={() =>
-                    navigate(`/homeDashboard/editRobot/${robot.id}`, {
-                      state: {
-                        projectId: id,
-                        projectName: project.ProjectName,
-                      },
-                    })
-                  }
+                  onClick={() => navigate(`/homeDashboard/editRobot/${robot.id}`, {
+                    state: { projectId: id, projectName: project.ProjectName || "-" },
+                  })}
                 >
                   <Edit3 size={16} />
                 </Button>
@@ -423,7 +381,7 @@ export default function ProjectDetails() {
         </div>
       )}
 
-      {/* Confirm Delete Modal for single robot */}
+      {/* Confirm Delete Modals */}
       {robotToDelete && (
         <ConfirmDeleteModal
           robot={robotToDelete}
@@ -431,8 +389,6 @@ export default function ProjectDetails() {
           onCancel={() => setRobotToDelete(null)}
         />
       )}
-
-      {/* Confirm Delete Modal for all robots */}
       {showDeleteAllModal && (
         <ConfirmDeleteModal
           deleteAll={true}
@@ -469,11 +425,7 @@ export default function ProjectDetails() {
                   onClick={() => {
                     setShowAddModal(false);
                     navigate(`/homeDashboard/addRobotw/${id}`, {
-                      state: {
-                        projectId: id,
-                        projectName: project.ProjectName,
-                        type: "withTrolley",
-                      },
+                      state: { projectId: id, projectName: project.ProjectName || "-", type: "withTrolley" },
                     });
                   }}
                   className="bg-main-color text-white border border-main-color hover:bg-white hover:text-main-color px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all"
@@ -485,11 +437,7 @@ export default function ProjectDetails() {
                   onClick={() => {
                     setShowAddModal(false);
                     navigate(`/homeDashboard/addRobotOnly/${id}`, {
-                      state: {
-                        projectId: id,
-                        projectName: project.ProjectName,
-                        type: "robotOnly",
-                      },
+                      state: { projectId: id, projectName: project.ProjectName || "-", type: "robotOnly" },
                     });
                   }}
                   className="bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all"
