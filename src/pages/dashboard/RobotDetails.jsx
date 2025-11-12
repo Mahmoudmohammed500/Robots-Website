@@ -91,8 +91,6 @@ export default function RobotDetailsFull() {
     robot?.isTrolley === "true" ||
     robot?.isTrolley === true;
 
-  const activeButtons = getActiveButtons();
-
   return (
     <motion.div
       className="min-h-screen bg-gray-50 p-6 sm:p-10"
@@ -159,6 +157,7 @@ export default function RobotDetailsFull() {
                 <TrolleyPanelDetails
                   robotId={id}
                   imgSrc="/assets/placeholder-trolley.jpg"
+                  trolleyData={robot}
                 />
               )}
               {trolleyTab === "notifications" && (
@@ -236,7 +235,7 @@ export default function RobotDetailsFull() {
               <RobotMainPanelView
                 robot={robot}
                 setRobot={setRobot}
-                allButtons={activeButtons}
+                allButtons={ALL_BUTTONS}
               />
             )}
             {robotTab === "notifications" && (
