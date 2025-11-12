@@ -42,38 +42,6 @@ export default function RobotDetailsFull() {
     fetchRobot();
   }, [id]);
 
-  // دالة لدمج الأزرار الثابتة مع الأزرار النشطة من البيانات
-  const getActiveButtons = () => {
-    if (!robot || !robot.Sections?.main?.ActiveBtns) return ALL_BUTTONS;
-    
-    const activeBtns = Array.isArray(robot.Sections.main.ActiveBtns) 
-      ? robot.Sections.main.ActiveBtns 
-      : [];
-
-    // 1. تصفية الأزرار الثابتة: نأخذ فقط الأزرار الموجودة في ActiveBtns من ALL_BUTTONS
-    const activeStaticButtons = ALL_BUTTONS.filter(staticBtn => {
-      return activeBtns.some(activeBtn => 
-        activeBtn && 
-        typeof activeBtn.Name === "string" && 
-        activeBtn.Name.toLowerCase() === staticBtn.toLowerCase()
-      );
-    });
-
-    // 2. إضافة الأزرار الجديدة النشطة التي ليست في ALL_BUTTONS
-    const newActiveButtons = activeBtns
-      .filter(activeBtn => 
-        activeBtn && 
-        typeof activeBtn.Name === "string" &&
-        !ALL_BUTTONS.some(staticBtn => 
-          staticBtn.toLowerCase() === activeBtn.Name.toLowerCase()
-        )
-      )
-      .map(activeBtn => activeBtn.Name);
-
-    // 3. دمج النتيجتين مع إزالة التكرارات
-    return [...new Set([...activeStaticButtons, ...newActiveButtons])];
-  };
-
   if (loading) return <Loading />;
 
   if (!robot || Object.keys(robot).length === 0)
@@ -87,8 +55,6 @@ export default function RobotDetailsFull() {
     robot?.isTrolley == 1 ||
     robot?.isTrolley === "true" ||
     robot?.isTrolley === true;
-
-  const activeButtons = getActiveButtons();
 
   return (
     <motion.div
@@ -153,6 +119,7 @@ export default function RobotDetailsFull() {
                 <TrolleyPanelDetails
                   robotId={id}
                   imgSrc="/assets/placeholder-trolley.jpg"
+                  trolleyData={robot}
                 />
               )}
               {trolleyTab === "notifications" && (
@@ -224,7 +191,7 @@ export default function RobotDetailsFull() {
               <RobotMainPanelView
                 robot={robot}
                 setRobot={setRobot}
-                allButtons={activeButtons}
+                allButtons={ALL_BUTTONS}
               />
             )}
             {robotTab === "notifications" && (

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Upload, Power, Plus } from "lucide-react";
+import React from "react";
+import { Upload, Power } from "lucide-react";
 
 export default function RobotMainPanel({ 
   mainData = {}, 
@@ -8,13 +8,9 @@ export default function RobotMainPanel({
   updateRobotName = () => {},
   imagePreview = null,
   updateImage = () => {},
-  allButtons = []
+  mqttUrl = "",
+  updateMqttUrl = () => {}
 }) {
-  const [customBtn, setCustomBtn] = useState("");
-  const [buttons, setButtons] = useState([...allButtons]);
-
-  console.log("Current mainData in panel:", mainData); // Debug
-
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -23,47 +19,7 @@ export default function RobotMainPanel({
   };
 
   const handleMainChange = (field, value) => {
-    console.log(`Updating main ${field} to:`, value);
     updateMainSection({ [field]: value });
-  };
-
-  const toggleButton = (btnName) => {
-    console.log("Toggling button:", btnName);
-    const currentActiveBtns = Array.isArray(mainData.ActiveBtns) ? [...mainData.ActiveBtns] : [];
-    const exists = currentActiveBtns.some((b) => b.Name === btnName);
-    
-    let newBtns;
-    if (exists) {
-      newBtns = currentActiveBtns.filter((b) => b.Name !== btnName);
-    } else {
-      newBtns = [...currentActiveBtns, { 
-        Name: btnName, 
-        id: Date.now().toString(),
-        section: "main"
-      }];
-    }
-    
-    console.log("New buttons:", newBtns);
-    updateMainSection({ ActiveBtns: newBtns });
-  };
-
-  const addCustomButton = () => {
-    const trimmed = customBtn.trim();
-    if (!trimmed || buttons.includes(trimmed)) return;
-
-    const newBtn = { 
-      Name: trimmed, 
-      id: Date.now().toString(),
-      section: "main"
-    };
-    
-    setButtons((prev) => [...prev, trimmed]);
-    
-    const currentActiveBtns = Array.isArray(mainData.ActiveBtns) ? [...mainData.ActiveBtns] : [];
-    const newActive = [...currentActiveBtns, newBtn];
-    
-    updateMainSection({ ActiveBtns: newActive });
-    setCustomBtn("");
   };
 
   const toggleStatus = () => {
@@ -103,18 +59,48 @@ export default function RobotMainPanel({
             />
           </div>
 
+          {/* MQTT URL */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1">MQTT URL</label>
+            <input
+              type="text"
+              value={mqttUrl}
+              onChange={(e) => updateMqttUrl(e.target.value)}
+              className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color"
+              placeholder="Enter MQTT URL"
+            />
+          </div>
+
           {/* Voltage & Cycles */}
           <EditableField 
             label="Voltage" 
             value={mainData.Voltage || ""} 
             onChange={(v) => handleMainChange("Voltage", v)} 
             type="number" 
+            placeholder="Enter voltage"
           />
           <EditableField 
             label="Cycles" 
             value={mainData.Cycles || ""} 
             onChange={(v) => handleMainChange("Cycles", v)} 
             type="number" 
+            placeholder="Enter cycles"
+          />
+
+          {/* Topic Subscribe */}
+          <EditableField 
+            label="Topic Subscribe"
+            value={mainData.Topic_subscribe || ""}
+            onChange={(v) => handleMainChange("Topic_subscribe", v)}
+            placeholder="Enter subscribe topic"
+          />
+
+          {/* Topic Main */}
+          <EditableField 
+            label="Topic Main"
+            value={mainData.Topic_main || ""}
+            onChange={(v) => handleMainChange("Topic_main", v)}
+            placeholder="Enter main topic"
           />
 
           {/* Status */}
@@ -122,10 +108,11 @@ export default function RobotMainPanel({
             <label className="text-xs text-gray-500 mb-1">Status</label>
             <div className="flex gap-2">
               <select
-                value={mainData.Status || "Idle"}
+                value={mainData.Status || ""}
                 onChange={(e) => handleMainChange("Status", e.target.value)}
                 className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color"
               >
+                <option value="">Select status</option>
                 <option value="Running">Running</option>
                 <option value="Stopped">Stopped</option>
                 <option value="Idle">Idle</option>
@@ -140,55 +127,13 @@ export default function RobotMainPanel({
               </button>
             </div>
           </div>
-
-          {/* Active Buttons */}
-          <div className="col-span-2">
-            <label className="text-xs text-gray-500 mb-2 block">Active Buttons</label>
-            <div className="flex flex-wrap gap-2">
-              {buttons.map((btn) => {
-                const isActive = Array.isArray(mainData.ActiveBtns) && 
-                  mainData.ActiveBtns.some((b) => b.Name === btn);
-                return (
-                  <button
-                    key={btn}
-                    type="button"
-                    onClick={() => toggleButton(btn)}
-                    className={`px-4 py-2 rounded-xl border transition-colors ${
-                      isActive 
-                        ? "bg-main-color text-white border-main-color" 
-                        : "bg-white text-gray-700 border-gray-300 hover:border-main-color"
-                    }`}
-                  >
-                    {btn} {isActive && "✓"}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Add Custom Button */}
-          <div className="col-span-2 flex gap-2 mt-2">
-            <input
-              type="text"
-              value={customBtn}
-              onChange={(e) => setCustomBtn(e.target.value)}
-              placeholder="Add new button..."
-              className="flex-1 border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color"
-            />
-            <button
-              onClick={addCustomButton}
-              className="bg-main-color text-white px-4 py-2 rounded-lg flex items-center gap-1 hover:bg-main-color-dark transition-colors"
-            >
-              <Plus size={16} /> Add
-            </button>
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function EditableField({ label, value, onChange, type = "text" }) {
+function EditableField({ label, value, onChange, type = "text", placeholder = "" }) {
   return (
     <div className="flex flex-col">
       <label className="text-xs text-gray-500 mb-1">{label}</label>
@@ -196,6 +141,7 @@ function EditableField({ label, value, onChange, type = "text" }) {
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
         className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color"
       />
     </div>

@@ -9,8 +9,6 @@ import Loading from "@/pages/Loading";
 import RobotMainPanel from "@/components/robots/RobotMainPanel";
 import RobotTrolleyPanel from "@/components/robots/RobotTrolleyPanel";
 
-const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
-
 export default function EditRobot() {
   const navigate = useNavigate();
   const { id: robotId } = useParams();
@@ -22,29 +20,6 @@ export default function EditRobot() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showTrolley, setShowTrolley] = useState(false);
-
-  const processActiveBtns = (activeBtns) => {
-    if (!activeBtns) return [];
-    
-    if (Array.isArray(activeBtns)) {
-      return activeBtns.map(btn => {
-        if (typeof btn === 'object' && btn !== null) {
-          return {
-            Name: btn.Name || btn.name || '',
-            id: btn.id || Date.now().toString(),
-            section: btn.section || 'main'
-          };
-        }
-        return {
-          Name: btn,
-          id: Date.now().toString(),
-          section: 'main'
-        };
-      });
-    }
-    
-    return [];
-  };
 
   // Fetch robot data
   useEffect(() => {
@@ -65,8 +40,6 @@ export default function EditRobot() {
 
         console.log("Main section:", mainSection);
         console.log("Car section:", carSection);
-        console.log("Main ActiveBtns:", mainSection.ActiveBtns);
-        console.log("Car ActiveBtns:", carSection.ActiveBtns);
 
         const processedRobot = {
           RobotName: data.RobotName || "",
@@ -74,13 +47,13 @@ export default function EditRobot() {
           imagePreview: data.Image
             ? `${UPLOADS_URL}/${data.Image}`
             : "/assets/placeholder-robot.jpg",
+          mqttUrl: data.mqttUrl || "",
           isTrolley: data.isTrolley == 1 || data.isTrolley === "true" || data.isTrolley === true,
           Sections: {
             main: {
               Voltage: mainSection.Voltage || "",
               Cycles: mainSection.Cycles || "",
               Status: mainSection.Status || "Stopped",
-              ActiveBtns: processActiveBtns(mainSection.ActiveBtns),
               Topic_subscribe: mainSection.Topic_subscribe || "robot/main/in",
               Topic_main: mainSection.Topic_main || "robot/main/out",
             },
@@ -89,7 +62,6 @@ export default function EditRobot() {
                   Voltage: carSection.Voltage || "",
                   Cycles: carSection.Cycles || "",
                   Status: carSection.Status || "Stopped",
-                  ActiveBtns: processActiveBtns(carSection.ActiveBtns),
                   Topic_subscribe: carSection.Topic_subscribe || "robot/car/in",
                   Topic_main: carSection.Topic_main || "robot/car/out",
                 }
@@ -117,6 +89,11 @@ export default function EditRobot() {
   const updateRobotName = (name) => {
     console.log("Updating robot name to:", name);
     setRobot((prev) => ({ ...prev, RobotName: name }));
+  };
+
+  const updateMqttUrl = (url) => {
+    console.log("Updating MQTT URL to:", url);
+    setRobot((prev) => ({ ...prev, mqttUrl: url }));
   };
 
   const updateImage = (file, preview) => {
@@ -153,6 +130,11 @@ export default function EditRobot() {
       return;
     }
 
+    if (!robot.mqttUrl) {
+      toast.warning("Please enter MQTT URL");
+      return;
+    }
+
     if (!robot.Sections.main.Voltage || !robot.Sections.main.Cycles) {
       toast.warning("Please fill main section Voltage & Cycles");
       return;
@@ -169,13 +151,13 @@ export default function EditRobot() {
       const payload = {
         RobotName: robot.RobotName,
         Image: robot.Image instanceof File ? robot.Image.name : robot.Image,
+        mqttUrl: robot.mqttUrl,
         isTrolley: showTrolley ? 1 : 0,
         Sections: {
           main: {
             ...robot.Sections.main,
             Voltage: Number(robot.Sections.main.Voltage),
             Cycles: Number(robot.Sections.main.Cycles),
-            ActiveBtns: robot.Sections.main.ActiveBtns,
           },
         },
       };
@@ -185,7 +167,6 @@ export default function EditRobot() {
           ...robot.Sections.car,
           Voltage: Number(robot.Sections.car.Voltage),
           Cycles: Number(robot.Sections.car.Cycles),
-          ActiveBtns: robot.Sections.car.ActiveBtns,
         };
       }
 
@@ -212,8 +193,7 @@ export default function EditRobot() {
 
   console.log("=== FINAL ROBOT DATA BEFORE RENDER ===");
   console.log("Robot Name:", robot?.RobotName);
-  console.log("Main ActiveBtns:", robot?.Sections?.main?.ActiveBtns);
-  console.log("Car ActiveBtns:", robot?.Sections?.car?.ActiveBtns);
+  console.log("MQTT URL:", robot?.mqttUrl);
   console.log("Main Voltage:", robot?.Sections?.main?.Voltage);
   console.log("Main Cycles:", robot?.Sections?.main?.Cycles);
 
@@ -258,7 +238,6 @@ export default function EditRobot() {
             <RobotTrolleyPanel
               carData={robot.Sections.car}
               updateCarSection={updateCarSection}
-              allButtons={ALL_BUTTONS}
               imagePreview={robot.imagePreview}
               updateImage={updateImage}
             />
@@ -275,7 +254,8 @@ export default function EditRobot() {
             updateRobotName={updateRobotName}
             imagePreview={robot.imagePreview}
             updateImage={updateImage}
-            allButtons={ALL_BUTTONS}
+            mqttUrl={robot.mqttUrl}
+            updateMqttUrl={updateMqttUrl}
           />
         </section>
       </div>

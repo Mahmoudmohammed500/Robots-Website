@@ -7,8 +7,6 @@ import { postData } from "@/services/postServices";
 import RobotMainPanel from "@/components/robots/RobotMainPanel";
 import RobotTrolleyPanel from "@/components/robots/RobotTrolleyPanel";
 
-const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
-
 export default function AddRobotWithTrolley() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -21,23 +19,23 @@ export default function AddRobotWithTrolley() {
     RobotName: "",
     Image: null,
     imagePreview: null,
-    mqttUrl: "mqtt://192.168.1.50:1883",
+    mqttUrl: "",
     Sections: {
       main: {
-        Voltage: 24,
-        Cycles: 500,
-        Status: "Running",
+        Voltage: "",
+        Cycles: "",
+        Status: "",
         ActiveBtns: [],
-        Topic_subscribe: "robot/main/in",
-        Topic_main: "robot/main/out",
+        Topic_subscribe: "",
+        Topic_main: "",
       },
       car: showTrolley ? {
-        Voltage: 24,
-        Cycles: 500,
-        Status: "Running",
+        Voltage: "",
+        Cycles: "",
+        Status: "",
         ActiveBtns: [],
-        Topic_subscribe: "robot/car/in",
-        Topic_main: "robot/car/out",
+        Topic_subscribe: "",
+        Topic_main: "",
       } : {}
     }
   });
@@ -48,7 +46,12 @@ export default function AddRobotWithTrolley() {
       return;
     }
 
-    console.log("Current robot state:", robot); // Debug
+    if (!robot.mqttUrl) {
+      toast.warning("Please enter MQTT URL");
+      return;
+    }
+
+    console.log("Current robot state:", robot);
 
     const payload = {
       RobotName: robot.RobotName,
@@ -59,28 +62,22 @@ export default function AddRobotWithTrolley() {
       Sections: {
         main: {
           ...robot.Sections.main,
-          Voltage: Number(robot.Sections.main.Voltage),
-          Cycles: Number(robot.Sections.main.Cycles),
-          ActiveBtns: robot.Sections.main.ActiveBtns.map((btn, idx) => ({
-            ...btn,
-            id: (idx + 1).toString(),
-            section: "main"
-          }))
+          Voltage: robot.Sections.main.Voltage ? Number(robot.Sections.main.Voltage) : 0,
+          Cycles: robot.Sections.main.Cycles ? Number(robot.Sections.main.Cycles) : 0,
+          Status: robot.Sections.main.Status || "Idle",
+          ActiveBtns: []
         },
         car: showTrolley ? {
           ...robot.Sections.car,
-          Voltage: Number(robot.Sections.car.Voltage),
-          Cycles: Number(robot.Sections.car.Cycles),
-          ActiveBtns: robot.Sections.car.ActiveBtns.map((btn, idx) => ({
-            ...btn,
-            id: (idx + 1).toString(),
-            section: "car"
-          }))
+          Voltage: robot.Sections.car.Voltage ? Number(robot.Sections.car.Voltage) : 0,
+          Cycles: robot.Sections.car.Cycles ? Number(robot.Sections.car.Cycles) : 0,
+          Status: robot.Sections.car.Status || "Idle",
+          ActiveBtns: []
         } : {}
       },
     };
 
-    console.log("Payload to send:", payload); // Debug
+    console.log("Payload to send:", payload);
 
     try {
       const res = await postData(`${BASE_URL}/robots`, payload);
@@ -117,6 +114,11 @@ export default function AddRobotWithTrolley() {
   // دالة لتحديث الاسم
   const updateRobotName = (name) => {
     setRobot(prev => ({ ...prev, RobotName: name }));
+  };
+
+  // دالة لتحديث MQTT URL
+  const updateMqttUrl = (url) => {
+    setRobot(prev => ({ ...prev, mqttUrl: url }));
   };
 
   // دالة لرفع الصورة
@@ -174,7 +176,6 @@ export default function AddRobotWithTrolley() {
               <RobotTrolleyPanel
                 carData={robot.Sections.car}
                 updateCarSection={updateCarSection}
-                allButtons={ALL_BUTTONS}
                 imagePreview={robot.imagePreview}
                 updateImage={updateImage}
               />
@@ -201,7 +202,8 @@ export default function AddRobotWithTrolley() {
               updateRobotName={updateRobotName}
               imagePreview={robot.imagePreview}
               updateImage={updateImage}
-              allButtons={ALL_BUTTONS}
+              mqttUrl={robot.mqttUrl}
+              updateMqttUrl={updateMqttUrl}
             />
           </div>
         </section>
