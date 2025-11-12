@@ -27,6 +27,11 @@ export default function DashboardSidebar({ children }) {
     navigate(path);
   };
 
+  const handleLogout = () => {
+    "/login";
+    navigate(`/login`, { replace: true });
+  };
+
   return (
     <div className="flex bg-gray-50 min-h-screen max-lg:w-0">
       {/* ===== Sidebar (Desktop) ===== */}
@@ -112,7 +117,7 @@ export default function DashboardSidebar({ children }) {
         {/* ===== Footer ===== */}
         <div className="border-t border-white/10 p-4 flex flex-col">
           <button
-            onClick={() => navigate("/login")}
+            onClick={handleLogout}
             className={`flex items-center gap-3 text-white/90 font-medium py-2 px-1 rounded-lg hover:bg-white/15 transition w-full cursor-pointer ${
               !isOpen ? "justify-center" : "justify-start"
             }`}
@@ -169,7 +174,7 @@ export default function DashboardSidebar({ children }) {
             );
           })}
           <button
-            onClick={() => navigate("/login")}
+            onClick={handleLogout}
             title="Logout"
             className="text-white/70 hover:text-white transition cursor-pointer"
           >

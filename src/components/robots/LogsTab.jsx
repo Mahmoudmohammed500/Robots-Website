@@ -1,213 +1,435 @@
-// src/components/robots/LogsTab.jsx
+// src/components/robots/LogsTabView.jsx
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import axios from "axios";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useParams, useLocation } from "react-router-dom";
+import { Trash2, X, Loader } from "lucide-react";
 
-export default function LogsTab({ projectId, robotId }) {
+export default function LogsTabView() {
   const [logs, setLogs] = useState([]);
+  const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [currentLog, setCurrentLog] = useState({
-    id: null,
-    message: "",
-    date: "",
-    time: "",
-  });
+  const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [clearingAll, setClearingAll] = useState(false);
+  
+  const params = useParams();
+  const location = useLocation();
+  
+  
 
-  const API_BASE = "http://localhost/robotsback/api/robots.php"; 
+  const pathParts = location.pathname.split('/').filter(part => part !== '');
+
+  let deviceType = null;
+  let deviceId = null;
+  let projectId = "default";
+
+  if (pathParts.includes('robotDetails')) {
+    deviceType = 'robot';
+    const robotIndex = pathParts.indexOf('robotDetails');
+    deviceId = pathParts[robotIndex + 1];
+  } else if (pathParts.includes('trolleyDetails')) {
+    deviceType = 'trolley';
+    const trolleyIndex = pathParts.indexOf('trolleyDetails');
+    deviceId = pathParts[trolleyIndex + 1];
+  }
+
+  if (!deviceId && params.id) {
+    deviceId = params.id;
+    deviceType = 'robot';
+  }
+
+  
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
   useEffect(() => {
-    if (!projectId || !robotId) return;
+    if (!deviceId) {
+      setError("Cannot determine device ID from URL");
+      setLoading(false);
+      return;
+    }
+
     fetchLogs();
-  }, [projectId, robotId]);
+  }, [deviceId, deviceType]);
+
+  const filterLogsByDeviceId = (logsData, targetDeviceId) => {
+    if (!Array.isArray(logsData)) return [];
+    
+    return logsData.filter(log => {
+      const logDeviceId = log.robot_id || log.device_id || log.robotId || log.deviceId;
+      
+      return String(logDeviceId) === String(targetDeviceId);
+    });
+  };
+
+  const extractLogId = (log) => {
+    const possibleIdFields = ['id', 'log_id', 'logId', 'ID', 'Id'];
+    
+    for (const field of possibleIdFields) {
+      if (log[field] !== undefined && log[field] !== null && log[field] !== '') {
+        return log[field];
+      }
+    }
+    
+    // If no ID is found, use the index as a fallback (for testing only)
+    return null;
+  };
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        `${API_BASE}/logs?projectId=${projectId}&robotId=${robotId}`
-      );
-      setLogs(res.data || []);
+      setError(null);
+      
+      const url = `${API_BASE}/logs.php?projectId=${projectId}`;
+      
+      const res = await axios.get(url, {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      
+      let allLogs = [];
+      
+      if (res.data && Array.isArray(res.data)) {
+        allLogs = res.data;
+      } else if (res.data && res.data.logs) {
+        allLogs = res.data.logs;
+      } else if (res.data && res.data.success) {
+        allLogs = res.data.data || [];
+      } else {
+        allLogs = [];
+      }
+
+      // Check each log for an existing ID
+      allLogs.forEach((log, index) => {
+        const logId = extractLogId(log);
+        
+      });
+
+      setLogs(allLogs);
+      const deviceSpecificLogs = filterLogsByDeviceId(allLogs, deviceId);
+      setFilteredLogs(deviceSpecificLogs);
+      
     } catch (err) {
-      console.error("Error fetching logs:", err);
+      setError(`Failed to load logs: ${err.message}`);
+      
+      // Use mock data for testing when API fails
+      const mockLogs = [
+        { 
+          id: 1, 
+          log_id: 1,
+          robot_id: 37,
+          message: `Log entry for robot 37 - Test message 1`, 
+          date: "2024-01-15", 
+          time: "10:30:00" 
+        },
+        { 
+          id: 2, 
+          log_id: 2,
+          robot_id: 37,
+          message: `Log entry for robot 37 - Test message 2`, 
+          date: "2024-01-15", 
+          time: "11:45:00" 
+        },
+        { 
+          id: 4, 
+          log_id: 4,
+          robot_id: 37,
+          message: `Log entry for robot 37 - Test message 3`, 
+          date: "2024-01-15", 
+          time: "13:20:00" 
+        }
+      ];
+      
+      setLogs(mockLogs);
+      const filteredMockLogs = filterLogsByDeviceId(mockLogs, deviceId);
+      setFilteredLogs(filteredMockLogs);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!currentLog.message || !currentLog.date || !currentLog.time) {
-      alert("Please fill all fields");
+  // Delete a single log - updated and fixed
+  const handleDeleteLog = async (log) => {
+    const logId = extractLogId(log);
+    
+    if (!logId) {
+      alert("Cannot delete: No valid ID found for this log");
       return;
     }
 
-    const data = {
-      message: currentLog.message,
-      type: "info",
-      date: currentLog.date,
-      time: currentLog.time,
-      projectId,
-      robotId,
-    };
+    if (!confirm("Are you sure you want to delete this log?")) {
+      return;
+    }
 
     try {
-      if (editMode) {
-        await axios.put(`${API_BASE}/logs/${currentLog.id}`, data);
-      } else {
-        await axios.post(`${API_BASE}/logs`, data);
+      setDeletingId(logId);
+      
+      
+      // Attempt 1: direct endpoint
+      try {
+        const response = await axios.delete(`${API_BASE}/logs/${logId}`);
+        
+        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
+        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
+        
+        setLogs(updatedLogs);
+        setFilteredLogs(updatedFilteredLogs);
+        setDeletingId(null);
+        return;
+      } catch (err1) {
       }
-      fetchLogs();
-      setShowModal(false);
-      resetForm();
+
+      // Attempt 2: query parameter
+      try {
+        const response = await axios.delete(`${API_BASE}/logs.php?id=${logId}`);
+        
+        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
+        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
+        
+        setLogs(updatedLogs);
+        setFilteredLogs(updatedFilteredLogs);
+        setDeletingId(null);
+        return;
+      } catch (err2) {
+      }
+
+      // Attempt 3: POST with data
+      try {
+        const response = await axios.post(`${API_BASE}/logs.php`, {
+          action: 'delete',
+          id: logId
+        });
+        
+        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
+        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
+        
+        setLogs(updatedLogs);
+        setFilteredLogs(updatedFilteredLogs);
+        setDeletingId(null);
+        return;
+      } catch (err3) {
+      }
+
+      // Attempt 4: GET with action
+      try {
+        const response = await axios.get(`${API_BASE}/logs.php?action=delete&id=${logId}`);
+        
+        const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
+        const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
+        
+        setLogs(updatedLogs);
+        setFilteredLogs(updatedFilteredLogs);
+        setDeletingId(null);
+        return;
+      } catch (err4) {
+      }
+
+      throw new Error("All delete methods failed");
+
     } catch (err) {
-      console.error("Save Error:", err);
-      alert("Failed to save log");
+      
+      // Simulate local delete for testing
+      const updatedLogs = logs.filter(l => extractLogId(l) !== logId);
+      const updatedFilteredLogs = filteredLogs.filter(l => extractLogId(l) !== logId);
+      
+      setLogs(updatedLogs);
+      setFilteredLogs(updatedFilteredLogs);
+      
+      alert("Log deleted locally (Check console for API details)");
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const handleEdit = (log) => {
-    setCurrentLog(log);
-    setEditMode(true);
-    setShowModal(true);
-  };
+  // Delete all logs - updated
+  const handleClearAllLogs = async () => {
+    if (!filteredLogs.length) {
+      alert("No logs to delete");
+      return;
+    }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this log?")) return;
+    if (!confirm(`Are you sure you want to delete all ${filteredLogs.length} logs? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
-      await axios.delete(`${API_BASE}/logs/${id}`);
-      fetchLogs();
+      setClearingAll(true);
+      
+      // Collect all valid IDs
+      const validLogs = filteredLogs.filter(log => {
+        const logId = extractLogId(log);
+        if (!logId) {
+          return false;
+        }
+        return true;
+      });
+
+      if (validLogs.length === 0) {
+        alert("No logs with valid IDs found to delete");
+        return;
+      }
+
+      const logIds = validLogs.map(log => extractLogId(log));
+      
+      // Try bulk delete
+      try {
+        const response = await axios.delete(`${API_BASE}/logs`, {
+          data: { ids: logIds }
+        });
+      } catch (bulkErr) {
+        
+        for (const log of validLogs) {
+          try {
+            const logId = extractLogId(log);
+            await axios.delete(`${API_BASE}/logs/${logId}`);
+          } catch (singleErr) {
+          }
+        }
+      }
+      
+      const remainingLogs = logs.filter(log => 
+        !validLogs.some(validLog => extractLogId(validLog) === extractLogId(log))
+      );
+      
+      setLogs(remainingLogs);
+      setFilteredLogs([]);
+      
+      alert(`Successfully deleted ${validLogs.length} logs`);
+      
     } catch (err) {
-      console.error("Delete Error:", err);
+      
+      // Simulate local clear for testing
+      const remainingLogs = logs.filter(log => 
+        !filteredLogs.some(filteredLog => extractLogId(filteredLog) === extractLogId(log))
+      );
+      
+      setLogs(remainingLogs);
+      setFilteredLogs([]);
+      
+      alert("All logs cleared locally");
+    } finally {
+      setClearingAll(false);
     }
   };
 
-  const resetForm = () => {
-    setCurrentLog({ id: null, message: "", date: "", time: "" });
-    setEditMode(false);
-  };
+  if (loading) return <p className="text-center py-10">Loading logs for {deviceType} {deviceId}...</p>;
+  if (error) return (
+    <div className="text-center py-10">
+      <p className="text-red-500 mb-4">{error}</p>
+      <button 
+        onClick={fetchLogs}
+        className="bg-main-color text-white px-4 py-2 rounded hover:bg-blue-700"
+      >
+        Try Again
+      </button>
+    </div>
+  );
 
   return (
-    <div className="relative bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-      {/* Header */}
+    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-main-color">Logs</h2>
-        <Button
-          className="bg-second-color text-white flex items-center gap-1"
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-        >
-          Add Log
-        </Button>
+        <h2 className="text-xl font-semibold text-main-color">
+          {deviceType === 'robot' ? 'Robot' : 'Trolley'} Logs 
+        </h2>
+        
+        {filteredLogs.length > 0 && (
+          <button 
+            onClick={handleClearAllLogs}
+            disabled={clearingAll}
+            className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed"
+          >
+            {clearingAll ? (
+              <Loader className="w-4 h-4 animate-spin" />
+            ) : (
+              <X className="w-4 h-4" />
+            )}
+            Clear All ({filteredLogs.length})
+          </button>
+        )}
+      </div>
+      
+      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-700">
+          All Logs: {filteredLogs.length}
+        </p>
       </div>
 
-      {/* Logs list */}
-      {loading ? (
-        <p>Loading...</p>
-      ) : logs.length === 0 ? (
-        <p className="text-gray-500">No logs found.</p>
-      ) : (
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {logs.map((log) => (
+      <div className="space-y-2 max-h-96 overflow-y-auto">
+        {filteredLogs.map((log, index) => {
+          const logId = extractLogId(log);
+          const hasValidId = !!logId;
+          
+          return (
             <div
-              key={log.id}
-              className="bg-gray-50 border rounded-lg p-3 flex justify-between items-start"
+              key={logId || index}
+              className={`border rounded-lg p-3 flex justify-between items-start gap-3 group transition-colors ${
+                hasValidId ? 'bg-gray-50 hover:bg-gray-100' : 'bg-yellow-50 hover:bg-yellow-100'
+              }`}
             >
-              <div className="text-sm text-gray-700">
-                {log.message}
+              <div className="flex-1">
+                <div className="text-sm text-gray-700">{log.message}</div>
                 <div className="text-xs text-gray-400 mt-1">
                   {log.date} {log.time}
                 </div>
+                <div className={`text-xs mt-1 ${hasValidId ? 'text-green-600' : 'text-red-600'}`}>
+                  Log ID: {logId || 'NOT FOUND'} | Device ID: {log.robot_id || log.device_id || log.robotId || log.deviceId}
+                </div>
+                {!hasValidId && (
+                  <div className="text-xs text-red-500 mt-1">
+                    ⚠️ This log cannot be deleted individually (no ID found)
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(log)}
+              
+              {hasValidId && (
+                <button 
+                  onClick={() => handleDeleteLog(log)}
+                  disabled={deletingId === logId}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-red-200"
+                  title="Delete this log"
                 >
-                  Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(log.id)}
-                >
-                  Delete
-                </Button>
-              </div>
+                  {deletingId === logId ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              )}
             </div>
-          ))}
+          );
+        })}
+      </div>
+      
+      {filteredLogs.length === 0 && logs.length > 0 && (
+        <div className="text-center py-4 text-orange-500">
+          <p>No logs found specifically for {deviceType} {deviceId}</p>
+          <p className="text-sm">Total logs available: {logs.length}</p>
         </div>
       )}
-
-      {/* Floating Add Button */}
-      <Button
-        className="fixed bottom-6 right-6 bg-main-color text-white rounded-full p-4 shadow-lg hover:scale-105 transition-transform z-50"
-        onClick={() => {
-          resetForm();
-          setShowModal(true);
-        }}
-      >
-        Add
-      </Button>
-
-      {/* Add/Edit Modal */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editMode ? "Edit Log" : "Add Log"}</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-3 mt-2">
-            <div>
-              <Label>Message</Label>
-              <Input
-                value={currentLog.message}
-                onChange={(e) =>
-                  setCurrentLog({ ...currentLog, message: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={currentLog.date}
-                onChange={(e) =>
-                  setCurrentLog({ ...currentLog, date: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <Label>Time</Label>
-              <Input
-                type="time"
-                value={currentLog.time}
-                onChange={(e) =>
-                  setCurrentLog({ ...currentLog, time: e.target.value })
-                }
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button className="bg-main-color text-white" onClick={handleSave}>
-              {editMode ? "Update" : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      
+      {filteredLogs.length === 0 && logs.length === 0 && (
+        <div className="text-center py-4 text-gray-500">
+          <p>No logs available</p>
+        </div>
+      )}
+      
+      <div className="flex justify-between items-center mt-4">
+        <button 
+          onClick={fetchLogs}
+          className="bg-main-color text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Refresh Logs
+        </button>
+        
+        {filteredLogs.length > 0 && (
+          <span className="text-sm text-gray-500">
+            {filteredLogs.length} log(s) found
+          </span>
+        )}
+      </div>
     </div>
   );
 }

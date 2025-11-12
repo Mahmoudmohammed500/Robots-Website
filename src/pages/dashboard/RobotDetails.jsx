@@ -1,28 +1,39 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import TabsHeader from "@/components/robots/TabsHeader";
+import NotificationsTab from "@/components/robots/NotificationsTab";
+import LogsTab from "@/components/robots/LogsTab";
+import ScheduleSettings from "@/components/robots/ScheduleSettings";
+import RobotMainPanelView from "@/components/robots/RobotPanelDetails";
+import TrolleyPanelDetails from "@/components/robots/TrolleyPanelDetails";
+import { toast } from "sonner";
 import Loading from "@/pages/Loading";
-import RobotImg from "../../assets/Robot1.jpeg";
-import { getData } from "@/services/getServices"; // API helper
+import { getData } from "@/services/getServices";
 
-export default function RobotDetails() {
-  const { id } = useParams(); // robotId
+const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
+
+export default function RobotDetailsFull() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   const [robot, setRobot] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const [trolleyTab, setTrolleyTab] = useState("control");
+  const [robotTab, setRobotTab] = useState("control");
 
   useEffect(() => {
     const fetchRobot = async () => {
       try {
         setLoading(true);
-        const data = await getData(`${BASE_URL}/robots/${id}`);
-        setRobot(data);
+        const data = await getData(`${BASE_URL}/robots.php/${id}`);
+        setRobot(data || {});
       } catch (err) {
         console.error("Failed to fetch robot:", err);
+        toast.error("Failed to load robot data");
+        setRobot({});
       } finally {
         setLoading(false);
       }
@@ -31,86 +42,206 @@ export default function RobotDetails() {
     fetchRobot();
   }, [id]);
 
+  // دالة لدمج الأزرار الثابتة مع الأزرار النشطة من البيانات
+  const getActiveButtons = () => {
+    if (!robot || !robot.Sections?.main?.ActiveBtns) return ALL_BUTTONS;
+    
+    const activeBtns = Array.isArray(robot.Sections.main.ActiveBtns) 
+      ? robot.Sections.main.ActiveBtns 
+      : [];
+
+    // 1. تصفية الأزرار الثابتة: نأخذ فقط الأزرار الموجودة في ActiveBtns من ALL_BUTTONS
+    const activeStaticButtons = ALL_BUTTONS.filter(staticBtn => {
+      return activeBtns.some(activeBtn => 
+        activeBtn && 
+        typeof activeBtn.Name === "string" && 
+        activeBtn.Name.toLowerCase() === staticBtn.toLowerCase()
+      );
+    });
+
+    // 2. إضافة الأزرار الجديدة النشطة التي ليست في ALL_BUTTONS
+    const newActiveButtons = activeBtns
+      .filter(activeBtn => 
+        activeBtn && 
+        typeof activeBtn.Name === "string" &&
+        !ALL_BUTTONS.some(staticBtn => 
+          staticBtn.toLowerCase() === activeBtn.Name.toLowerCase()
+        )
+      )
+      .map(activeBtn => activeBtn.Name);
+
+    // 3. دمج النتيجتين مع إزالة التكرارات
+    return [...new Set([...activeStaticButtons, ...newActiveButtons])];
+  };
+
   if (loading) return <Loading />;
 
-  if (!robot) {
-    return <div className="p-6 text-center text-red-500">Robot not found.</div>;
-  }
+  if (!robot || Object.keys(robot).length === 0)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        Robot not found.
+      </div>
+    );
+
+  const showTrolley =
+    robot?.isTrolley == 1 ||
+    robot?.isTrolley === "true" ||
+    robot?.isTrolley === true;
+
+  const activeButtons = getActiveButtons();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col p-4 sm:p-6">
-      <div className="w-3/4 mb-8 mx-auto">
-        <Button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 bg-main-color text-white 
-                     hover:bg-white hover:text-main-color border border-main-color 
-                     rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
-        >
-          <ArrowLeft size={18} />
-          Back
-        </Button>
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7 }}
-        className="w-6/7 md:w-3/4 bg-white/80 backdrop-blur-md shadow-2xl mx-auto
-                   rounded-3xl border border-gray-200 overflow-hidden grid grid-cols-1 lg:grid-cols-2"
-      >
-        <motion.div className="relative order-1 lg:order-2">
-          <img
-            src={
-              robot.Image
-                ? `http://localhost/robots_api/${robot.Image}`
-                : RobotImg
-            }
-            alt={robot.RobotName}
-            className="w-full h-64 sm:h-80 object-cover"
-          />
-          <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
-          <div className="absolute bottom-5 left-6 text-white drop-shadow-md">
-            <h2 className="text-2xl font-semibold">{robot.RobotName}</h2>
+    <motion.div
+      className="min-h-screen bg-gray-50 p-6 sm:p-10"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <div className="max-w-5xl mx-auto space-y-10">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-main-color">
+              {robot.RobotName || "Robot Details"}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Project ID: <span className="font-mono">{robot.projectId || "-"}</span>
+            </p>
           </div>
-        </motion.div>
-
-        <div className="p-8 sm:p-10 flex flex-col justify-center space-y-6 order-2 lg:order-1">
-          <motion.h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
-            {robot.RobotName}
-          </motion.h1>
-
-          <motion.p className="text-gray-600 leading-relaxed text-base sm:text-lg">
-            {robot.Description || "No description available."}
-          </motion.p>
-
-          <div className="flex flex-col gap-2 text-gray-700">
-            {robot.ProjectName && (
-              <span className="font-medium">
-                <span className="text-main-color font-semibold">Project:</span>{" "}
-                {robot.ProjectName}
-              </span>
-            )}
-            <span>
-              <span className="text-main-color font-semibold">Robot ID:</span> #
-              {robot.id}
-            </span>
-          </div>
-
-          <div className="pt-6">
+          <div className="flex gap-3">
             <Button
-              onClick={() =>
-                navigate(`/homeDashboard/robotSettings/${robot.id}`)
-              }
-              className="flex items-center gap-2 bg-second-color text-white border border-second-color 
-                         hover:bg-white hover:text-second-color transition-all duration-300
-                         px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium cursor-pointer"
+              onClick={() => navigate(-1)}
+              className="bg-white border text-main-color"
             >
-              <Settings size={22} />
-              Settings
+              Back
             </Button>
           </div>
         </div>
-      </motion.div>
-    </div>
+
+        {/* TROLLEY SECTION */}
+        {showTrolley && (
+          <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-main-color">
+                  Trolley Control
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Manage trolley controls, schedule and logs
+                </p>
+              </div>
+              <Button
+                onClick={() => navigate(`/homeDashboard/robotSettings/${robot.id}`)}
+                className="bg-main-color text-white h-10 self-start"
+              >
+                Settings
+              </Button>
+            </div>
+
+            <TabsHeader
+              tabs={[
+                { id: "control", label: "Control" },
+                { id: "notifications", label: "Notifications" },
+                { id: "logs", label: "Logs" },
+              ]}
+              active={trolleyTab}
+              onChange={setTrolleyTab}
+              accent="main"
+            />
+
+            <div className="mt-5 space-y-6">
+              {trolleyTab === "control" && (
+                <TrolleyPanelDetails
+                  robotId={id}
+                  imgSrc="/assets/placeholder-trolley.jpg"
+                />
+              )}
+              {trolleyTab === "notifications" && (
+                <NotificationsTab
+                  projectId={robot.projectId || "-"}
+                  robotId={robot.id || "-"}
+                />
+              )}
+              {trolleyTab === "logs" && (
+                <LogsTab
+                  projectId={robot.projectId || "-"}
+                  robotId={robot.id || "-"}
+                />
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* SCHEDULE SETTINGS */}
+        {showTrolley && (
+          <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-main-color">Schedule Settings</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Configure robot and trolley schedule
+                </p>
+              </div>
+            </div>
+
+            <ScheduleSettings
+              schedule={robot.schedule || { days: [], hour: 8, minute: 0 }}
+              setSchedule={(s) => setRobot((r) => ({ ...r, schedule: s }))}
+              projectId={robot.projectId}
+            />
+          </section>
+        )}
+
+        {/* ROBOT SECTION */}
+        <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-main-color">Robot</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Robot settings, controls & logs
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate(`/homeDashboard/robotSettings/${robot.id}`)}
+              className="bg-main-color text-white h-10 self-start"
+            >
+              Settings
+            </Button>
+          </div>
+
+          <TabsHeader
+            tabs={[
+              { id: "control", label: "Control" },
+              { id: "notifications", label: "Notifications" },
+              { id: "logs", label: "Logs" },
+            ]}
+            active={robotTab}
+            onChange={setRobotTab}
+            accent="main"
+          />
+
+          <div className="mt-5 space-y-6">
+            {robotTab === "control" && (
+              <RobotMainPanelView
+                robot={robot}
+                setRobot={setRobot}
+                allButtons={activeButtons}
+              />
+            )}
+            {robotTab === "notifications" && (
+              <NotificationsTab
+                projectId={robot.projectId || "-"}
+                robotId={robot.id || "-"}
+              />
+            )}
+            {robotTab === "logs" && (
+              <LogsTab
+                projectId={robot.projectId || "-"}
+                robotId={robot.id || "-"}
+              />
+            )}
+          </div>
+        </section>
+      </div>
+    </motion.div>
   );
 }

@@ -39,7 +39,6 @@ export default function AddRobotOnly() {
   const [loading, setLoading] = useState(false);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
 
   // ✅ Toggle button selection
   const toggleButtonSelection = (btn) => {
@@ -188,7 +187,8 @@ export default function AddRobotOnly() {
 
         {/* ------- Main Panel ------- */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <TabsHeader
+         
+          {/* <TabsHeader
             tabs={[
               { id: "control", label: "Control" },
               { id: "notifications", label: "Notifications" },
@@ -196,7 +196,7 @@ export default function AddRobotOnly() {
             ]}
             active={tab}
             onChange={setTab}
-          />
+          /> */}
 
           <div className="mt-6">
             {tab === "control" && (
@@ -204,7 +204,7 @@ export default function AddRobotOnly() {
                 <RobotMainPanel robot={robot} setRobot={setRobot} />
 
                 {/* ------- Trolley Toggle ------- */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                {/* <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                   <label className="flex items-center space-x-3 cursor-pointer">
                     <div className="relative">
                       <input
@@ -233,10 +233,10 @@ export default function AddRobotOnly() {
                       ? "Trolley mode: Both main and car sections will be included"
                       : "Robot mode: Only main section will be included (car section will be completely removed)"}
                   </p>
-                </div>
+                </div> */}
 
                 {/* ------- Active Buttons Section ------- */}
-                <div className="mt-8">
+                {/* <div className="mt-8">
                   <h2 className="text-lg font-semibold text-gray-800 mb-3">
                     Select Active Buttons
                   </h2>
@@ -266,7 +266,7 @@ export default function AddRobotOnly() {
                       {robot.ActiveBtns.map((btn) => btn.Name).join(", ")}
                     </p>
                   )}
-                </div>
+                </div> */}
               </>
             )}
 

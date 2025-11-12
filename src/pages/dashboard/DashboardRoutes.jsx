@@ -11,9 +11,10 @@ import RobotForm from "./AddRobot";
 import RobotSettings from "./RobotSetting";
 import ButtonSetting from "./ButtonSetting";
 import UserDetails from "./UserDetails";
-import EditRobot from "./EditRobot";
+import EditRobot from "./EditRobotWTrolley";
 import AddRobotOnly from "./AddRobotOnly";
 import AddRobotWithTrolley from "./AddRobotWithTrolley";
+import Login from "@/pages/Login";
 
 const initialProjects = [
   {
