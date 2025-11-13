@@ -42,7 +42,6 @@ export default function RobotDetailsFull() {
     fetchRobot();
   }, [id]);
 
-  // دالة لدمج الأزرار الثابتة مع الأزرار النشطة من البيانات
   const getActiveButtons = () => {
     if (!robot || !robot.Sections?.main?.ActiveBtns) return ALL_BUTTONS;
 
@@ -50,7 +49,6 @@ export default function RobotDetailsFull() {
       ? robot.Sections.main.ActiveBtns
       : [];
 
-    // 1. تصفية الأزرار الثابتة: نأخذ فقط الأزرار الموجودة في ActiveBtns من ALL_BUTTONS
     const activeStaticButtons = ALL_BUTTONS.filter((staticBtn) => {
       return activeBtns.some(
         (activeBtn) =>
@@ -60,7 +58,6 @@ export default function RobotDetailsFull() {
       );
     });
 
-    // 2. إضافة الأزرار الجديدة النشطة التي ليست في ALL_BUTTONS
     const newActiveButtons = activeBtns
       .filter(
         (activeBtn) =>
@@ -73,7 +70,6 @@ export default function RobotDetailsFull() {
       )
       .map((activeBtn) => activeBtn.Name);
 
-    // 3. دمج النتيجتين مع إزالة التكرارات
     return [...new Set([...activeStaticButtons, ...newActiveButtons])];
   };
 
@@ -133,7 +129,7 @@ export default function RobotDetailsFull() {
               </div>
               <Button
                 onClick={() =>
-                  navigate(`/homeDashboard/robotSettings/${robot.id}`)
+                  navigate(`/homeDashboard/trolleySettings/${robot.id}`)
                 }
                 className="bg-main-color text-white h-10 self-start"
               >

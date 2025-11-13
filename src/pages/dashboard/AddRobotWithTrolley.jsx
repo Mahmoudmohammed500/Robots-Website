@@ -89,7 +89,6 @@ export default function AddRobotWithTrolley() {
     }
   };
 
-  // دالة لتحديث القسم الرئيسي
   const updateMainSection = (updates) => {
     setRobot(prev => ({
       ...prev,
@@ -100,7 +99,6 @@ export default function AddRobotWithTrolley() {
     }));
   };
 
-  // دالة لتحديث قسم التروولي
   const updateCarSection = (updates) => {
     setRobot(prev => ({
       ...prev,
@@ -111,17 +109,14 @@ export default function AddRobotWithTrolley() {
     }));
   };
 
-  // دالة لتحديث الاسم
   const updateRobotName = (name) => {
     setRobot(prev => ({ ...prev, RobotName: name }));
   };
 
-  // دالة لتحديث MQTT URL
   const updateMqttUrl = (url) => {
     setRobot(prev => ({ ...prev, mqttUrl: url }));
   };
 
-  // دالة لرفع الصورة
   const updateImage = (file, preview) => {
     setRobot(prev => ({ 
       ...prev, 

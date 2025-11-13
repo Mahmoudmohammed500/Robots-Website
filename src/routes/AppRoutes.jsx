@@ -24,7 +24,6 @@ try {
   );
 }
 
-// Layout عادي لموقع المستخدم
 function Layout({ children }) {
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -41,69 +40,33 @@ function SimpleLayout({ children }) {
 }
 
 export default function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userRole } = useAuth();
 
-  if (!isAuthenticated) {
-    return (
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <SimpleLayout>
-              <Login />
-            </SimpleLayout>
-          }
-        />
-        <Route
-          path="/loading"
-          element={
-            <SimpleLayout>
-              <Loading />
-            </SimpleLayout>
-          }
-        />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
-  }
+  const getDefaultRoute = () => {
+    if (userRole === 'admin') {
+      return "/homeDashboard";
+    } else {
+      return "/home";
+    }
+  };
+
+  const defaultRoute = getDefaultRoute();
 
   return (
     <Routes>
       <Route
-        path="/"
+        path="/login"
         element={
-          <Layout>
-            <Home />
-          </Layout>
+          isAuthenticated ? (
+            <Navigate to={defaultRoute} replace />
+          ) : (
+            <SimpleLayout>
+              <Login />
+            </SimpleLayout>
+          )
         }
       />
-      <Route
-        path="/home"
-        element={
-          <Layout>
-            <Home />
-          </Layout>
-        }
-      />
-      <Route
-        path="/robots"
-        element={
-          <Layout>
-            <Robots />
-          </Layout>
-        }
-      />
-      <Route
-        path="/robots/:id"
-        element={
-          <Layout>
-            <RobotDetails />
-          </Layout>
-        }
-      />
-
-      <Route path="/homeDashboard/*" element={<DashboardRoutes />} />
-
+      
       <Route
         path="/loading"
         element={
@@ -112,14 +75,53 @@ export default function AppRoutes() {
           </SimpleLayout>
         }
       />
-      <Route
-        path="*"
-        element={
-          <SimpleLayout>
-            <NotFound />
-          </SimpleLayout>
-        }
-      />
+
+      {isAuthenticated ? (
+        <>
+          {userRole === 'user' && (
+            <>
+              <Route
+                path="/"
+                element={
+                  <Layout>
+                    <Home />
+                  </Layout>
+                }
+              />
+              <Route
+                path="/home"
+                element={
+                  <Layout>
+                    <Home />
+                  </Layout>
+                }
+              />
+              <Route
+                path="/robots"
+                element={
+                  <Layout>
+                    <Robots />
+                  </Layout>
+                }
+              />
+              <Route
+                path="/robots/:id"
+                element={
+                  <Layout>
+                    <RobotDetails />
+                  </Layout>
+                }
+              />
+            </>
+          )}
+
+          <Route path="/homeDashboard/*" element={<DashboardRoutes />} />
+          
+          <Route path="*" element={<Navigate to={defaultRoute} replace />} />
+        </>
+      ) : (
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      )}
     </Routes>
   );
 }

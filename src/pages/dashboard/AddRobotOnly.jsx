@@ -33,7 +33,6 @@ export default function AddRobotOnly() {
 
   const [loading, setLoading] = useState(false);
 
-  // دالة لتحديث القسم الرئيسي
   const updateMainSection = (updates) => {
     setRobot((prev) => ({
       ...prev,
@@ -44,17 +43,14 @@ export default function AddRobotOnly() {
     }));
   };
 
-  // دالة لتحديث الاسم
   const updateRobotName = (name) => {
     setRobot((prev) => ({ ...prev, RobotName: name }));
   };
 
-  // دالة لتحديث MQTT URL
   const updateMqttUrl = (url) => {
     setRobot((prev) => ({ ...prev, mqttUrl: url }));
   };
 
-  // دالة لرفع الصورة
   const updateImage = (file, preview) => {
     setRobot((prev) => ({
       ...prev,

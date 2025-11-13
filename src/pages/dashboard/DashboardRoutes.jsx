@@ -10,6 +10,7 @@ import AddUser from "./AddNewUser";
 import RobotForm from "./AddRobot";
 import RobotSettings from "./RobotSetting";
 import ButtonSetting from "./ButtonSetting";
+import TrolleySettings from "./TrolleySettings";
 import UserDetails from "./UserDetails";
 import EditRobot from "./EditRobotWTrolley";
 import AddRobotOnly from "./AddRobotOnly";
@@ -68,26 +69,25 @@ export default function Dashboard() {
         <Route path="robotDetails/:id" element={<RobotDetails />} />
         <Route path="projectForm" element={<ProjectForm/>} />
         <Route path="projectForm/:id" element={<ProjectForm />} />
-<Route path="addRobotw/:id" element={<AddRobotWithTrolley/>} />
-<Route path="addRobotOnly/:id" element={<AddRobotOnly/>} />
+        <Route path="addRobotw/:id" element={<AddRobotWithTrolley/>} />
+        <Route path="addRobotOnly/:id" element={<AddRobotOnly/>} />
         <Route path="allUsers" element={<AllUsersDashboard/>} />
         <Route path="user/:id" element={<UserDetails />} />
         <Route path="adduser" element={<AddUser/>} />
-        {/* <Route path="addRobot/id" element={<RobotForm/>} /> */}
-        {/* <Route path="addRobot/:id" element={<RobotForm/>} /> */}
-        {/* <Route path="addRobot/:projectId" element={<RobotForm />} />
-        <Route path="addRobot/:robotId" element={<RobotForm />} /> */}
+
         <Route path="addRobot/:id" element={<RobotForm />} />
         <Route path="editRobot/:id" element={<EditRobot />} />
         <Route path="robotSettings/:id" element={<RobotSettings  />} />
+        <Route path="trolleySettings/:id" element={<TrolleySettings />} />
+
         <Route
           path="robotSettings/:id/button/:buttonId"
           element={<ButtonSetting  />}
         />
-        {/* <Route
-          path="robotSettings/:id/button/new/scheduling"
+        <Route
+          path="trolleySettings/:id/button/:buttonId"
           element={<ButtonSetting  />}
-        /> */}
+        />
 
       </Routes>
     </DashboardLayout>

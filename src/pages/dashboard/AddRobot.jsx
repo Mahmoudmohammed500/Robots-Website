@@ -14,6 +14,7 @@ export default function RobotForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+const [preview, setPreview] = useState(null);
 
   const currentPath = location.pathname;
   const isEditMode = currentPath.includes("/editRobot/");
@@ -33,6 +34,13 @@ export default function RobotForm() {
     imagePreview: null,
     ActiveBtns: [],
   });
+
+  const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath; 
+  if (imagePath.startsWith("blob:")) return imagePath; 
+  return `${UPLOADS_URL.replace(/\/$/, "")}/${imagePath.replace(/^\/?uploads\//, "")}`;
+};
 
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);

@@ -9,11 +9,13 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import Logo from "../../assets/logo omega-2022.png";
 
 export default function DashboardSidebar({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
 
   const menuItems = [
@@ -28,8 +30,8 @@ export default function DashboardSidebar({ children }) {
   };
 
   const handleLogout = () => {
-    "/login";
-    navigate(`/login`, { replace: true });
+    logout();
+    navigate("/login", { replace: true });
   };
 
   return (
