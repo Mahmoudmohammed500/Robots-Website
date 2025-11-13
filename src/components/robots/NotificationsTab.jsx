@@ -1,4 +1,3 @@
-// src/components/robots/NotificationsTab.jsx
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import axios from "axios";
@@ -35,47 +34,38 @@ export default function NotificationsTab({ robotId, sectionName }) {
     );
   };
 
-  // 🔍 فلترة الإشعارات حسب القسم الحالي + آخر 10 مضافة
   const filterNotesBySection = (notesData, robot, sectionName) => {
     if (!robot?.Sections?.[sectionName] || !Array.isArray(notesData)) return [];
     const topic = robot.Sections[sectionName].Topic_main;
 
-    // فلترة حسب topic
     const filtered = notesData.filter((note) => note.topic_main === topic);
 
-    // ترتيب حسب التاريخ والوقت من الأقدم للأحدث
     const sorted = filtered.sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`);
       const dateTimeB = new Date(`${b.date}T${b.time}`);
       return dateTimeA - dateTimeB; // تصاعدي
     });
 
-    // أخذ آخر 10 إشعارات
     const lastTen = sorted.slice(-10);
 
-    // عكس الترتيب بحيث أحدث واحد يظهر أول
     return lastTen.reverse();
   };
 
-  // 📥 تحميل الإشعارات وبيانات الروبوت
   const fetchNotesAndRobot = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // جلب جميع الإشعارات
       const notesRes = await axios.get(`${API_BASE}/notifications.php`, {
         headers: { "Content-Type": "application/json" },
       });
       const allNotes = Array.isArray(notesRes.data) ? notesRes.data : [];
       setNotes(allNotes);
 
-      // جلب بيانات الروبوت نفسه
       const robotRes = await axios.get(`${API_BASE}/robots/${robotId}`);
       const robot = robotRes.data;
       setRobotData(robot);
 
-      // فلترة الإشعارات حسب القسم الحالي + آخر 10
       const filtered = filterNotesBySection(allNotes, robot, sectionName);
       setFilteredNotes(filtered);
     } catch (err) {
@@ -180,7 +170,6 @@ export default function NotificationsTab({ robotId, sectionName }) {
         </p>
       </div>
 
-      {/* عرض الإشعارات صفًا صفًا */}
       <div className="space-y-4 max-h-96 overflow-y-auto">
         {filteredNotes.length > 0 ? (
           filteredNotes.map((note, index) => {

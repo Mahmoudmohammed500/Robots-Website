@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import RobotMainPanel from "@/components/robots/RobotMainPanel";
+import { postData } from "@/services/postServices";
 
 export default function AddRobotOnly() {
   const navigate = useNavigate();
@@ -26,39 +27,39 @@ export default function AddRobotOnly() {
         ActiveBtns: [],
         Topic_subscribe: "",
         Topic_main: "",
-      }
-    }
+      },
+    },
   });
 
   const [loading, setLoading] = useState(false);
 
   // دالة لتحديث القسم الرئيسي
   const updateMainSection = (updates) => {
-    setRobot(prev => ({
+    setRobot((prev) => ({
       ...prev,
       Sections: {
         ...prev.Sections,
-        main: { ...prev.Sections.main, ...updates }
-      }
+        main: { ...prev.Sections.main, ...updates },
+      },
     }));
   };
 
   // دالة لتحديث الاسم
   const updateRobotName = (name) => {
-    setRobot(prev => ({ ...prev, RobotName: name }));
+    setRobot((prev) => ({ ...prev, RobotName: name }));
   };
 
   // دالة لتحديث MQTT URL
   const updateMqttUrl = (url) => {
-    setRobot(prev => ({ ...prev, mqttUrl: url }));
+    setRobot((prev) => ({ ...prev, mqttUrl: url }));
   };
 
   // دالة لرفع الصورة
   const updateImage = (file, preview) => {
-    setRobot(prev => ({ 
-      ...prev, 
-      Image: file, 
-      imagePreview: preview 
+    setRobot((prev) => ({
+      ...prev,
+      Image: file,
+      imagePreview: preview,
     }));
   };
 
@@ -90,14 +91,18 @@ export default function AddRobotOnly() {
         isTrolley: false, // Always false for robot only
         Sections: {
           main: {
-            Voltage: robot.Sections.main.Voltage ? Number(robot.Sections.main.Voltage) : 0,
-            Cycles: robot.Sections.main.Cycles ? Number(robot.Sections.main.Cycles) : 0,
+            Voltage: robot.Sections.main.Voltage
+              ? Number(robot.Sections.main.Voltage)
+              : 0,
+            Cycles: robot.Sections.main.Cycles
+              ? Number(robot.Sections.main.Cycles)
+              : 0,
             Status: robot.Sections.main.Status || "Idle",
             ActiveBtns: [], // Always empty array
             Topic_subscribe: robot.Sections.main.Topic_subscribe || "",
             Topic_main: robot.Sections.main.Topic_main || "",
-          }
-        }
+          },
+        },
       };
 
       console.log("📦 Final Payload:", JSON.stringify(payload, null, 2));

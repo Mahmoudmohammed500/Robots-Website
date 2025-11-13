@@ -1,4 +1,3 @@
-// src/components/robots/LogsTabView.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useLocation } from "react-router-dom";
@@ -42,7 +41,6 @@ export default function LogsTabView({ sectionName }) {
     fetchLogsAndDevice();
   }, [deviceId, deviceType, sectionName]);
 
-  // 🔍 استخراج أي ID متاح للـ log
   const extractLogId = (log) => {
     const fields = ["id", "log_id", "logId", "ID", "Id"];
     return (
@@ -52,35 +50,28 @@ export default function LogsTabView({ sectionName }) {
     );
   };
 
-  // 🔍 فلترة الـ logs حسب القسم الحالي + آخر 50 + أحدث واحد أولاً
   const filterLogsBySection = (logsData, device, sectionName) => {
     if (!device?.Sections?.[sectionName] || !Array.isArray(logsData)) return [];
     const topic = device.Sections[sectionName].Topic_main;
 
-    // فلترة حسب topic
     const filtered = logsData.filter((log) => log.topic_main === topic);
 
-    // ترتيب حسب التاريخ والوقت من الأقدم للأحدث
     const sorted = filtered.sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`);
       const dateTimeB = new Date(`${b.date}T${b.time}`);
-      return dateTimeA - dateTimeB; // تصاعدي
+      return dateTimeA - dateTimeB;
     });
 
-    // أخذ آخر 50 log
     const lastFifty = sorted.slice(-50);
 
-    // عكس الترتيب بحيث أحدث log يظهر أول
     return lastFifty.reverse();
   };
 
-  // 📥 تحميل كل الـ logs وبيانات الجهاز
   const fetchLogsAndDevice = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // جلب كل الـ logs
       const logsRes = await axios.get(`${API_BASE}/logs.php`, {
         headers: { "Content-Type": "application/json" },
       });
@@ -89,14 +80,12 @@ export default function LogsTabView({ sectionName }) {
         : logsRes.data?.logs || [];
       setLogs(allLogs);
 
-      // جلب بيانات الجهاز نفسه
       const deviceRes = await axios.get(
         `${API_BASE}/${deviceType}s/${deviceId}`
       );
       const device = deviceRes.data;
       setDeviceData(device);
 
-      // فلترة الـ logs حسب القسم الحالي + آخر 50
       const filtered = filterLogsBySection(allLogs, device, sectionName);
       setFilteredLogs(filtered);
     } catch (err) {
