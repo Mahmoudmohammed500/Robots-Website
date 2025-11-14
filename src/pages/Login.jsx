@@ -26,53 +26,52 @@ export default function Login() {
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    const data = await postData(`${BASE_URL}/login`, {
-      username,
-      password,
-    });
-    
-    console.log("API Response:", data);
-
-    if (data?.message === "Login successful" && data?.user) {
-      const userUsername = data.user.Username || data.user.username || username;
-      console.log("Username to check:", userUsername);
+    try {
+      const data = await postData(`${BASE_URL}/login`, {
+        username,
+        password,
+      });
       
-      const isAdminUser = userUsername && 
-                         typeof userUsername === 'string' && 
-                         userUsername.toLowerCase().includes('admin');
-      
-      console.log("Is admin user:", isAdminUser);
 
-      const userRole = isAdminUser ? 'admin' : 'user';
-      login(userRole); 
+      if (data?.message === "Login successful" && data?.user) {
+        const userUsername = data.user.Username || data.user.username || username;
+        const userProjectName = data.user.ProjectName || "My Project";
+        
+       
+        
+        const isAdminUser = userUsername && 
+                           typeof userUsername === 'string' && 
+                           userUsername.toLowerCase().includes('admin');
+        
 
-      if (isAdminUser) {
-        console.log("🟢 GOING TO DASHBOARD - User is admin");
-        toast.success(`Welcome back, Admin ${userUsername}!`);
-        navigate("/homeDashboard", { replace: true });
+        const userRole = isAdminUser ? 'admin' : 'user';
+        
+        login(userRole, userProjectName, userUsername); 
+
+        if (isAdminUser) {
+          toast.success(`Welcome back, Admin ${userUsername}!`);
+          navigate("/homeDashboard", { replace: true });
+        } else {
+          toast.success(`Welcome back, ${userUsername}!`);
+          navigate("/home", { replace: true });
+        }
       } else {
-        console.log("🔵 GOING TO HOME - User is regular");
-        toast.success(`Welcome back, ${userUsername}!`);
-        navigate("/home", { replace: true });
+        toast.error("Invalid username or password");
       }
-    } else {
-      console.log("Login failed - invalid response:", data);
-      toast.error("Invalid username or password");
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Login failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Login error:", error);
-    toast.error(
-      error.response?.data?.message || "Login failed. Please try again."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
+  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-main-color/20 via-white to-second-color/20 relative overflow-hidden">
@@ -177,6 +176,7 @@ const handleSubmit = async (e) => {
                 </Button>
               </motion.div>
             </form>
+
           </CardContent>
         </Card>
       </motion.div>

@@ -1,3 +1,4 @@
+
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Home from "../pages/Home";
@@ -34,13 +35,23 @@ function Layout({ children }) {
   );
 }
 
-// Layout    -  Navbar/Footer
 function SimpleLayout({ children }) {
   return <div className="min-h-screen bg-white">{children}</div>;
 }
 
 export default function AppRoutes() {
-  const { isAuthenticated, userRole } = useAuth();
+  const { isAuthenticated, userRole, isLoading } = useAuth();
+
+    
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <SimpleLayout>
+        <Loading />
+      </SimpleLayout>
+    );
+  }
 
   const getDefaultRoute = () => {
     if (userRole === 'admin') {
@@ -51,6 +62,8 @@ export default function AppRoutes() {
   };
 
   const defaultRoute = getDefaultRoute();
+
+
 
   return (
     <Routes>

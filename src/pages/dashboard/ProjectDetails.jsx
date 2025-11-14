@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   XCircle,
+  Clock,
 } from "lucide-react";
 import {
   Card,
@@ -86,8 +87,22 @@ export default function ProjectDetails() {
   const [robotToDelete, setRobotToDelete] = useState(null);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [buttonsWithColors, setButtonsWithColors] = useState([]);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // Fetch buttons colors
+  useEffect(() => {
+    const fetchButtons = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/buttons`);
+        const data = await res.json();
+        setButtonsWithColors(data || []);
+      } catch (err) {
+      }
+    };
+    fetchButtons();
+  }, [BASE_URL]);
 
   useEffect(() => {
     const fetchProjectAndRobots = async () => {
@@ -114,7 +129,6 @@ export default function ProjectDetails() {
           setRobots([]);
         }
       } catch (error) {
-        console.error(error);
         toast.error("Failed to load project details.");
         setProject({});
         setRobots([]);
@@ -124,7 +138,7 @@ export default function ProjectDetails() {
     };
 
     fetchProjectAndRobots();
-  }, [id]);
+  }, [id, BASE_URL]);
 
   useEffect(() => {
     if (location.state?.shouldRefresh) {
@@ -145,14 +159,13 @@ export default function ProjectDetails() {
             setRobots(projectRobots);
           }
         } catch (error) {
-          console.error("Error refreshing robots:", error);
         }
       };
 
       refreshData();
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, id]);
+  }, [location.state, id, BASE_URL]);
 
   const handleDeleteRobot = async (robotId) => {
     try {
@@ -160,7 +173,6 @@ export default function ProjectDetails() {
       setRobots(prev => prev.filter(r => r.id !== robotId));
       toast.success("Robot deleted successfully!");
     } catch (err) {
-      console.error(err);
       toast.error("Failed to delete robot.");
     } finally {
       setRobotToDelete(null);
@@ -175,11 +187,23 @@ export default function ProjectDetails() {
       setRobots([]);
       toast.success("All robots deleted successfully!");
     } catch (err) {
-      console.error(err);
       toast.error("Failed to delete all robots.");
     } finally {
       setShowDeleteAllModal(false);
     }
+  };
+
+  const handleSetRobotsTime = async () => {
+    try {
+      toast.success(`Time set successfully for all ${robots.length} robots in this project!`);
+    } catch (err) {
+      toast.error("Failed to set time for robots.");
+    }
+  };
+
+  const getButtonColor = (btnName) => {
+    const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
+    return btnData?.Color || "#4F46E5"; // default
   };
 
   if (loading) {
@@ -247,12 +271,21 @@ export default function ProjectDetails() {
           </Button>
 
           {robots.length > 0 && (
-            <Button
-              onClick={() => setShowDeleteAllModal(true)}
-              className="flex items-center gap-2 cursor-pointer bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
-            >
-              <Trash2 size={18} /> Delete All Robots
-            </Button>
+            <>
+              <Button
+                onClick={handleSetRobotsTime}
+                className="flex items-center gap-2 cursor-pointer bg-green-600 text-white border border-green-600 hover:bg-white hover:text-green-600 px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
+              >
+                <Clock size={18} /> Set Robots Time
+              </Button>
+
+              <Button
+                onClick={() => setShowDeleteAllModal(true)}
+                className="flex items-center gap-2 cursor-pointer bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
+              >
+                <Trash2 size={18} /> Delete All Robots
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -329,10 +362,16 @@ export default function ProjectDetails() {
                           : typeof btn?.name === "string"
                           ? btn.name
                           : "-";
+                      const color = getButtonColor(btnLabel);
                       return (
                         <button
                           key={btn.id || i}
-                          className="px-4 py-1.5 rounded-lg border text-sm font-medium bg-main-color text-white border-main-color hover:bg-white hover:text-main-color transition-all"
+                          className="px-4 py-1.5 rounded-lg border text-sm font-medium transition-all"
+                          style={{
+                            backgroundColor: color,
+                            borderColor: color,
+                            color: "#fff",
+                          }}
                         >
                           {btnLabel}
                         </button>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import axios from "axios";
-import { Trash2, X, Loader, Bell } from "lucide-react";
+import { Trash2, X, Loader, Bell, AlertTriangle } from "lucide-react";
 
 export default function NotificationsTab({ robotId, sectionName }) {
   const [notes, setNotes] = useState([]);
@@ -34,6 +34,17 @@ export default function NotificationsTab({ robotId, sectionName }) {
     );
   };
 
+  const isAlertNotification = (note) => {
+    const message = note.message?.toLowerCase() || '';
+    return message.includes('alert') || 
+           message.includes('error') || 
+           message.includes('warning') ||
+           message.includes('critical') ||
+           message.includes('fail') ||
+           message.includes('stopped') ||
+           message.includes('emergency');
+  };
+
   const filterNotesBySection = (notesData, robot, sectionName) => {
     if (!robot?.Sections?.[sectionName] || !Array.isArray(notesData)) return [];
     const topic = robot.Sections[sectionName].Topic_main;
@@ -43,7 +54,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
     const sorted = filtered.sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`);
       const dateTimeB = new Date(`${b.date}T${b.time}`);
-      return dateTimeA - dateTimeB; // تصاعدي
+      return dateTimeA - dateTimeB; 
     });
 
     const lastTen = sorted.slice(-10);
@@ -174,10 +185,15 @@ export default function NotificationsTab({ robotId, sectionName }) {
         {filteredNotes.length > 0 ? (
           filteredNotes.map((note, index) => {
             const noteId = extractNoteId(note);
+            const isAlert = isAlertNotification(note);
+            const backgroundColor = isAlert ? 'bg-red-50' : 'bg-blue-50';
+            const borderColor = isAlert ? 'border-red-200' : 'border-blue-200';
+            const iconColor = isAlert ? 'text-red-500' : 'text-main-color';
+
             return (
               <Card
                 key={noteId || index}
-                className="shadow-md border p-4 relative"
+                className={`shadow-md border ${borderColor} ${backgroundColor} p-4 relative`}
               >
                 <button
                   onClick={() => handleDeleteNotification(note)}
@@ -194,17 +210,27 @@ export default function NotificationsTab({ robotId, sectionName }) {
 
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
-                    <Bell className="w-5 h-5 text-main-color" />
-                    <CardTitle className="text-lg text-main-color">
+                    {isAlert ? (
+                      <AlertTriangle className={`w-5 h-5 ${iconColor}`} />
+                    ) : (
+                      <Bell className={`w-5 h-5 ${iconColor}`} />
+                    )}
+                    <CardTitle className={`text-lg ${isAlert ? 'text-red-800' : 'text-main-color'}`}>
                       {note.message}
                     </CardTitle>
                   </div>
                 </CardHeader>
 
                 <CardContent>
-                  <p className="text-sm text-gray-600">
+                  <p className={`text-sm ${isAlert ? 'text-red-600' : 'text-gray-600'}`}>
                     Date: {note.date} | Time: {note.time}
                   </p>
+                  {isAlert && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <AlertTriangle className="w-3 h-3 text-red-500" />
+                      <span className="text-xs text-red-600 font-medium">Alert Notification</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );

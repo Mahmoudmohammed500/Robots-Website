@@ -35,7 +35,6 @@ export default function RobotSettings() {
         section: "main",
       };
     } catch (err) {
-      console.error(`Error fetching button ${btnId} details:`, err);
       // fallback to robotData info if API fails
       return {
         id: btnId,
@@ -65,7 +64,6 @@ export default function RobotSettings() {
       setMainButtons(mainBtns);
 
     } catch (err) {
-      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
@@ -115,7 +113,7 @@ export default function RobotSettings() {
         {/* Main Buttons */}
         <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100">
           <div className="text-center mb-6">
-            <h3 className="text-2xl font-bold text-green-700 mb-2">Main Robot Buttons</h3>
+            <h3 className="text-2xl font-bold text-green-700 mb-2">Robot Buttons</h3>
             <p className="text-gray-500">Total buttons: {mainButtons.length}</p>
           </div>
           {mainButtons.length > 0 ? (

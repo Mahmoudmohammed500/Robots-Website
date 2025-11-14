@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   FolderKanban,
   PlusCircle,
@@ -7,16 +7,20 @@ import {
   LogOut,
   ShieldCheck,
   LayoutDashboard,
+  Bell
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Logo from "../../assets/logo omega-2022.png";
+import NotificationsDropdown from "../../components/DropdownNotes";
 
 export default function DashboardSidebar({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef(null);
 
   const menuItems = [
     { name: "All Projects", icon: FolderKanban, path: "/homeDashboard" },
@@ -25,17 +29,25 @@ export default function DashboardSidebar({ children }) {
     { name: "Add User", icon: UserPlus, path: "/homeDashboard/addUser" },
   ];
 
-  const handleNavigation = (path) => {
-    navigate(path);
-  };
-
+  const handleNavigation = (path) => navigate(path);
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
   };
 
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="flex bg-gray-50 min-h-screen max-lg:w-0">
+    <div className="flex bg-gray-50 min-h-screen max-lg:w-0 relative">
       {/* ===== Sidebar (Desktop) ===== */}
       <div
         className={`hidden lg:flex fixed top-0 left-0 h-screen bg-linear-to-b from-main-color to-second-color text-white 
@@ -44,7 +56,7 @@ export default function DashboardSidebar({ children }) {
       >
         <div>
           {/* ===== Logo & Admin Info ===== */}
-          <div className="flex items-center justify-between px-3 py-5 border-b border-white/10">
+          <div className="flex flex-col items-center justify-between px-3 py-5 border-b border-white/10 relative">
             {isOpen ? (
               <div className="flex items-center gap-3 pl-2 select-none">
                 <img
@@ -65,14 +77,24 @@ export default function DashboardSidebar({ children }) {
               />
             )}
 
+            {/* Notification Icon */}
+            <div className="mt-3 relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowNotifications((prev) => !prev)}
+                className="p-2 rounded-full hover:bg-white/20 transition relative"
+              >
+                <Bell size={20} />
+              </button>
+              {showNotifications && (
+                <NotificationsDropdown onClose={() => setShowNotifications(false)} />
+              )}
+            </div>
+
+            {/* Sidebar toggle */}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`p-2 ml-auto rounded-full transition shadow-md cursor-pointer
-                ${
-                  isOpen
-                    ? "hover:bg-white/20 text-white"
-                    : "bg-white text-main-color hover:bg-white/90"
-                }`}
+                ${isOpen ? "hover:bg-white/20 text-white" : "bg-white text-main-color hover:bg-white/90"}`}
               title={isOpen ? "Close Menu" : "Open Menu"}
             >
               {isOpen ? "×" : "›"}
@@ -80,11 +102,7 @@ export default function DashboardSidebar({ children }) {
           </div>
 
           {/* ===== Menu items ===== */}
-          <nav
-            className={`flex flex-col gap-2 p-4 ${
-              isOpen ? "overflow-y-auto" : "overflow-hidden"
-            }`}
-          >
+          <nav className={`flex flex-col gap-2 p-4 ${isOpen ? "overflow-y-auto" : "overflow-hidden"}`}>
             {menuItems.map((item, index) => {
               const Icon = item.icon;
               const active = location.pathname === item.path;
@@ -94,9 +112,7 @@ export default function DashboardSidebar({ children }) {
                     onClick={() => handleNavigation(item.path)}
                     className={`flex items-center gap-3 py-2 px-2 rounded-lg font-medium w-full cursor-pointer
                     transition duration-300 ${
-                      active
-                        ? "bg-white/20 text-white"
-                        : "text-white/80 hover:bg-white/15 hover:text-white"
+                      active ? "bg-white/20 text-white" : "text-white/80 hover:bg-white/15 hover:text-white"
                     } ${!isOpen ? "justify-center" : ""}`}
                   >
                     <Icon size={22} />
@@ -104,9 +120,7 @@ export default function DashboardSidebar({ children }) {
                   </button>
 
                   {!isOpen && (
-                    <span
-                      className="absolute left-1/2 -translate-x-1/2 bottom-[110%] bg-black/80 text-white text-xs px-2 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md"
-                    >
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-[110%] bg-black/80 text-white text-xs px-2 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md">
                       {item.name}
                     </span>
                   )}
@@ -138,7 +152,7 @@ export default function DashboardSidebar({ children }) {
       </div>
 
       {/* ===== Mobile Header ===== */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 bg-linear-to-r from-main-color to-second-color text-white flex items-center justify-between px-4 py-3 z-50 shadow-md">
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-linear-to-r from-main-color to-second-color text-white flex items-center justify-between px-4 py-3 z-50">
         <div className="flex items-center gap-2 select-none">
           <img
             src={Logo}
@@ -151,7 +165,19 @@ export default function DashboardSidebar({ children }) {
           </div>
         </div>
 
-        <nav className="flex items-center gap-4 sm:gap-5">
+        <nav className="flex items-center gap-4 sm:gap-5 relative">
+          <button
+            onClick={() => setShowNotifications((prev) => !prev)}
+            className="p-2 rounded-full hover:bg-white/20 transition relative"
+          >
+            <Bell size={22} />
+          </button>
+          {showNotifications && (
+            <div className="absolute top-full right-0 z-50">
+              <NotificationsDropdown onClose={() => setShowNotifications(false)} />
+            </div>
+          )}
+
           {menuItems.map((item, index) => {
             const Icon = item.icon;
             const active = location.pathname === item.path;
@@ -161,20 +187,17 @@ export default function DashboardSidebar({ children }) {
                 onClick={() => handleNavigation(item.path)}
                 title={item.name}
                 className={`relative group transition cursor-pointer ${
-                  active
-                    ? "text-white drop-shadow-md"
-                    : "text-white/70 hover:text-white"
+                  active ? "text-white drop-shadow-md" : "text-white/70 hover:text-white"
                 }`}
               >
                 <Icon size={22} />
-                <span
-                  className="absolute bottom-[120%] left-1/2 -translate-x-1/2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition"
-                >
+                <span className="absolute bottom-[120%] left-1/2 -translate-x-1/2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
                   {item.name}
                 </span>
               </button>
             );
           })}
+
           <button
             onClick={handleLogout}
             title="Logout"
@@ -187,8 +210,9 @@ export default function DashboardSidebar({ children }) {
 
       {/* ===== Main Content ===== */}
       <main
-        className={`flex-1 transition-all duration-300 ease-in-out overflow-y-auto pt-[70px] lg:pt-0 
-        ${isOpen ? "lg:pl-[18rem]" : "lg:pl-[4rem]"}`}
+        className={`flex-1 transition-all duration-300 ease-in-out overflow-y-auto pt-[70px] lg:pt-0 ${
+          isOpen ? "lg:pl-[18rem]" : "lg:pl-[4rem]"
+        }`}
       >
         {children}
       </main>

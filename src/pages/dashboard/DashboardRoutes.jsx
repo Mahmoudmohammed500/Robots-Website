@@ -74,7 +74,7 @@ export default function Dashboard() {
         <Route path="allUsers" element={<AllUsersDashboard/>} />
         <Route path="user/:id" element={<UserDetails />} />
         <Route path="adduser" element={<AddUser/>} />
-
+        <Route path="edituser/:id" element={<AddUser/>} />
         <Route path="addRobot/:id" element={<RobotForm />} />
         <Route path="editRobot/:id" element={<EditRobot />} />
         <Route path="robotSettings/:id" element={<RobotSettings  />} />

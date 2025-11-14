@@ -31,7 +31,6 @@ export default function RobotDetailsFull() {
         const data = await getData(`${BASE_URL}/robots.php/${id}`);
         setRobot(data || {});
       } catch (err) {
-        console.error("Failed to fetch robot:", err);
         toast.error("Failed to load robot data");
         setRobot({});
       } finally {

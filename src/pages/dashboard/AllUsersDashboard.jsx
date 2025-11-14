@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Edit3, Trash2, UserPlus, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import imgRobot from "../../assets/Robot1.jpeg";
 import { getData } from "../../services/getServices";
 import { deleteData } from "../../services/deleteServices";
+import AddUser from "./AddNewUser"; 
 
-//  Confirm Delete Modal
+// --------------------- Confirm Delete Modal ---------------------
 function ConfirmDeleteModal({ user, onConfirm, onCancel, deleteAll = false }) {
   return (
     <AnimatePresence>
@@ -36,22 +36,17 @@ function ConfirmDeleteModal({ user, onConfirm, onCancel, deleteAll = false }) {
               {deleteAll ? (
                 <>
                   Are you sure you want to delete{" "}
-                  <span className="font-semibold text-main-color">
-                    all users
-                  </span>
-                  ? This action cannot be undone.
+                  <span className="font-semibold text-main-color">all users</span>?
+                  This action cannot be undone.
                 </>
               ) : (
                 <>
                   Are you sure you want to delete{" "}
-                  <span className="font-semibold text-main-color">
-                    {user?.Username}
-                  </span>
-                  ? This action cannot be undone.
+                  <span className="font-semibold text-main-color">{user?.Username}</span>?
+                  This action cannot be undone.
                 </>
               )}
             </p>
-
             <div className="flex justify-center gap-4">
               <Button
                 onClick={onCancel}
@@ -61,7 +56,7 @@ function ConfirmDeleteModal({ user, onConfirm, onCancel, deleteAll = false }) {
               </Button>
               <Button
                 onClick={() => onConfirm(deleteAll ? null : user.id)}
-                className="bg-secondtext-second-color text-second-color   hover:text-second-color border border-secondtext-second-color px-6 rounded-xl transition-all cursor-pointer"
+                className="bg-secondtext-second-color text-second-color hover:text-second-color border border-secondtext-second-color px-6 rounded-xl transition-all cursor-pointer"
               >
                 Confirm
               </Button>
@@ -73,7 +68,7 @@ function ConfirmDeleteModal({ user, onConfirm, onCancel, deleteAll = false }) {
   );
 }
 
-//  Users List
+// --------------------- Users List ---------------------
 function AllUsers({ users, onDeleteClick, onDeleteAll }) {
   const navigate = useNavigate();
 
@@ -84,8 +79,8 @@ function AllUsers({ users, onDeleteClick, onDeleteAll }) {
 
         <div className="flex gap-3">
           <Button
-            onClick={() => navigate("/homeDashboard/addUser")}
-            className="flex items-center gap-2 bg-main-color text-white   border border-main-color rounded-xl transition-all cursor-pointer"
+            onClick={() => navigate(`/homeDashboard/addUser`)}
+            className="flex items-center gap-2 bg-main-color text-white border border-main-color rounded-xl transition-all cursor-pointer"
           >
             <UserPlus size={18} />
             Add User
@@ -94,7 +89,7 @@ function AllUsers({ users, onDeleteClick, onDeleteAll }) {
           {users.length > 0 && (
             <Button
               onClick={onDeleteAll}
-              className="flex items-center gap-2 bg-second-color text-white   border border-second-color rounded-xl transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-second-color text-white border border-second-color rounded-xl transition-all cursor-pointer"
             >
               <Trash2 size={18} />
               Delete All Users
@@ -112,35 +107,19 @@ function AllUsers({ users, onDeleteClick, onDeleteAll }) {
             transition={{ delay: index * 0.1 }}
             className="bg-white shadow-lg rounded-2xl border border-gray-200 p-6 flex flex-col items-center text-center hover:shadow-2xl transition-all duration-300"
           >
-            <img
-              src={user.avatar || imgRobot}
-              alt={user.Username}
-              className="w-24 h-24 rounded-full object-cover mb-4 border-4 border-main-color shadow-md"
-            />
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">
-              {user.Username}
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-1">{user.Username}</h2>
             <p className="text-sm text-gray-500 mb-2">{user.email}</p>
 
             <div className="text-left w-full border-t border-gray-100 pt-3 text-sm text-gray-600 space-y-1">
-              <p>
-                <strong className="text-main-color">Project:</strong>{" "}
-                {user.ProjectName}
-              </p>
-              <p>
-                <strong className="text-main-color">Password:</strong>{" "}
-                {user.Password}
-              </p>
-              <p>
-                <strong className="text-main-color">Phone:</strong>{" "}
-                {user.TelephoneNumber}
-              </p>
+              <p><strong className="text-main-color">Project:</strong> {user.ProjectName}</p>
+              <p><strong className="text-main-color">Password:</strong> {user.Password}</p>
+              <p><strong className="text-main-color">Phone:</strong> {user.TelephoneNumber}</p>
             </div>
 
             <div className="flex gap-2 mt-5">
               <Button
-                className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white   transition-colors cursor-pointer"
-                onClick={() => navigate(`/homeDashboard/user/${user.id}`)}
+                className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white transition-colors cursor-pointer"
+                onClick={() => navigate(`/homeDashboard/editUser/${user.id}`, { state: { user } })}
               >
                 <Edit3 size={16} />
               </Button>
@@ -159,21 +138,20 @@ function AllUsers({ users, onDeleteClick, onDeleteAll }) {
   );
 }
 
+// --------------------- Users Dashboard ---------------------
 export default function UsersDashboard() {
   const [users, setUsers] = useState([]);
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleteAll, setDeleteAll] = useState(false);
-
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const location = useLocation();
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await getData(`${BASE_URL}/users`);
         setUsers(Array.isArray(response) ? response : response?.data || []);
-        console.log("all users:", response);
       } catch (error) {
-        console.error("Error fetching users:", error);
       }
     };
     fetchUsers();
@@ -184,7 +162,6 @@ export default function UsersDashboard() {
       await deleteData(`${BASE_URL}/users/${id}`);
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (error) {
-      console.error("Error deleting user:", error);
     } finally {
       setUserToDelete(null);
     }
@@ -195,7 +172,6 @@ export default function UsersDashboard() {
       await deleteData(`${BASE_URL}/users`);
       setUsers([]);
     } catch (error) {
-      console.error("Error deleting all users:", error);
     } finally {
       setDeleteAll(false);
     }
@@ -214,6 +190,12 @@ export default function UsersDashboard() {
                 onDeleteAll={() => setDeleteAll(true)}
               />
             }
+          />
+
+          {/* Add/Edit User Route */}
+          <Route
+            path="/addUser"
+            element={<AddUser user={location.state?.user} />}
           />
         </Routes>
 
