@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useLocation } from "react-router-dom";
-import { Trash2, X, Loader, Download } from "lucide-react";
+import { Download, RefreshCw, FileText } from "lucide-react";
 
-export default function LogsTabView({ sectionName }) {
+export default function UserLogsTab({ sectionName }) {
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
-  const [clearingAll, setClearingAll] = useState(false);
   const [deviceData, setDeviceData] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "" });
-
-  // NEW: POPUP STATE
-  const [popup, setPopup] = useState({
-    show: false,
-    type: null,
-    data: null,
-  });
 
   const params = useParams();
   const location = useLocation();
@@ -58,16 +49,6 @@ export default function LogsTabView({ sectionName }) {
     }
   }, [toast]);
 
-  const extractLogId = (log) => {
-    const fields = ["id", "log_id", "logId", "ID", "Id"];
-    for (const f of fields) {
-      if (log[f] !== undefined && log[f] !== null && log[f] !== "") {
-        return log[f];
-      }
-    }
-    return null;
-  };
-
   const filterLogsBySection = (logsData, device, sectionName) => {
     if (!device?.Sections?.[sectionName] || !Array.isArray(logsData)) return [];
     const topic = device.Sections[sectionName].Topic_main;
@@ -80,8 +61,8 @@ export default function LogsTabView({ sectionName }) {
       return dateTimeA - dateTimeB;
     });
 
-    const lastFifty = sorted.slice(-50);
-    return lastFifty.reverse();
+    const lastTen = sorted.slice(-10);
+    return lastTen.reverse();
   };
 
   const fetchLogsAndDevice = async () => {
@@ -104,106 +85,11 @@ export default function LogsTabView({ sectionName }) {
       const filtered = filterLogsBySection(allLogs, device, sectionName);
       setFilteredLogs(filtered);
     } catch (err) {
-      setError(`Failed to load logs or device data: ${err.message}`);
+      setError(`Failed to load logs: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
-
-  // ----------------------------------------
-  // DELETE LOG WITH POPUP — NO alert / confirm
-  // ----------------------------------------
-
-  const handleDeleteLog = (log) => {
-    const logId = extractLogId(log);
-    if (!logId) {
-      setPopup({
-        show: true,
-        type: "error",
-        data: "Cannot delete: No valid ID found for this log",
-      });
-      return;
-    }
-
-    setPopup({
-      show: true,
-      type: "deleteOne",
-      data: log,
-    });
-  };
-
-  const confirmDeleteLog = async () => {
-    const log = popup.data;
-    const logId = extractLogId(log);
-
-    try {
-      setDeletingId(logId);
-      await axios.delete(`${API_BASE}/logs/${encodeURIComponent(logId)}`);
-
-      setLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
-      setFilteredLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
-    } catch (err) {
-      setLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
-      setFilteredLogs((prev) => prev.filter((l) => extractLogId(l) !== logId));
-      setPopup({
-        show: true,
-        type: "error",
-        data: "Log deleted locally. API error occurred.",
-      });
-    } finally {
-      setDeletingId(null);
-      setPopup({ show: false, type: null, data: null });
-    }
-  };
-
-  // ----------------------------------------
-  // CLEAR ALL LOGS WITH POPUP
-  // ----------------------------------------
-
-  const handleClearAllLogs = () => {
-    if (!filteredLogs.length) {
-      setPopup({
-        show: true,
-        type: "error",
-        data: "No logs to delete",
-      });
-      return;
-    }
-
-    setPopup({
-      show: true,
-      type: "deleteAll",
-      data: filteredLogs,
-    });
-  };
-
-  const confirmClearAll = async () => {
-    const logIds = filteredLogs
-      .map((log) => extractLogId(log))
-      .filter(Boolean);
-
-    try {
-      setClearingAll(true);
-      await axios.delete(`${API_BASE}/logs`, { data: { ids: logIds } });
-      setLogs((prev) => prev.filter((log) => !logIds.includes(extractLogId(log))));
-      setFilteredLogs([]);
-    } catch (err) {
-      setLogs((prev) => prev.filter((log) => !logIds.includes(extractLogId(log))));
-      setFilteredLogs([]);
-      setPopup({
-        show: true,
-        type: "error",
-        data: "All logs cleared locally. API error occurred.",
-      });
-    } finally {
-      setClearingAll(false);
-      setPopup({ show: false, type: null, data: null });
-    }
-  };
-
-  // ----------------------------------------
-  // DOWNLOAD EXCEL — unchanged
-  // ----------------------------------------
 
   const handleDownloadExcel = () => {
     if (filteredLogs.length === 0) {
@@ -230,92 +116,18 @@ export default function LogsTabView({ sectionName }) {
     const url = URL.createObjectURL(blob);
 
     link.href = url;
-    link.download = `logs_${Date.now()}.csv`;
+    link.download = `logs_${deviceType}_${deviceId}_${Date.now()}.csv`;
     link.click();
+    
+    setToast({ show: true, message: "Logs downloaded successfully!" });
   };
-
-  // ----------------------------------------
-  // POPUP UI
-  // ----------------------------------------
-
-  const Popup = () =>
-    popup.show ? (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-xl shadow-xl w-80 text-center">
-          {popup.type === "error" && (
-            <>
-              <h3 className="text-lg font-semibold text-red-600 mb-4">
-                Warning
-              </h3>
-              <p className="mb-4">{popup.data}</p>
-              <button
-                onClick={() => setPopup({ show: false, type: null, data: null })}
-                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-              >
-                OK
-              </button>
-            </>
-          )}
-
-          {popup.type === "deleteOne" && (
-            <>
-              <h3 className="text-lg font-semibold text-red-600 mb-4">
-                Delete Log?
-              </h3>
-              <p className="mb-4">Are you sure you want to delete this log?</p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={confirmDeleteLog}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  Yes
-                </button>
-                <button
-                  onClick={() => setPopup({ show: false, type: null, data: null })}
-                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          )}
-
-          {popup.type === "deleteAll" && (
-            <>
-              <h3 className="text-lg font-semibold text-red-600 mb-4">
-                Clear All Logs?
-              </h3>
-              <p className="mb-4">
-                This will delete{" "}
-                <strong>{filteredLogs.length}</strong> logs permanently.
-              </p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={confirmClearAll}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  Yes
-                </button>
-                <button
-                  onClick={() => setPopup({ show: false, type: null, data: null })}
-                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    ) : null;
-
-  // ----------------------------------------
 
   if (loading)
     return (
-      <p className="text-center py-10">
-        Loading logs for {deviceType} {deviceId}...
-      </p>
+      <div className="text-center py-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-main-color mx-auto"></div>
+        <p className="mt-2 text-gray-500">Loading logs...</p>
+      </div>
     );
 
   if (error)
@@ -324,7 +136,7 @@ export default function LogsTabView({ sectionName }) {
         <p className="text-red-500 mb-4">{error}</p>
         <button
           onClick={fetchLogsAndDevice}
-          className="bg-main-color text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-main-color text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           Try Again
         </button>
@@ -332,125 +144,109 @@ export default function LogsTabView({ sectionName }) {
     );
 
   return (
-    <>
-      <Popup />
-
-      <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-        {toast.show && (
-          <div className="fixed top-4 right-4 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
-            {toast.message}
-          </div>
-        )}
-
-        <div className="flex max-md:flex-wrap max-md:gap-2 justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-main-color">
-            {deviceType === "robot" ? "Robot" : "Trolley"} Logs - Section "{sectionName}"
-          </h2>
-          <div className="flex gap-2">
-            {filteredLogs.length > 0 && (
-              <>
-                <button
-                  onClick={handleDownloadExcel}
-                  className="flex items-center gap-1 bg-green-500 text-white px-2 md:px-3 py-1 rounded hover:bg-green-600 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Excel
-                </button>
-
-                <button
-                  onClick={handleClearAllLogs}
-                  disabled={clearingAll}
-                  className="flex items-center gap-2 bg-red-500 text-white px-2 md:px-3 py-1 rounded hover:bg-red-600 disabled:bg-red-300 transition-colors"
-                >
-                  {clearingAll ? (
-                    <Loader className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <X className="w-4 h-4" />
-                  )}
-                  Clear All ({filteredLogs.length})
-                </button>
-              </>
-            )}
-          </div>
+    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
+          {toast.message}
         </div>
+      )}
 
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-700">
-            Total Logs: {filteredLogs.length}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <h2 className="text-xl font-semibold text-main-color">
+            {deviceType === "robot" ? "Robot" : "Trolley"} Logs - {sectionName}
+          </h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Activity logs and system events
           </p>
         </div>
-
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {filteredLogs.map((log, index) => {
-            const logId = extractLogId(log);
-            const hasValidId = !!logId;
-
-            return (
-              <div
-                key={logId || index}
-                className={`border rounded-lg p-3 flex justify-between items-start gap-3 group transition-colors ${
-                  hasValidId
-                    ? "bg-gray-50 hover:bg-gray-100"
-                    : "bg-yellow-50 hover:bg-yellow-100"
-                }`}
-              >
-                <div className="flex-1">
-                  <div className="text-sm text-gray-700">{log.message}</div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {log.date} {log.time}
-                  </div>
-                  {!hasValidId && (
-                    <div className="text-xs text-red-500 mt-1">
-                      ⚠️ Cannot delete individually (no ID)
-                    </div>
-                  )}
-                </div>
-
-                {hasValidId && (
-                  <button
-                    onClick={() => handleDeleteLog(log)}
-                    disabled={deletingId === logId}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-red-200"
-                    title="Delete this log"
-                  >
-                    {deletingId === logId ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {filteredLogs.length === 0 && logs.length > 0 && (
-          <div className="text-center py-4 text-orange-500">
-            <p>No logs found for section "{sectionName}"</p>
-            <p className="text-sm">Total logs available: {logs.length}</p>
-          </div>
-        )}
-
-        {filteredLogs.length === 0 && logs.length === 0 && (
-          <div className="text-center py-4 text-gray-500">No logs available</div>
-        )}
-
-        <div className="flex justify-between items-center mt-4">
+        
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownloadExcel}
+            disabled={filteredLogs.length === 0}
+            className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          
           <button
             onClick={fetchLogsAndDevice}
-            className="bg-main-color text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="flex items-center gap-2 bg-main-color text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Refresh Logs
+            <RefreshCw className="w-4 h-4" />
+            Refresh
           </button>
-
-          {filteredLogs.length > 0 && (
-            <span className="text-sm text-gray-500">
-              {filteredLogs.length} log(s) found
-            </span>
-          )}
         </div>
       </div>
-    </>
+
+      {/* Info Box */}
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-blue-700 font-medium">
+              Total Logs: <span className="font-bold">{filteredLogs.length}</span>
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Showing last 10 logs only • Read-only access
+            </p>
+          </div>
+          <FileText className="w-6 h-6 text-blue-500" />
+        </div>
+      </div>
+
+      {/* Logs List */}
+      <div className="space-y-3 max-h-96 overflow-y-auto">
+        {filteredLogs.length > 0 ? (
+          filteredLogs.map((log, index) => (
+            <div
+              key={index}
+              className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors duration-200"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 bg-main-color rounded-full mt-2 flex-shrink-0"></div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-800 font-medium">
+                    {log.message || "No message"}
+                  </p>
+                  <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
+                    <span>Date: {log.date || "Unknown"}</span>
+                    <span>Time: {log.time || "Unknown"}</span>
+                    {log.topic_main && (
+                      <span>Topic: {log.topic_main}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-lg">No logs found</p>
+            <p className="text-gray-400 text-sm mt-1">
+              No logs available for section "{sectionName}"
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Info */}
+      {filteredLogs.length > 0 && (
+        <div className="mt-6 p-3 bg-gray-50 rounded-lg">
+          <div className="flex justify-between items-center text-sm text-gray-600">
+            <span>
+              Displaying {filteredLogs.length} of {logs.length} total logs
+            </span>
+            <span className="text-xs bg-main-color text-white px-2 py-1 rounded">
+              Read Only
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

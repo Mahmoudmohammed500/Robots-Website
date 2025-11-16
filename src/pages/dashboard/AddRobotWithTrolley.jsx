@@ -40,6 +40,21 @@ export default function AddRobotWithTrolley() {
     }
   });
 
+  const [isMainUnlocked, setIsMainUnlocked] = useState(false);
+  const [mainPassword, setMainPassword] = useState("");
+  const MAIN_PASSWORD = "1234"; 
+
+  const handlePasswordSubmit = () => {
+    if (mainPassword === MAIN_PASSWORD) {
+      setIsMainUnlocked(true);
+      toast.success("Robot section has been successfully opened.");
+      setMainPassword("");
+    } else {
+      toast.error("Incorrect password");
+      setMainPassword("");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!robot.RobotName) {
       toast.warning("Please enter robot name");
@@ -190,16 +205,45 @@ export default function AddRobotWithTrolley() {
           </div>
 
           <div className="mt-5 space-y-6">
-            <RobotMainPanel
-              mainData={robot.Sections.main}
-              updateMainSection={updateMainSection}
-              robotName={robot.RobotName}
-              updateRobotName={updateRobotName}
-              imagePreview={robot.imagePreview}
-              updateImage={updateImage}
-              mqttUrl={robot.mqttUrl}
-              updateMqttUrl={updateMqttUrl}
-            />
+            {!isMainUnlocked ? (
+              // Password Input Section
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-main-color mb-4">
+                  Enter the password to access the robot control                </h3>
+                <div className="flex gap-3 items-center">
+                  <input
+                    type="password"
+                    value={mainPassword}
+                    onChange={(e) => setMainPassword(e.target.value)}
+                    placeholder="Enter the password"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-main-color"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handlePasswordSubmit();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handlePasswordSubmit}
+                    className="bg-main-color text-white"
+                  >
+                    open
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // Main Control Section (Unlocked)
+              <RobotMainPanel
+                mainData={robot.Sections.main}
+                updateMainSection={updateMainSection}
+                robotName={robot.RobotName}
+                updateRobotName={updateRobotName}
+                imagePreview={robot.imagePreview}
+                updateImage={updateImage}
+                mqttUrl={robot.mqttUrl}
+                updateMqttUrl={updateMqttUrl}
+              />
+            )}
           </div>
         </section>
       </div>

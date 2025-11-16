@@ -141,7 +141,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
 
   if (error)
     return (
-      <div className="text-center py-10">
+      <div className="text-center py-5">
         <p className="text-red-500 mb-4">{error}</p>
         <button
           onClick={fetchNotesAndRobot}
@@ -153,7 +153,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
     );
 
   return (
-    <div className="p-4">
+    <div className="p-4 pb-2">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-main-color">
           Robot Notifications - Section "{sectionName}"
@@ -166,7 +166,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
             className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed"
           >
             {clearingAll ? (
-              <Loader className="w-4 h-4 animate-spin" />
+              <Loader className="w-3 h-3 animate-spin" />
             ) : (
               <X className="w-4 h-4" />
             )}
@@ -181,11 +181,11 @@ export default function NotificationsTab({ robotId, sectionName }) {
         </p>
       </div>
 
-      <div className="space-y-4 max-h-96 overflow-y-auto">
+      <div className="space-y-2 max-h-96 overflow-y-auto">
         {filteredNotes.length > 0 ? (
           filteredNotes.map((note, index) => {
             const noteId = extractNoteId(note);
-            const isAlert = isAlertNotification(note);
+            const isAlert = note.type === "alert";
             const backgroundColor = isAlert ? 'bg-red-50' : 'bg-blue-50';
             const borderColor = isAlert ? 'border-red-200' : 'border-blue-200';
             const iconColor = isAlert ? 'text-red-500' : 'text-main-color';
@@ -193,7 +193,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
             return (
               <Card
                 key={noteId || index}
-                className={`shadow-md border ${borderColor} ${backgroundColor} p-4 relative`}
+                className={`shadow-md border ${borderColor} ${backgroundColor} p-2 relative gap-2`}
               >
                 <button
                   onClick={() => handleDeleteNotification(note)}
@@ -209,7 +209,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
                 </button>
 
                 <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
                     {isAlert ? (
                       <AlertTriangle className={`w-5 h-5 ${iconColor}`} />
                     ) : (

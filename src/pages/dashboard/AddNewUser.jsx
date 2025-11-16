@@ -30,7 +30,7 @@ export default function AddUser() {
           const userData = await getData(`${BASE_URL}/users/${id}`);
           setFormData({
             Username: userData.Username || "",
-            Password: "", 
+            Password: userData.Password || "",
             TelephoneNumber: userData.TelephoneNumber || "",
             ProjectName: userData.ProjectName || "",
           });

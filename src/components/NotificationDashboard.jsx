@@ -97,12 +97,7 @@ export default function NotificationCenter({
   const fetchAllRobots = async () => {
     try {
       const res = await axios.get(`${API_BASE}/robots.php`);
-      
       const robotsArray = Array.isArray(res.data) ? res.data : [];
-      
-      if (robotsArray.length > 0) {
-      }
-      
       return robotsArray;
     } catch (err) {
       return [];
@@ -195,34 +190,67 @@ export default function NotificationCenter({
     return null;
   };
 
-  const getRobotAndSectionInfo = (note) => {
-    if (!note) return { robotName: null, sectionName: null };
+  const getProjectNameForRobot = (robotId) => {
+    if (!robotId || !robots.length) return null;
+    
+    const robot = robots.find(r => r.id != null && r.id.toString() === robotId.toString());
+    if (robot && robot.projectId) {
+      return currentProject ? currentProject.ProjectName : null;
+    }
+    
+    return null;
+  };
+
+  const getRobotAndProjectInfo = (note) => {
+    if (!note) return { robotName: null, sectionName: null, projectName: null };
     
     let robotName = null;
     let sectionName = null;
+    let projectName = null;
 
     if (note.RobotId) {
       robotName = getRobotNameByRobotId(note.RobotId);
+      projectName = getProjectNameForRobot(note.RobotId);
     }
 
     if (!robotName && note.topic_main) {
       const robotFromTopic = findRobotByTopic(note.topic_main);
       if (robotFromTopic) {
         robotName = robotFromTopic.RobotName || robotFromTopic.robotName;
+        projectName = currentProject ? currentProject.ProjectName : null;
       }
     }
 
     if (!robotName && note.topic_main) {
       robotName = getRobotNameFromTopic(note.topic_main);
+      projectName = currentProject ? currentProject.ProjectName : null;
     }
 
     if (note.topic_main) {
       sectionName = getSectionNameFromTopic(note.topic_main);
     }
 
-   
+    if (!projectName && currentProject) {
+      projectName = currentProject.ProjectName;
+    }
 
-    return { robotName, sectionName };
+    
+
+    return { robotName, sectionName, projectName };
+  };
+
+  const enhanceNotificationsWithRobotInfo = (notificationsArray) => {
+    return notificationsArray.map((note) => {
+      const { robotName, sectionName, projectName } = getRobotAndProjectInfo(note);
+      
+      return {
+        ...note,
+        robotName: robotName || "Unknown Robot",
+        sectionName: sectionName,
+        projectName: projectName || "Unknown Project",
+        displayMessage: note.message || "New message"
+      };
+    });
   };
 
   const fetchCurrentProjectAndNotifications = async () => {
@@ -240,7 +268,7 @@ export default function NotificationCenter({
         headers: { "Content-Type": "application/json" },
       });
       
-      const allNotifications = Array.isArray(res.data) ? res.data : [];
+      let allNotifications = Array.isArray(res.data) ? res.data : [];
 
       const sortedNotifications = allNotifications.sort((a, b) => {
         try {
@@ -252,7 +280,9 @@ export default function NotificationCenter({
         }
       });
 
-      setNotifications(sortedNotifications);
+      const enhancedNotifications = enhanceNotificationsWithRobotInfo(sortedNotifications);
+      
+      setNotifications(enhancedNotifications);
       setCurrentProject(project);
       
     } catch (err) {
@@ -268,7 +298,10 @@ export default function NotificationCenter({
     if (searchTerm) {
       filtered = filtered.filter(note =>
         note.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.topic_main?.toLowerCase().includes(searchTerm.toLowerCase())
+        note.topic_main?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (note.robotName && note.robotName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (note.sectionName && note.sectionName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (note.projectName && note.projectName.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -284,8 +317,8 @@ export default function NotificationCenter({
   const handleClickNotification = async (note) => {
     try {
       let robotId = note.RobotId;
-      let sectionName = null;
-      let robotName = null;
+      let sectionName = note.sectionName;
+      let robotName = note.robotName;
 
       if (!robotId && note.topic_main) {
         const robotFromTopic = findRobotByTopic(note.topic_main);
@@ -296,22 +329,12 @@ export default function NotificationCenter({
         }
       }
 
-      if (!robotId && currentProject) {
-        const projectRobots = robots.filter(r => 
-          r.projectId && parseInt(r.projectId) === parseInt(currentProject.projectId)
-        );
-        if (projectRobots.length > 0) {
-          robotId = projectRobots[0].id;
-          robotName = projectRobots[0].RobotName;
-        }
-      }
-
       if (!robotId) {
         alert("Cannot open this robot. Missing RobotId or cannot find associated robot.");
         return;
       }
-      
-      navigate(`/robots/${robotId}`, {
+
+      navigate(`/homeDashboard/robotDetails/${robotId}`, {
         state: {
           section: sectionName,
           fromNotification: true,
@@ -351,6 +374,14 @@ export default function NotificationCenter({
 
   const handleBackToDashboard = () => {
     navigate("/homeDashboard");
+  };
+
+  const getPositionClasses = () => {
+    if (position === "sidebar") {
+      return "left-0";
+    } else {
+      return "right-0";
+    }
   };
 
   // Render different layouts based on mode
@@ -530,9 +561,8 @@ export default function NotificationCenter({
                 </div>
 
                 <div className="space-y-4">
-                  {filteredNotifications.slice(0, 10).map((note, i) => {
+                  {filteredNotifications.map((note, i) => {
                     const isAlert = isAlertNotification(note);
-                    const { robotName, sectionName } = getRobotAndSectionInfo(note);
                     
                     return (
                       <Card
@@ -548,7 +578,7 @@ export default function NotificationCenter({
                               )}`}
                             >
                               {getNotificationIcon(note)}
-                              <span className="flex-1">{note.message}</span>
+                              <span className="flex-1">{note.displayMessage}</span>
                             </CardTitle>
                             <Badge
                               variant={isAlert ? "destructive" : "secondary"}
@@ -577,38 +607,30 @@ export default function NotificationCenter({
                                     : "bg-blue-200 text-blue-800"
                                 }`}
                               >
-                                {note.topic_main}
+                                Topic: {note.topic_main}
                               </span>
                             )}
                           </div>
 
                           <div className="mt-2 space-y-1">
-                            <div>
-                              {robotName ? (
-                                <p className="text-sm text-gray-500">
-                                  <strong>Robot name:</strong> {robotName}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-gray-400">
-                                  <strong>Robot name:</strong> Not specified
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              {sectionName && (
-                                <p className="text-sm text-gray-500">
-                                  <strong>Section:</strong> {sectionName}
-                                </p>
-                              )}
-                              {note.topic_main && (
-                                <p className="text-sm text-gray-500">
-                                  <strong>Topic:</strong> {note.topic_main}
-                                </p>
-                              )}
-                            </div>
-                            {note.RobotId && (
+                            <div className="flex flex-wrap gap-4">
                               <p className="text-sm text-gray-500">
-                                <strong>Robot ID:</strong> {note.RobotId}
+                                <strong>Project:</strong> {note.projectName}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                <strong>Robot:</strong> {note.robotName}
+                              </p>
+                            </div>
+                            
+                            {note.sectionName && (
+                              <p className="text-sm text-gray-500">
+                                <strong>Section:</strong> {note.sectionName}
+                              </p>
+                            )}
+                            
+                            {note.topic_main && (
+                              <p className="text-sm text-gray-500">
+                                <strong>Topic:</strong> {note.topic_main}
                               </p>
                             )}
                           </div>
@@ -741,7 +763,7 @@ export default function NotificationCenter({
       </div>
 
       {/* Statistics */}
-      {/* <div className="grid grid-cols-3 gap-2 p-3 bg-white border-b text-sm">
+      <div className="grid grid-cols-3 gap-2 p-3 bg-white border-b text-sm">
         <div className="text-center">
           <p className="text-lg font-bold text-main-color">{notifications.length}</p>
           <p className="text-xs text-gray-600">Total</p>
@@ -758,7 +780,7 @@ export default function NotificationCenter({
           </p>
           <p className="text-xs text-gray-600">Info</p>
         </div>
-      </div> */}
+      </div>
 
       {/* Content */}
       <div className="h-[calc(75vh-220px)] md:max-h-[60vh] overflow-y-auto">
@@ -807,18 +829,17 @@ export default function NotificationCenter({
         {!loading && !error && filteredNotifications.length > 0 && (
           <div className="p-3">
             <div className="mb-3 flex justify-between items-center">
-              {/* <p className="text-gray-600 text-xs">
+              <p className="text-gray-600 text-xs">
                 Showing {filteredNotifications.length} of {notifications.length} notifications
-              </p> */}
+              </p>
               <Badge variant="secondary" className="text-xs">
                 Newest First
               </Badge>
             </div>
 
             <div className="space-y-2">
-              {filteredNotifications.slice(0, 10).map((note, i) => {
+              {filteredNotifications.map((note, i) => {
                 const isAlert = isAlertNotification(note);
-                const { robotName, sectionName } = getRobotAndSectionInfo(note);
                 
                 return (
                   <Card
@@ -834,7 +855,7 @@ export default function NotificationCenter({
                           }`}
                         >
                           {getNotificationIcon(note)}
-                          <span className="flex-1">{note.message}</span>
+                          <span className="flex-1">{note.displayMessage}</span>
                         </CardTitle>
                         <Badge
                           variant={isAlert ? "destructive" : "secondary"}
@@ -869,32 +890,24 @@ export default function NotificationCenter({
                       </div>
 
                       <div className="space-y-1">
-                        <div>
-                          {robotName ? (
-                            <p className="text-xs text-gray-500">
-                              <strong>Robot name:</strong> {robotName}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-gray-400">
-                              <strong>Robot name:</strong> Not specified
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          {sectionName && (
-                            <p className="text-xs text-gray-500">
-                              <strong>Section:</strong> {sectionName}
-                            </p>
-                          )}
-                          {note.topic_main && (
-                            <p className="text-xs text-gray-500">
-                              <strong>Topic:</strong> {note.topic_main}
-                            </p>
-                          )}
-                        </div>
-                        {note.RobotId && (
+                        <div className="flex flex-wrap gap-2">
                           <p className="text-xs text-gray-500">
-                            <strong>Robot ID:</strong> {note.RobotId}
+                            <strong>Project:</strong> {note.projectName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            <strong>Robot:</strong> {note.robotName}
+                          </p>
+                        </div>
+                        
+                        {note.sectionName && (
+                          <p className="text-xs text-gray-500">
+                            <strong>Section:</strong> {note.sectionName}
+                          </p>
+                        )}
+                        
+                        {note.topic_main && (
+                          <p className="text-xs text-gray-500">
+                            <strong>Topic:</strong> {note.topic_main}
                           </p>
                         )}
                       </div>

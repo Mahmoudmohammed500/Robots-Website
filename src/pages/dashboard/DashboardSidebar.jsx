@@ -12,15 +12,20 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Logo from "../../assets/logo omega-2022.png";
-import NotificationsDropdown from "../../components/DropdownNotes";
+import NotificationCenter from "@/components/NotificationDashboard"; 
 
 export default function DashboardSidebar({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const dropdownRef = useRef(null);
+  const [showSidebarNotifications, setShowSidebarNotifications] = useState(false);
+  const [showHeaderNotifications, setShowHeaderNotifications] = useState(false);
+  
+  const sidebarDropdownRef = useRef(null);
+  const sidebarBellRef = useRef(null);
+  const headerDropdownRef = useRef(null);
+  const headerBellRef = useRef(null);
 
   const menuItems = [
     { name: "All Projects", icon: FolderKanban, path: "/homeDashboard" },
@@ -35,34 +40,72 @@ export default function DashboardSidebar({ children }) {
     navigate("/login", { replace: true });
   };
 
-  // Close dropdown if clicked outside
+  const handleSidebarBellClick = () => {
+    setShowSidebarNotifications(prev => !prev);
+    setShowHeaderNotifications(false);
+  };
+
+  const handleHeaderBellClick = () => {
+    setShowHeaderNotifications(prev => !prev);
+    setShowSidebarNotifications(false);
+  };
+
+  // Close dropdowns if clicked outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowNotifications(false);
+      // Check for sidebar notifications
+      if (showSidebarNotifications && 
+          sidebarDropdownRef.current && 
+          !sidebarDropdownRef.current.contains(e.target) &&
+          sidebarBellRef.current && 
+          !sidebarBellRef.current.contains(e.target)) {
+        setShowSidebarNotifications(false);
+      }
+      
+      // Check for header notifications
+      if (showHeaderNotifications && 
+          headerDropdownRef.current && 
+          !headerDropdownRef.current.contains(e.target) &&
+          headerBellRef.current && 
+          !headerBellRef.current.contains(e.target)) {
+        setShowHeaderNotifications(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [showSidebarNotifications, showHeaderNotifications]);
 
   return (
     <div className="flex bg-gray-50 min-h-screen max-lg:w-0 relative">
       {/* ===== Sidebar (Desktop) ===== */}
       <div
         className={`hidden lg:flex fixed top-0 left-0 h-screen bg-linear-to-b from-main-color to-second-color text-white 
-        shadow-2xl border-r border-main-color/20 z-50 transition-all duration-300 ease-in-out 
+        shadow-2xl border-r border-main-color/20 z-40 transition-all duration-300 ease-in-out 
         ${isOpen ? "w-72" : "w-16"} flex-col justify-between`}
       >
         <div>
+          {/* Sidebar toggle */}
+          <div className="text-right">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className={`p-2 mr-auto rounded-full transition shadow-md cursor-pointer 
+                ${isOpen ? "hover:bg-white/20 text-white" : "bg-white text-main-color hover:bg-white/90"}`}
+              title={isOpen ? "Close Menu" : "Open Menu"}
+            >
+              {isOpen ? "×" : "›"}
+            </button>
+          </div>
+          
           {/* ===== Logo & Admin Info ===== */}
-          <div className="flex flex-col items-center justify-between px-3 py-5 border-b border-white/10 relative">
+          <div className={`flex items-center justify-between px-3 py-5 gap-2 border-b border-white/10 relative 
+            ${isOpen ? "flex-row" : "flex-col"}`}>
             {isOpen ? (
-              <div className="flex items-center gap-3 pl-2 select-none">
+              <div className="flex items-center gap-3 pl-2 select-none ">
                 <img
                   src={Logo}
                   alt="Admin Logo"
-                  className="h-10 w-10 object-contain rounded-full bg-white p-1"
+                  className="h-10 w-10 object-contain rounded-full bg-white p-1 "
                 />
                 <div className="flex items-center gap-1 text-sm text-white/80">
                   <ShieldCheck size={18} className="text-green-400" />
@@ -76,29 +119,32 @@ export default function DashboardSidebar({ children }) {
                 className="h-10 w-10 object-contain mx-auto rounded-full bg-white p-1 select-none"
               />
             )}
-
-            {/* Notification Icon */}
-            <div className="mt-3 relative" ref={dropdownRef}>
+            
+            {/* Notification Icon - Sidebar */}
+            <div className="relative " ref={sidebarBellRef}>
               <button
-                onClick={() => setShowNotifications((prev) => !prev)}
-                className="p-2 rounded-full hover:bg-white/20 transition relative"
+                onClick={handleSidebarBellClick}
+                className={`p-2 rounded-full transition relative ${
+                  showSidebarNotifications ? "bg-white/30 " : "hover:bg-white/20"
+                }`}
               >
                 <Bell size={20} />
               </button>
-              {showNotifications && (
-                <NotificationsDropdown onClose={() => setShowNotifications(false)} />
+              
+              {/* Sidebar Notifications Dropdown */}
+              {showSidebarNotifications && (
+                <div 
+                  ref={sidebarDropdownRef}
+                  className="absolute top-full left-0 mt-2 z-50"
+                >
+                  <NotificationCenter 
+                    onClose={() => setShowSidebarNotifications(false)} 
+                    mode="dropdown"
+                    position="sidebar"
+                  />
+                </div>
               )}
             </div>
-
-            {/* Sidebar toggle */}
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className={`p-2 ml-auto rounded-full transition shadow-md cursor-pointer
-                ${isOpen ? "hover:bg-white/20 text-white" : "bg-white text-main-color hover:bg-white/90"}`}
-              title={isOpen ? "Close Menu" : "Open Menu"}
-            >
-              {isOpen ? "×" : "›"}
-            </button>
           </div>
 
           {/* ===== Menu items ===== */}
@@ -152,7 +198,7 @@ export default function DashboardSidebar({ children }) {
       </div>
 
       {/* ===== Mobile Header ===== */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 bg-linear-to-r from-main-color to-second-color text-white flex items-center justify-between px-4 py-3 z-50">
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-linear-to-r from-main-color to-second-color text-white flex items-center justify-between px-4 py-3 z-40">
         <div className="flex items-center gap-2 select-none">
           <img
             src={Logo}
@@ -165,19 +211,30 @@ export default function DashboardSidebar({ children }) {
           </div>
         </div>
 
-        <nav className="flex items-center gap-4 sm:gap-5 relative">
-          <button
-            onClick={() => setShowNotifications((prev) => !prev)}
-            className="p-2 rounded-full hover:bg-white/20 transition relative"
-          >
-            <Bell size={22} />
-          </button>
-          {showNotifications && (
-            <div className="absolute top-full right-0 z-50">
-              <NotificationsDropdown onClose={() => setShowNotifications(false)} />
-            </div>
-          )}
+        <nav className="flex items-center gap-4 sm:gap-5 ">
+          {/* Notification Section - Header */}
+          <div className="relative" ref={headerBellRef}>
+            <button
+              onClick={handleHeaderBellClick}
+              className={`p-2 rounded-full transition relative ${
+                showHeaderNotifications ? "bg-white/30 " : "hover:bg-white/20"
+              }`}
+            >
+              <Bell size={22} />
+            </button>
+            
+            {showHeaderNotifications && (
+              <div ref={headerDropdownRef} className="absolute top-full right-0 mt-2 z-50">
+                <NotificationCenter 
+                  onClose={() => setShowHeaderNotifications(false)} 
+                  mode="dropdown"
+                  position="header"
+                />
+              </div>
+            )}
+          </div>
 
+          {/* Other Menu Items */}
           {menuItems.map((item, index) => {
             const Icon = item.icon;
             const active = location.pathname === item.path;

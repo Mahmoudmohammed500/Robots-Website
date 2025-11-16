@@ -115,9 +115,6 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
             <p className="text-sm text-blue-700 font-medium">
               Total Notifications: <span className="font-bold">{filteredNotes.length}</span>
             </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Showing last 10 notifications only
-            </p>
           </div>
           <Bell className="w-6 h-6 text-blue-500" />
         </div>
@@ -137,7 +134,7 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
             return (
               <Card
                 key={index}
-                className={`shadow-sm border ${borderColor} ${backgroundColor} hover:shadow-md transition-shadow duration-200`}
+                className={`shadow-sm border ${borderColor} ${backgroundColor} hover:shadow-md transition-shadow duration-200 gap-1`}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
@@ -185,14 +182,14 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
         )}
       </div>
 
-      {/* Footer Info */}
+      {/* Footer Info
       {filteredNotes.length > 0 && (
         <div className="mt-6 p-3 bg-gray-50 rounded-lg text-center">
           <p className="text-sm text-gray-600">
             Displaying {filteredNotes.length} of {notes.length} total notifications
           </p>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
