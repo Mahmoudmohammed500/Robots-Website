@@ -105,14 +105,20 @@ export default function NotificationCenter({
   };
 
   const isAlertNotification = (note) => {
-    const message = note.message?.toLowerCase() || '';
-    return message.includes('alert') || 
-           message.includes('error') || 
-           message.includes('warning') ||
-           message.includes('critical') ||
-           message.includes('fail') ||
-           message.includes('stopped') ||
-           message.includes('emergency');
+    if (!note || !note.message) return false;
+    
+    const message = note.message.toLowerCase();
+    const alertKeywords = ['alert', 'error', 'warning', 'critical', 'fail', 'stopped', 'emergency', 'fault', 'issue', 'problem'];
+    const infoKeywords = ['info', 'information', 'started', 'running', 'completed', 'success', 'ready'];
+    
+    // Check for alert keywords
+    const hasAlertKeyword = alertKeywords.some(keyword => message.includes(keyword));
+    
+    // Check for info keywords to exclude false positives
+    const hasInfoKeyword = infoKeywords.some(keyword => message.includes(keyword));
+    
+    // If it has alert keywords and no conflicting info keywords, consider it an alert
+    return hasAlertKeyword && !hasInfoKeyword;
   };
 
   const findSectionByTopic = (topicMain, robot) => {
@@ -127,7 +133,6 @@ export default function NotificationCenter({
 
   const findRobotByTopic = (topicMain) => {
     if (!topicMain || !robots.length) return null;
-    
     
     for (const robot of robots) {
       if (!robot.Sections) continue;
@@ -234,8 +239,6 @@ export default function NotificationCenter({
       projectName = currentProject.ProjectName;
     }
 
-    
-
     return { robotName, sectionName, projectName };
   };
 
@@ -295,16 +298,22 @@ export default function NotificationCenter({
   const applyFilters = () => {
     let filtered = [...notifications];
 
-    if (searchTerm) {
-      filtered = filtered.filter(note =>
-        note.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.topic_main?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (note.robotName && note.robotName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (note.sectionName && note.sectionName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (note.projectName && note.projectName.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchTermLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(note => {
+        return (
+          (note.message && note.message.toLowerCase().includes(searchTermLower)) ||
+          (note.topic_main && note.topic_main.toLowerCase().includes(searchTermLower)) ||
+          (note.robotName && note.robotName.toLowerCase().includes(searchTermLower)) ||
+          (note.sectionName && note.sectionName.toLowerCase().includes(searchTermLower)) ||
+          (note.projectName && note.projectName.toLowerCase().includes(searchTermLower)) ||
+          (note.displayMessage && note.displayMessage.toLowerCase().includes(searchTermLower))
+        );
+      });
     }
 
+    // Apply type filter
     if (filterType === "alerts") {
       filtered = filtered.filter(note => isAlertNotification(note));
     } else if (filterType === "info") {
@@ -312,6 +321,11 @@ export default function NotificationCenter({
     }
 
     setFilteredNotifications(filtered);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setFilterType("all");
   };
 
   const handleClickNotification = async (note) => {
@@ -396,7 +410,7 @@ export default function NotificationCenter({
                 variant="outline"
                 size="sm"
                 onClick={handleBackToDashboard}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 border-main-color text-main-color hover:bg-main-color hover:text-white"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Dashboard
@@ -412,7 +426,7 @@ export default function NotificationCenter({
 
             <Button
               onClick={fetchCurrentProjectAndNotifications}
-              className="flex items-center gap-2 bg-main-color hover:bg-second-color"
+              className="flex items-center gap-2 bg-main-color hover:bg-second-color text-white"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
@@ -423,20 +437,32 @@ export default function NotificationCenter({
           <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
                 <Input
                   placeholder="Search notifications..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-gray-300 text-gray-700 focus:border-main-color focus:ring-main-color"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               
               <div className="flex gap-2">
                 <Button
                   variant={filterType === "all" ? "default" : "outline"}
                   onClick={() => setFilterType("all")}
-                  className="flex items-center gap-2"
+                  className={`flex items-center gap-2 ${
+                    filterType === "all" 
+                      ? "bg-main-color text-white hover:bg-second-color" 
+                      : "border-main-color text-main-color hover:bg-main-color hover:text-white"
+                  }`}
                 >
                   <Filter className="w-4 h-4" />
                   All
@@ -444,7 +470,11 @@ export default function NotificationCenter({
                 <Button
                   variant={filterType === "alerts" ? "default" : "outline"}
                   onClick={() => setFilterType("alerts")}
-                  className="flex items-center gap-2 bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
+                  className={`flex items-center gap-2 ${
+                    filterType === "alerts" 
+                      ? "bg-red-600 text-white hover:bg-red-700" 
+                      : "border-red-200 text-red-700 hover:bg-red-50"
+                  }`}
                 >
                   <AlertTriangle className="w-4 h-4" />
                   Alerts
@@ -452,25 +482,40 @@ export default function NotificationCenter({
                 <Button
                   variant={filterType === "info" ? "default" : "outline"}
                   onClick={() => setFilterType("info")}
-                  className="flex items-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
+                  className={`flex items-center gap-2 ${
+                    filterType === "info" 
+                      ? "bg-blue-600 text-white hover:bg-blue-700" 
+                      : "border-blue-200 text-blue-700 hover:bg-blue-50"
+                  }`}
                 >
                   <Info className="w-4 h-4" />
                   Info
                 </Button>
               </div>
+
+              {(searchTerm || filterType !== "all") && (
+                <Button
+                  variant="outline"
+                  onClick={handleClearFilters}
+                  className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <X className="w-4 h-4" />
+                  Clear Filters
+                </Button>
+              )}
             </div>
           </div>
 
           {/* Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-white border-l-4 border-l-blue-500">
+            <Card className="bg-white border-l-4 border-l-main-color">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Notifications</p>
                     <p className="text-2xl font-bold text-gray-800">{notifications.length}</p>
                   </div>
-                  <Bell className="w-8 h-8 text-blue-500" />
+                  <Bell className="w-8 h-8 text-main-color" />
                 </div>
               </CardContent>
             </Card>
@@ -489,7 +534,7 @@ export default function NotificationCenter({
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-l-4 border-l-green-500">
+            <Card className="bg-white border-l-4 border-l-blue-500">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center">
                   <div>
@@ -498,7 +543,7 @@ export default function NotificationCenter({
                       {notifications.filter(note => !isAlertNotification(note)).length}
                     </p>
                   </div>
-                  <Info className="w-8 h-8 text-green-500" />
+                  <Info className="w-8 h-8 text-blue-500" />
                 </div>
               </CardContent>
             </Card>
@@ -519,7 +564,7 @@ export default function NotificationCenter({
                 <p className="text-red-500 text-lg mb-4">{error}</p>
                 <Button
                   onClick={fetchCurrentProjectAndNotifications}
-                  className="bg-main-color hover:bg-second-color"
+                  className="bg-main-color hover:bg-second-color text-white"
                 >
                   Try Again
                 </Button>
@@ -537,11 +582,8 @@ export default function NotificationCenter({
                 {(searchTerm || filterType !== "all") && (
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setFilterType("all");
-                    }}
-                    className="mt-2"
+                    onClick={handleClearFilters}
+                    className="mt-2 border-main-color text-main-color hover:bg-main-color hover:text-white"
                   >
                     Clear Filters
                   </Button>
@@ -555,7 +597,7 @@ export default function NotificationCenter({
                   <p className="text-gray-600">
                     Showing {filteredNotifications.length} of {notifications.length} notifications
                   </p>
-                  <Badge variant="secondary" className="text-sm">
+                  <Badge variant="secondary" className="text-sm bg-main-color text-white">
                     Sorted by: Newest First
                   </Badge>
                 </div>
@@ -582,7 +624,11 @@ export default function NotificationCenter({
                             </CardTitle>
                             <Badge
                               variant={isAlert ? "destructive" : "secondary"}
-                              className="ml-2"
+                              className={`ml-2 ${
+                                isAlert 
+                                  ? "bg-red-100 text-red-800 hover:bg-red-200" 
+                                  : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                              }`}
                             >
                               {getNotificationType(note)}
                             </Badge>
@@ -647,7 +693,11 @@ export default function NotificationCenter({
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-xs"
+                              className={`text-xs ${
+                                isAlert 
+                                  ? "border-red-300 text-red-700 hover:bg-red-50" 
+                                  : "border-blue-300 text-blue-700 hover:bg-blue-50"
+                              }`}
                             >
                               View Robot Details
                             </Button>
@@ -725,27 +775,43 @@ export default function NotificationCenter({
       <div className="p-3 border-b bg-gray-50">
         <div className="flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
             <Input
               placeholder="Search notifications..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 text-sm h-9"
+              className="pl-10 text-sm h-9 border-gray-300 text-gray-700 focus:border-main-color focus:ring-main-color"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
           
           <div className="flex gap-2">
             <Button
               variant={filterType === "all" ? "default" : "outline"}
               onClick={() => setFilterType("all")}
-              className="flex-1 text-xs h-8"
+              className={`flex-1 text-xs h-8 ${
+                filterType === "all" 
+                  ? "bg-main-color text-white hover:bg-second-color" 
+                  : "border-main-color text-main-color hover:bg-main-color hover:text-white"
+              }`}
             >
               All
             </Button>
             <Button
               variant={filterType === "alerts" ? "default" : "outline"}
               onClick={() => setFilterType("alerts")}
-              className="flex-1 text-xs h-8 bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
+              className={`flex-1 text-xs h-8 ${
+                filterType === "alerts" 
+                  ? "bg-red-600 text-white hover:bg-red-700" 
+                  : "border-red-200 text-red-700 hover:bg-red-50"
+              }`}
             >
               <AlertTriangle className="w-3 h-3 mr-1" />
               Alerts
@@ -753,12 +819,27 @@ export default function NotificationCenter({
             <Button
               variant={filterType === "info" ? "default" : "outline"}
               onClick={() => setFilterType("info")}
-              className="flex-1 text-xs h-8 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
+              className={`flex-1 text-xs h-8 ${
+                filterType === "info" 
+                  ? "bg-blue-600 text-white hover:bg-blue-700" 
+                  : "border-blue-200 text-blue-700 hover:bg-blue-50"
+              }`}
             >
               <Info className="w-3 h-3 mr-1" />
               Info
             </Button>
           </div>
+
+          {(searchTerm || filterType !== "all") && (
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              className="text-xs h-7 border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear Filters
+            </Button>
+          )}
         </div>
       </div>
 
@@ -808,16 +889,15 @@ export default function NotificationCenter({
           <div className="p-6 text-center">
             <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 text-sm mb-1">
-              {currentProject
-                ? `No notifications for ${currentProject.ProjectName}`
-                : "No notifications found"}
+              {searchTerm || filterType !== "all" 
+                ? "No notifications match your filters" 
+                : currentProject
+                  ? `No notifications for ${currentProject.ProjectName}`
+                  : "No notifications found"}
             </p>
             {(searchTerm || filterType !== "all") && (
               <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setFilterType("all");
-                }}
+                onClick={handleClearFilters}
                 className="text-main-color text-sm hover:underline font-medium mt-2"
               >
                 Clear Filters
@@ -832,7 +912,7 @@ export default function NotificationCenter({
               <p className="text-gray-600 text-xs">
                 Showing {filteredNotifications.length} of {notifications.length} notifications
               </p>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs bg-main-color text-white">
                 Newest First
               </Badge>
             </div>
@@ -859,7 +939,11 @@ export default function NotificationCenter({
                         </CardTitle>
                         <Badge
                           variant={isAlert ? "destructive" : "secondary"}
-                          className="ml-2 text-xs"
+                          className={`ml-2 text-xs ${
+                            isAlert 
+                              ? "bg-red-100 text-red-800 hover:bg-red-200" 
+                              : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                          }`}
                         >
                           {getNotificationType(note)}
                         </Badge>
@@ -924,7 +1008,11 @@ export default function NotificationCenter({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs h-7"
+                          className={`text-xs h-7 ${
+                            isAlert 
+                              ? "border-red-300 text-red-700 hover:bg-red-50" 
+                              : "border-blue-300 text-blue-700 hover:bg-blue-50"
+                          }`}
                         >
                           View Details
                         </Button>

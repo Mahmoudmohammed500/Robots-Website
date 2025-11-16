@@ -2,7 +2,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, RefreshCcw } from "lucide-react";
+import { RotateCcw, RefreshCcw, ArrowLeft } from "lucide-react";
 import { getData } from "@/services/getServices";
 import { toast } from "sonner";
 import axios from "axios";
@@ -294,14 +294,14 @@ export default function RobotDetails() {
 
     return (
       <motion.div 
-        className="bg-white rounded-3xl shadow-lg p-6 sm:p-10 border border-gray-100 mt-8" 
+        className="bg-white  p-6  sm:p-10 pt-0" 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
         transition={{ duration: 0.6, delay: 0.3 }}
       >
-        <h2 className="text-xl sm:text-2xl font-bold tracking-wider mb-6 text-second-color text-center">
+        {/* <h2 className="text-xl sm:text-2xl font-bold tracking-wider mb-6 text-second-color text-center">
           Trolley Controls
-        </h2>
+        </h2> */}
         
         {/* Trolley Data */}
         <div className="flex flex-col sm:flex-row justify-start items-start sm:items-center mb-8 gap-4 sm:gap-0">
@@ -388,14 +388,30 @@ export default function RobotDetails() {
   return (
     <div className="flex flex-col min-h-screen bg-linear-to-b from-white to-gray-50">
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        {/* Back Button */}
+        <Button
+          onClick={() => navigate(-1)}
+          className="left-0 flex my-5 items-center gap-2 bg-transparent text-main-color border border-main-color hover:bg-main-color/10 cursor-pointer"
+        >
+          <ArrowLeft size={18} />
+          Back
+        </Button>
+        
         <motion.div 
-          className="max-w-6xl mx-auto" 
+          className="max-w-6xl mx-auto relative" 
           initial={{ opacity: 0, y: 40 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6 }}
         >
+          {/* Robot Section Title */}
+          <div className="mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-main-color text-center">
+              Robot Section
+            </h2>
+          </div>
+
           {/* Robot Tabs Header */}
-          <div className="bg-white rounded-t-3xl shadow-lg p-6 border-b border-gray-200">
+          <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
             <TabsHeader 
               tabs={tabs} 
               active={activeTab} 
@@ -405,7 +421,7 @@ export default function RobotDetails() {
           </div>
 
           {/* Robot Tab Content */}
-          <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100">
+          <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
             {activeTab === "controls" && renderRobotControls()}
             
             {activeTab === "notifications" && (
@@ -425,8 +441,15 @@ export default function RobotDetails() {
           {/* Trolley Section - Only if trolley data exists */}
           {hasTrolley && (
             <>
+              {/* Trolley Section Title */}
+              <div className="mb-6 mt-16">
+                <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">
+                  Trolley Section
+                </h2>
+              </div>
+
               {/* Trolley Tabs Header */}
-              <div className="bg-white rounded-t-3xl shadow-lg p-6 border-b border-gray-200 mt-12">
+              <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
                 <TabsHeader 
                   tabs={trolleyTabs} 
                   active={activeTrolleyTab} 
@@ -436,7 +459,7 @@ export default function RobotDetails() {
               </div>
 
               {/* Trolley Tab Content */}
-              <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100">
+              <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
                 {activeTrolleyTab === "controls" && renderTrolleyControls()}
                 
                 {activeTrolleyTab === "notifications" && (

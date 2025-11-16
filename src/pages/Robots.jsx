@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import Navbar from "../components/Navbar";
 import RobotCard from "../components/RobotCard";
@@ -6,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { getData } from "@/services/getServices"; 
+import { getData } from "@/services/getServices";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function Robots() {
   const navigate = useNavigate();
@@ -78,6 +79,7 @@ export default function Robots() {
       <div className="min-h-screen bg-white">
         <Navbar />
         <div className="container mx-auto px-6 pt-36 pb-24">
+          
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-main-color mx-auto"></div>
@@ -93,7 +95,16 @@ export default function Robots() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      <section className="container mx-auto px-6 pt-36 pb-24">
+      <section className="container mx-auto px-6 py-24 relative">
+        {/* Back Button */}
+       
+        <Button
+          onClick={() => navigate(-1)}
+          className=" left-0 flex mt-5 items-center gap-2 bg-transparent text-main-color border border-main-color hover:bg-main-color/10 cursor-pointer"
+        >
+          <ArrowLeft size={18} />
+          Back
+        </Button>
         <motion.h2
           className="text-4xl font-bold text-gray-900 mb-4 text-center"
           initial={{ opacity: 0, y: 40 }}
@@ -151,7 +162,9 @@ export default function Robots() {
             ))}
           </div>
         )}
+       
       </section>
+       
     </div>
   );
 }

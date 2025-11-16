@@ -22,6 +22,11 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
   }, [robotId, sectionName]);
 
   const isAlertNotification = (note) => {
+    // First check if there's a type field
+    if (note.type === 'alert') return true;
+    if (note.type === 'info') return false;
+    
+    // Fallback to message content checking
     const message = note.message?.toLowerCase() || '';
     return message.includes('alert') || 
            message.includes('error') || 

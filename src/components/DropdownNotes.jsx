@@ -110,6 +110,11 @@ export default function NotificationCenter({
   };
 
   const isAlertNotification = (note) => {
+    // First check if there's a type field
+    if (note.type === 'alert') return true;
+    if (note.type === 'info') return false;
+    
+    // Fallback to message content checking
     const message = note.message?.toLowerCase() || '';
     return message.includes('alert') || 
            message.includes('error') || 
@@ -740,26 +745,6 @@ export default function NotificationCenter({
         </div>
       </div>
 
-      {/* Statistics */}
-      {/* <div className="grid grid-cols-3 gap-2 p-3 bg-white border-b text-sm">
-        <div className="text-center">
-          <p className="text-lg font-bold text-main-color">{notifications.length}</p>
-          <p className="text-xs text-gray-600">Total</p>
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-bold text-red-500">
-            {notifications.filter(note => isAlertNotification(note)).length}
-          </p>
-          <p className="text-xs text-gray-600">Alerts</p>
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-bold text-blue-500">
-            {notifications.filter(note => !isAlertNotification(note)).length}
-          </p>
-          <p className="text-xs text-gray-600">Info</p>
-        </div>
-      </div> */}
-
       {/* Content */}
       <div className="h-[calc(75vh-220px)] md:max-h-[60vh] overflow-y-auto">
         {loading && (
@@ -807,9 +792,6 @@ export default function NotificationCenter({
         {!loading && !error && filteredNotifications.length > 0 && (
           <div className="p-3">
             <div className="mb-3 flex justify-between items-center">
-              {/* <p className="text-gray-600 text-xs">
-                Showing {filteredNotifications.length} of {notifications.length} notifications
-              </p> */}
               <Badge variant="secondary" className="text-xs">
                 Newest First
               </Badge>
