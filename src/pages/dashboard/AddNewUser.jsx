@@ -17,6 +17,7 @@ export default function AddUser() {
 
   const [formData, setFormData] = useState({
     Username: "",
+    Email: "",
     Password: "",
     TelephoneNumber: "",
     ProjectName: "",
@@ -30,6 +31,7 @@ export default function AddUser() {
           const userData = await getData(`${BASE_URL}/users/${id}`);
           setFormData({
             Username: userData.Username || "",
+            Email: userData.Email || "",
             Password: userData.Password || "",
             TelephoneNumber: userData.TelephoneNumber || "",
             ProjectName: userData.ProjectName || "",
@@ -50,9 +52,7 @@ export default function AddUser() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Prepare data to send
       const submitData = { ...formData };
-
       if (!submitData.Password) delete submitData.Password;
 
       if (id) {
@@ -114,6 +114,21 @@ export default function AddUser() {
                 />
               </div>
 
+              {/* Email */}
+              <div className="flex flex-col space-y-2 sm:col-span-2">
+                <Label htmlFor="Email" className="text-gray-700 font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="Email"
+                  type="email"
+                  value={formData.Email}
+                  onChange={handleChange}
+                  placeholder="Enter email address"
+                  className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                />
+              </div>
+
               {/* Password */}
               <div className="flex flex-col space-y-2 sm:col-span-2">
                 <Label htmlFor="Password" className="text-gray-700 font-medium">
@@ -121,17 +136,24 @@ export default function AddUser() {
                 </Label>
                 <Input
                   id="Password"
-                  type="text" 
+                  type="text"
                   value={formData.Password}
                   onChange={handleChange}
-                  placeholder={id ? "Leave empty to keep current password" : "Enter password"}
+                  placeholder={
+                    id
+                      ? "Leave empty to keep current password"
+                      : "Enter password"
+                  }
                   className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
                 />
               </div>
 
               {/* Telephone */}
               <div className="flex flex-col space-y-2 sm:col-span-2">
-                <Label htmlFor="TelephoneNumber" className="text-gray-700 font-medium">
+                <Label
+                  htmlFor="TelephoneNumber"
+                  className="text-gray-700 font-medium"
+                >
                   Phone Number
                 </Label>
                 <Input
@@ -146,7 +168,10 @@ export default function AddUser() {
 
               {/* Project Name */}
               <div className="flex flex-col space-y-2 sm:col-span-2">
-                <Label htmlFor="ProjectName" className="text-gray-700 font-medium">
+                <Label
+                  htmlFor="ProjectName"
+                  className="text-gray-700 font-medium"
+                >
                   Project Name
                 </Label>
                 <Input

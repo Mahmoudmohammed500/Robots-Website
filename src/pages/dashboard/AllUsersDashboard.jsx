@@ -5,7 +5,7 @@ import { Edit3, Trash2, UserPlus, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getData } from "../../services/getServices";
 import { deleteData } from "../../services/deleteServices";
-import AddUser from "./AddNewUser"; 
+import AddUser from "./AddNewUser";
 
 // --------------------- Confirm Delete Modal ---------------------
 function ConfirmDeleteModal({ user, onConfirm, onCancel, deleteAll = false }) {
@@ -36,14 +36,18 @@ function ConfirmDeleteModal({ user, onConfirm, onCancel, deleteAll = false }) {
               {deleteAll ? (
                 <>
                   Are you sure you want to delete{" "}
-                  <span className="font-semibold text-main-color">all users</span>?
-                  This action cannot be undone.
+                  <span className="font-semibold text-main-color">
+                    all users
+                  </span>
+                  ? This action cannot be undone.
                 </>
               ) : (
                 <>
                   Are you sure you want to delete{" "}
-                  <span className="font-semibold text-main-color">{user?.Username}</span>?
-                  This action cannot be undone.
+                  <span className="font-semibold text-main-color">
+                    {user?.Username}
+                  </span>
+                  ? This action cannot be undone.
                 </>
               )}
             </p>
@@ -107,19 +111,38 @@ function AllUsers({ users, onDeleteClick, onDeleteAll }) {
             transition={{ delay: index * 0.1 }}
             className="bg-white shadow-lg rounded-2xl border border-gray-200 p-6 flex flex-col items-center text-center hover:shadow-2xl transition-all duration-300"
           >
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">{user.Username}</h2>
-            <p className="text-sm text-gray-500 mb-2">{user.email}</p>
+            <h2 className="text-lg font-semibold text-gray-800 mb-1">
+              {user.Username}
+            </h2>
 
             <div className="text-left w-full border-t border-gray-100 pt-3 text-sm text-gray-600 space-y-1">
-              <p><strong className="text-main-color">Project:</strong> {user.ProjectName}</p>
-              <p><strong className="text-main-color">Password:</strong> {user.Password}</p>
-              <p><strong className="text-main-color">Phone:</strong> {user.TelephoneNumber}</p>
+              <p>
+                <strong className="text-main-color">Project:</strong>{" "}
+                {user.ProjectName}
+              </p>
+              <p>
+                <strong className="text-main-color">Password:</strong>{" "}
+                {user.Password}
+              </p>
+              <p>
+                <strong className="text-main-color">Phone:</strong>{" "}
+                {user.TelephoneNumber}
+              </p>
+              <p className="text-sm text-gray-500 mb-2">
+                {" "}
+                <strong className="text-main-color">ُEmail:</strong>{" "}
+                {user.Email}
+              </p>
             </div>
 
             <div className="flex gap-2 mt-5">
               <Button
                 className="p-2 w-10 h-10 flex items-center justify-center rounded-md bg-main-color text-white transition-colors cursor-pointer"
-                onClick={() => navigate(`/homeDashboard/editUser/${user.id}`, { state: { user } })}
+                onClick={() =>
+                  navigate(`/homeDashboard/editUser/${user.id}`, {
+                    state: { user },
+                  })
+                }
               >
                 <Edit3 size={16} />
               </Button>
@@ -152,6 +175,7 @@ export default function UsersDashboard() {
         const response = await getData(`${BASE_URL}/users`);
         setUsers(Array.isArray(response) ? response : response?.data || []);
       } catch (error) {
+        console.error("Error fetching users:", error);
       }
     };
     fetchUsers();
@@ -162,6 +186,7 @@ export default function UsersDashboard() {
       await deleteData(`${BASE_URL}/users/${id}`);
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (error) {
+      console.error("Error deleting user:", error);
     } finally {
       setUserToDelete(null);
     }
@@ -172,6 +197,7 @@ export default function UsersDashboard() {
       await deleteData(`${BASE_URL}/users`);
       setUsers([]);
     } catch (error) {
+      console.error("Error deleting all users:", error);
     } finally {
       setDeleteAll(false);
     }

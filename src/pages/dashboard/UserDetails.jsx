@@ -1,4 +1,3 @@
-// src/pages/dashboard/UserDetails.jsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -12,6 +11,7 @@ export default function UserDetails() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -47,7 +47,6 @@ export default function UserDetails() {
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">
           {user.Username}
         </h2>
-        <p className="text-center text-gray-500 mb-6">{user.email}</p>
 
         <div className="text-sm text-gray-700 space-y-2">
           <p>
@@ -61,6 +60,9 @@ export default function UserDetails() {
           <p>
             <strong className="text-main-color">Password:</strong>{" "}
             {user.Password}
+          </p>
+          <p className="text-center text-gray-500 mb-6">
+            <strong className="text-main-color">Email:</strong> {user.Email}
           </p>
         </div>
 
