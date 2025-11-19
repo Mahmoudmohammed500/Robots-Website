@@ -5,9 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Upload, Save, CheckCircle2, XCircle } from "lucide-react";
-import { postData } from "@/services/postServices";
-import { putData } from "@/services/putServices";
-import { getData } from "@/services/getServices";
 import { toast } from "sonner";
 
 export default function ProjectForm() {
@@ -16,6 +13,7 @@ export default function ProjectForm() {
   const editing = Boolean(id);
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
+
   const [formData, setFormData] = useState({
     ProjectName: "",
     Location: "",
@@ -30,17 +28,15 @@ export default function ProjectForm() {
     if (!editing) return;
     setLoading(true);
     try {
-      const data = await getData(`${BASE_URL}/projects/${id}`);
+      const res = await fetch(`${BASE_URL}/projects/${id}`);
+      const data = await res.json();
       if (data) {
-        const project = Array.isArray(data) ? data[0] : data;
         setFormData({
-          ProjectName: project.ProjectName || "",
-          Location: project.Location || "",
-          Description: project.Description || "",
-          Image: project.Image || null,
-          imagePreview: project.Image
-            ? `${UPLOADS_URL}/${project.Image}`
-            : null,
+          ProjectName: data.ProjectName || "",
+          Location: data.Location || "",
+          Description: data.Description || "",
+          Image: null, // ملف جديد غير محدد بعد
+          imagePreview: data.Image ? `${UPLOADS_URL}/${data.Image}` : null,
         });
       }
     } catch (error) {
@@ -80,43 +76,29 @@ export default function ProjectForm() {
     }
 
     try {
-      const imagePath = formData.Image
-        ? `uploads/${formData.Image.name || formData.Image}`
-        : null;
+      const fd = new FormData();
+      fd.append("ProjectName", formData.ProjectName);
+      fd.append("Location", formData.Location);
+      fd.append("Description", formData.Description);
+      if (formData.Image) {
+        fd.append("Image", formData.Image); // ملف الصورة فعليًا
+      }
 
-      const dataToSend = {
-        ProjectName: formData.ProjectName,
-        Location: formData.Location,
-        Description: formData.Description,
-        Image: imagePath,
-      };
+      const method = editing ? "PUT" : "POST";
+      const url = editing
+        ? `${BASE_URL}/projects/${id}`
+        : `${BASE_URL}/projects`;
 
-      if (editing) {
-        dataToSend.projectId = id;
-        dataToSend.id = id;
+      const res = await fetch(url, { method, body: fd });
+      const data = await res.json();
 
-        const response = await putData(
-          `${BASE_URL}/projects/${id}`,
-          dataToSend
-        );
-
-        if (response?.message?.toLowerCase().includes("success")) {
-          toast.success("Project updated successfully!", {
-            icon: <CheckCircle2 className="text-green-500" />,
-            description: "Project details have been updated.",
-          });
-
-          setTimeout(() => navigate(-1), 1000);
-        } else {
-          toast.error(response?.message || "Failed to update project");
-        }
-      } else {
-        await postData(`${BASE_URL}/projects`, dataToSend);
-        toast.success("Project added successfully!", {
+      if (data.message.toLowerCase().includes("success")) {
+        toast.success(editing ? "Project updated!" : "Project added!", {
           icon: <CheckCircle2 className="text-green-500" />,
-          description: "New project has been added.",
         });
-        setTimeout(() => navigate("/homeDashboard"), 1500);
+        setTimeout(() => navigate(-1), 1000);
+      } else {
+        toast.error(data.message || "Something went wrong!");
       }
     } catch (error) {
       console.error("❌ Error saving project:", error);
@@ -136,8 +118,7 @@ export default function ProjectForm() {
           onClick={() => navigate(-1)}
           className="cursor-pointer flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
         >
-          <ArrowLeft size={18} />
-          Back
+          <ArrowLeft size={18} /> Back
         </Button>
       </div>
 
@@ -149,9 +130,7 @@ export default function ProjectForm() {
         className="max-w-5xl w-full mx-auto bg-white/80 backdrop-blur-md border border-gray-200 shadow-2xl rounded-3xl p-8 sm:p-10 flex flex-col gap-10"
       >
         <h1 className="text-3xl font-bold text-main-color text-center">
-          {editing
-            ? `Edit Project ${formData.ProjectName || ""}`
-            : "Add New Project"}
+          {editing ? `Edit Project ${formData.ProjectName}` : "Add New Project"}
         </h1>
 
         <div className="flex flex-col md:flex-row gap-10">
