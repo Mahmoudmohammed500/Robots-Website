@@ -40,6 +40,17 @@ export default function UserLogsTab({ sectionName }) {
     fetchLogsAndDevice();
   }, [deviceId, deviceType, sectionName]);
 
+  // 🔥 NEW: Auto-refresh every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (deviceId) {
+        fetchLogsAndDevice();
+      }
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [deviceId, deviceType, sectionName]);
+
   useEffect(() => {
     if (toast.show) {
       const timer = setTimeout(() => {
@@ -191,7 +202,7 @@ export default function UserLogsTab({ sectionName }) {
               Total Logs: <span className="font-bold">{filteredLogs.length}</span>
             </p>
             <p className="text-xs text-blue-600 mt-1">
-              Showing last 10 logs only • Read-only access
+              Showing last 10 logs only • Read-only access • Auto-refresh every 5 seconds
             </p>
           </div>
           <FileText className="w-6 h-6 text-blue-500" />

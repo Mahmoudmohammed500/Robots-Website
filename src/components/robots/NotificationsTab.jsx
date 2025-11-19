@@ -23,6 +23,17 @@ export default function NotificationsTab({ robotId, sectionName }) {
     fetchNotesAndRobot();
   }, [robotId, sectionName]);
 
+  // 🔥 NEW: Auto-refresh every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (robotId) {
+        fetchNotesAndRobot();
+      }
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [robotId, sectionName]);
+
   const extractNoteId = (note) => {
     return (
       note.notificationId ||
@@ -50,7 +61,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
     const topic = robot.Sections[sectionName].Topic_main;
 
     const filtered = notesData.filter((note) => note.topic_main === topic);
-
+console.log(filtered)
     const sorted = filtered.sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`);
       const dateTimeB = new Date(`${b.date}T${b.time}`);
@@ -79,6 +90,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
 
       const filtered = filterNotesBySection(allNotes, robot, sectionName);
       setFilteredNotes(filtered);
+      console.log("lkjhgfdsdfghjk",filtered)
     } catch (err) {
       setError(`Failed to load notifications or robot data: ${err.message}`);
     } finally {
@@ -177,7 +189,7 @@ export default function NotificationsTab({ robotId, sectionName }) {
 
       <div className="mb-4 p-3 bg-blue-50 rounded-lg">
         <p className="text-sm text-blue-700">
-          Total Notifications: {filteredNotes.length}
+          Total Notifications: {filteredNotes.length} • Auto-refresh every 5 seconds
         </p>
       </div>
 

@@ -383,7 +383,7 @@ export default function NotificationCenter({
   };
 
   const getNotificationType = (note) => {
-    return isAlertNotification(note) ? "Alert" : "Information";
+    return isAlertNotification(note) ? "Alert" : "Info";
   };
 
   const handleBackToDashboard = () => {
@@ -660,15 +660,17 @@ export default function NotificationCenter({
 
                           <div className="mt-2 space-y-1">
                             <div className="flex flex-wrap gap-4">
+                             {/* {note?.projectName&&(
                               <p className="text-sm text-gray-500">
-                                <strong>Project:</strong> {note.projectName}
-                              </p>
+                                <strong>Project:</strong> {note?.projectName}
+                              </p>)}
+                              {note?.robotName&&(
                               <p className="text-sm text-gray-500">
-                                <strong>Robot:</strong> {note.robotName}
-                              </p>
+                                <strong>Robot:</strong> {note?.robotName}
+                              </p>)} */}
                             </div>
                             
-                            {note.sectionName && (
+                            {/* {note.sectionName && (
                               <p className="text-sm text-gray-500">
                                 <strong>Section:</strong> {note.sectionName}
                               </p>
@@ -678,7 +680,7 @@ export default function NotificationCenter({
                               <p className="text-sm text-gray-500">
                                 <strong>Topic:</strong> {note.topic_main}
                               </p>
-                            )}
+                            )} */}
                           </div>
                           
                           <div className="flex items-center justify-between mt-3">
@@ -743,13 +745,8 @@ export default function NotificationCenter({
             <Bell className="w-5 h-5" />
             <div>
               <h3 className="text-lg font-semibold">Notifications</h3>
-              {currentProject ? (
-                <p className="text-sm text-white/80">
-                  Project: {currentProject.ProjectName}
-                </p>
-              ) : (
+              
                 <p className="text-sm text-white/80">All Projects</p>
-              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -975,25 +972,25 @@ export default function NotificationCenter({
 
                       <div className="space-y-1">
                         <div className="flex flex-wrap gap-2">
-                          <p className="text-xs text-gray-500">
+                          {/* <p className="text-xs text-gray-500">
                             <strong>Project:</strong> {note.projectName}
                           </p>
                           <p className="text-xs text-gray-500">
                             <strong>Robot:</strong> {note.robotName}
-                          </p>
+                          </p> */}
                         </div>
                         
-                        {note.sectionName && (
+                        {/* {note.sectionName && (
                           <p className="text-xs text-gray-500">
                             <strong>Section:</strong> {note.sectionName}
                           </p>
-                        )}
+                        )} */}
                         
-                        {note.topic_main && (
+                        {/* {note.topic_main && (
                           <p className="text-xs text-gray-500">
                             <strong>Topic:</strong> {note.topic_main}
                           </p>
-                        )}
+                        )} */}
                       </div>
                       
                       <div className="flex items-center justify-between mt-2">

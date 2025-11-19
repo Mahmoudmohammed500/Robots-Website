@@ -22,6 +22,7 @@ import { deleteData } from "@/services/deleteServices";
 import RobotImg from "../../assets/Robot1.jpeg";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import useMqtt from "@/hooks/useMqtt"; //MQTT hook
 
 // ConfirmDeleteModal component
 function ConfirmDeleteModal({ robot = null, deleteAll = false, onConfirm, onCancel }) {
@@ -90,6 +91,15 @@ export default function ProjectDetails() {
   const [buttonsWithColors, setButtonsWithColors] = useState([]);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  //  MQTT
+  const { client, isConnected, publishMessage } = useMqtt({
+    host: "bc501a2acdf343aa811f1923d9af4727.s1.eu.hivemq.cloud",
+    port: 8884,
+    clientId: "clientId-1Kyy79c7WB",
+    username: "testrobotsuser",
+    password: "Testrobotsuser@1234",
+  });
 
   // Fetch buttons colors
   useEffect(() => {
@@ -195,7 +205,87 @@ export default function ProjectDetails() {
 
   const handleSetRobotsTime = async () => {
     try {
-      toast.success(`Time set successfully for all ${robots.length} robots in this project!`);
+      if (!isConnected || !publishMessage) {
+        toast.error("MQTT connection not available");
+        return;
+      }
+
+      if (robots.length === 0) {
+        toast.warning("No robots available to set time for");
+        return;
+      }
+
+      const now = new Date();
+      const dateString = now.toLocaleDateString('en-GB'); 
+      const timeString = now.toLocaleTimeString('en-GB', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false 
+      }); 
+
+      const message = `set_time_${dateString.replace(/\//g, '-')}_${timeString.replace(/:/g, '-')}`;
+
+      let results = {
+        mainTopics: 0,
+        carTopics: 0,
+        errors: 0,
+        robotDetails: []
+      };
+
+      for (const robot of robots) {
+        const robotResult = {
+          name: robot.RobotName || "Unnamed Robot",
+          main: { sent: false, topic: null },
+          car: { sent: false, topic: null }
+        };
+
+        try {
+          const mainTopic = robot.Sections?.main?.Topic_main;
+          if (mainTopic) {
+            publishMessage(mainTopic, message);
+            robotResult.main = { sent: true, topic: mainTopic };
+            results.mainTopics++;
+          } else {
+            results.errors++;
+          }
+
+          const carTopic = robot.Sections?.car?.Topic_main;
+          if (carTopic) {
+            publishMessage(carTopic, message);
+            robotResult.car = { sent: true, topic: carTopic };
+            results.carTopics++;
+          } else if (robot.isTrolley) {
+            results.errors++;
+          }
+
+        } catch (error) {
+          results.errors++;
+        }
+
+        results.robotDetails.push(robotResult);
+      }
+
+      const totalSuccess = results.mainTopics + results.carTopics;
+      
+      if (totalSuccess > 0) {
+        let successMessage = `🕒 Time set for ${totalSuccess} topic(s) across ${robots.length} robot(s)`;
+        
+        if (results.mainTopics > 0 || results.carTopics > 0) {
+          successMessage += ` - Main: ${results.mainTopics}, Car: ${results.carTopics}`;
+        }
+        
+        toast.success(successMessage);
+        
+      }
+      
+      if (results.errors > 0) {
+      }
+
+      if (totalSuccess === 0 && results.errors > 0) {
+        toast.error("Failed to set time for any robot topics");
+      }
+
     } catch (err) {
       toast.error("Failed to set time for robots.");
     }
@@ -274,9 +364,14 @@ export default function ProjectDetails() {
             <>
               <Button
                 onClick={handleSetRobotsTime}
-                className="flex items-center gap-2 cursor-pointer bg-green-600 text-white border border-green-600 hover:bg-white hover:text-green-600 px-4 py-2 rounded-xl shadow-md hover:shadow-lg"
+                disabled={!isConnected || robots.length === 0}
+                className="flex items-center gap-2 cursor-pointer bg-green-600 text-white border border-green-600 hover:bg-white hover:text-green-600 px-4 py-2 rounded-xl shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Clock size={18} /> Set Robots Time
+                <Clock size={18} /> 
+                {isConnected 
+                  ? `Set Time (${robots.length} robots)` 
+                  : "Connecting..."
+                }
               </Button>
 
               <Button
@@ -289,6 +384,21 @@ export default function ProjectDetails() {
           )}
         </div>
       </div>
+
+      {/* MQTT Connection Status */}
+      {robots.length > 0 && (
+        <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className={isConnected ? 'text-green-700' : 'text-red-700'}>
+              MQTT: {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+            {!isConnected && (
+              <span className="text-blue-600 text-xs">- Please wait for connection to set time</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Robots Grid */}
       {robots.length > 0 ? (
@@ -325,6 +435,24 @@ export default function ProjectDetails() {
                   >
                     {robot.Sections?.main?.Status || "-"}
                   </span>
+                </div>
+
+                {/* MQTT Topics Info */}
+                <div className="text-gray-500 text-sm mt-1 space-y-1">
+                  <div className="flex items-start">
+                    <span className="min-w-12">Main:</span>
+                    <span className="font-mono text-xs bg-gray-100 px-1 rounded break-all">
+                      {robot.Sections?.main?.Topic_main || "Not configured"}
+                    </span>
+                  </div>
+                  {robot.isTrolley && (
+                    <div className="flex items-start">
+                      <span className="min-w-12">Car:</span>
+                      <span className="font-mono text-xs bg-gray-100 px-1 rounded break-all">
+                        {robot.Sections?.car?.Topic_main || "Not configured"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Trolley Status */}

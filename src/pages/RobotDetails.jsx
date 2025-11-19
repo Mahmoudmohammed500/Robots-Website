@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, RefreshCcw, ArrowLeft } from "lucide-react";
 import { getData } from "@/services/getServices";
@@ -9,6 +9,8 @@ import axios from "axios";
 import TabsHeader from "@/components/robots/TabsHeader";
 import UserNotificationsTab from "@/components/robots/UserNotificationsTab";
 import UserLogsTab from "@/components/robots/UserLogsTab";
+import useMqtt from "@/hooks/useMqtt";
+import ScheduleDisplay from "@/components/robots/ScheduleDisplay";
 
 const getRobotImageSrc = (image) => {
   if (!image || image === "" || image === "Array" || image === "null") return "/default-robot.jpg";
@@ -46,57 +48,215 @@ export default function RobotDetails() {
   const [activeTab, setActiveTab] = useState("controls");
   const [activeTrolleyTab, setActiveTrolleyTab] = useState("controls");
   const [isResetting, setIsResetting] = useState(false);
+  const [buttonsWithColors, setButtonsWithColors] = useState([]);
+  const [scheduleData, setScheduleData] = useState(null);
   
-  const timerRef = useRef(null);
   const [displayTime, setDisplayTime] = useState("24:00:00");
+  const timerRef = useRef(null);
+  const refreshIntervalRef = useRef(null);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  const fetchRobotData = async () => {
-    try {
-      setLoading(true);
-      if (location.state?.robot) {
-        setRobot(location.state.robot);
-        return;
-      }
-      const robotData = await getData(`${BASE_URL}/robots/${id}`);
-      if (!robotData) {
-        toast.error("Robot not found in API");
-        return;
-      }
-      setRobot(robotData);
-    } catch (error) {
-      toast.error("Failed to load robot details");
-    } finally {
-      setLoading(false);
+  const { client, isConnected, publishMessage } = useMqtt({
+    host: "bc501a2acdf343aa811f1923d9af4727.s1.eu.hivemq.cloud",
+    port: 8884,
+    clientId: "clientId-1Kyy79c7WB",
+    username: "testrobotsuser",
+    password: "Testrobotsuser@1234",
+  });
+
+  // MQTT subscribe helper
+  const subscribe = (topic) => {
+    if (client && client.subscribe) {
+      client.subscribe(topic);
+      console.log("Subscribed to:", topic);
     }
   };
 
-  const fetchButtonColors = async () => {
+  const [scheduleButton, setScheduleButton] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  const fetchRobotData = useCallback(async () => {
+    try {
+      console.log(" Fetching robot data for ID:", id);
+      
+      let robotData;
+      if (location.state?.robot) {
+       
+        robotData = await getData(`${BASE_URL}/robots/${id}`);
+        if (!robotData) {
+          console.warn("Robot not found in API");
+          return;
+        }
+      } else {
+        robotData = await getData(`${BASE_URL}/robots/${id}`);
+        if (!robotData) {
+          toast.error("Robot not found in API");
+          return;
+        }
+      }
+      
+      console.log(" Robot data fetched:", robotData);
+      setRobot(robotData);
+      return robotData;
+    } catch (error) {
+      console.error(" Failed to load robot details:", error);
+      return null;
+    }
+  }, [id, location.state, BASE_URL]);
+
+  const fetchButtonColors = useCallback(async () => {
     try {
       const res = await axios.get(`${BASE_URL}/buttons.php`);
       const colorsMap = {};
-      res.data.forEach(btn => {
+      const buttonsData = res.data || [];
+      
+      buttonsData.forEach(btn => {
         colorsMap[btn.BtnID] = btn.Color;
       });
       setButtonColors(colorsMap);
+      setButtonsWithColors(buttonsData);
+      console.log(" Button colors updated");
     } catch (err) {
-      console.error("Failed to load button colors:", err);
+      console.error(" Failed to load button colors:", err);
+    }
+  }, [BASE_URL]);
+
+  const fetchAllData = useCallback(async () => {
+    try {
+      console.log(" Auto-refreshing all data...");
+      await fetchRobotData();
+      await fetchButtonColors();
+      await fetchScheduleData();
+    } catch (error) {
+      console.error(" Error in auto-refresh:", error);
+    }
+  }, [fetchRobotData, fetchButtonColors]);
+
+  const findScheduleButton = async (robotData = null) => {
+    try {
+      setScheduleLoading(true);
+      
+      const targetRobot = robotData || robot;
+      if (!targetRobot) return;
+      
+      const carSection = targetRobot?.Sections?.car;
+      if (!carSection || !carSection.ActiveBtns) {
+        setScheduleButton(null);
+        return;
+      }
+
+      let activeBtns = [];
+      try {
+        if (Array.isArray(carSection.ActiveBtns)) {
+          activeBtns = carSection.ActiveBtns;
+        } else if (typeof carSection.ActiveBtns === "string") {
+          activeBtns = JSON.parse(carSection.ActiveBtns);
+        }
+      } catch {
+        activeBtns = [];
+      }
+
+      const scheduleBtn = activeBtns.find(btn => 
+        btn?.Name?.toLowerCase().includes('schedule')
+      );
+
+      if (scheduleBtn && scheduleBtn.id) {
+        const buttonDetails = await getData(`${BASE_URL}/buttons/${scheduleBtn.id}`);
+        setScheduleButton(buttonDetails);
+      } else {
+        setScheduleButton(null);
+      }
+    } catch (error) {
+      console.error("Error fetching schedule button:", error);
+      setScheduleButton(null);
+    } finally {
+      setScheduleLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRobotData();
-    fetchButtonColors();
-    
+    if (robot) {
+      findScheduleButton();
+    }
+  }, [robot]);
+
+  useEffect(() => {
+    if (!isConnected || !robot) return;
+
+    Object.values(robot.Sections || {}).forEach(section => {
+      if (section.Topic_subscribe) {
+        subscribe(section.Topic_subscribe);
+      }
+    });
+  }, [isConnected, robot]);
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        
+        await fetchRobotData();
+        
+        await fetchButtonColors();
+        
+        await fetchScheduleData();
+        
+      } catch (error) {
+        toast.error("Failed to load robot details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
     startTimer();
     
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [id]);
+  }, []);
+
+  useEffect(() => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+    }
+
+    refreshIntervalRef.current = setInterval(() => {
+      if (id && !loading) {
+        console.log(" Auto-refreshing all robot data...");
+        fetchAllData();
+      }
+    }, 10000); 
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [id, loading, fetchAllData]);
+
+  const fetchScheduleData = async () => {
+    try {
+      const scheduleRes = await getData(`${BASE_URL}/schedule/${id}`);
+      setScheduleData(scheduleRes || {
+        days: [],
+        hour: 8,
+        minute: 0,
+        active: true
+      });
+    } catch (error) {
+      console.error("Failed to load schedule data:", error);
+      setScheduleData({
+        days: [],
+        hour: 8,
+        minute: 0,
+        active: true
+      });
+    }
+  };
 
   const startTimer = () => {
     if (timerRef.current) {
@@ -140,33 +300,45 @@ export default function RobotDetails() {
       clearInterval(timerRef.current);
     }
     
-    let totalSeconds = 24 * 60 * 60; 
-    
-    const updateTimer = () => {
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      
-      setDisplayTime(
-        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      );
-      
-      if (totalSeconds > 0) {
-        totalSeconds--;
-      } else {
-        totalSeconds = 24 * 60 * 60;
-      }
-    };
-
-    updateTimer();
-    
-    timerRef.current = setInterval(updateTimer, 1000);
+    startTimer();
     
     toast.success("Timer reset to 24:00:00");
     
     setTimeout(() => {
       setIsResetting(false);
     }, 600);
+  };
+
+  const getButtonOperation = (btnName) => {
+    const btnData = buttonsWithColors.find(b => 
+      b.BtnName?.toLowerCase() === btnName.toLowerCase()
+    );
+    return btnData?.Operation || btnName;
+  };
+
+  const handleButtonClick = (btnName, sectionType = "main") => {
+    const section = robot?.Sections?.[sectionType];
+    const topic = section?.Topic_main;
+    
+    if (!topic) {
+      console.error(`No topic found for ${sectionType} section`);
+      toast.error(`No topic configured for ${sectionType} section`);
+      return;
+    }
+    
+    const operation = getButtonOperation(btnName);
+    
+    if (publishMessage) {
+      publishMessage(topic, operation);
+      toast.success(`Sent: ${btnName} to ${topic}`);
+      
+      setTimeout(() => {
+        fetchAllData();
+      }, 2000);
+    } else {
+      console.log(`Would publish to ${topic}: ${operation}`);
+      toast.info(`MQTT not connected. Would send: ${btnName}`);
+    }
   };
 
   const tabs = [
@@ -192,22 +364,36 @@ export default function RobotDetails() {
       activeBtns = [];
     }
 
-    return activeBtns.map((btn, i) => {
+    const filteredBtns = activeBtns.filter(btn => {
+      const btnName = btn?.Name || btn?.name || '';
+      
+      if (sectionType === "car") {
+        return !btnName.toLowerCase().includes('schedule');
+      }
+      
+      return true;
+    });
+
+    return filteredBtns.map((btn, i) => {
       const btnLabel = btn?.Name || btn?.name || `Button ${i + 1}`;
-      const btnColor = buttonColors[btn.id] || "#cccccc";
+      const btnColor = buttonColors[btn.id] || "#4F46E5";
+      
       return (
         <button
           key={btn?.id || i}
-          className="px-6 py-4 rounded-xl text-lg font-semibold text-white border shadow-lg transition-all duration-300 transform hover:scale-105 min-w-[150px] sm:min-w-[180px] lg:min-w-[200px]"
+          onClick={() => handleButtonClick(btnLabel, sectionType)}
+          className="px-6 py-4 rounded-xl text-lg font-semibold text-white border shadow-lg transition-all duration-300 transform hover:scale-105 hover:opacity-90 min-w-[150px] sm:min-w-[180px] lg:min-w-[200px] cursor-pointer"
           style={{ backgroundColor: btnColor, borderColor: btnColor }}
         >
-          {buttonColors[btn.id] ? btnLabel : `${btnLabel} (Unavailable)`}
+          {btnLabel} ✓
         </button>
       );
     });
   };
 
   const renderRobotControls = () => {
+    if (!robot) return null;
+    
     const { RobotName, Image, Sections = {} } = robot;
     const mainSection = Sections?.main || {};
     const imageSrc = getRobotImageSrc(Image);
@@ -289,20 +475,18 @@ export default function RobotDetails() {
   };
 
   const renderTrolleyControls = () => {
+    if (!robot) return null;
+    
     const { Sections = {} } = robot;
     const carSection = Sections?.car || {};
 
     return (
       <motion.div 
-        className="bg-white  p-6  sm:p-10 pt-0" 
+        className="bg-white p-6 sm:p-10 pt-0" 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
         transition={{ duration: 0.6, delay: 0.3 }}
       >
-        {/* <h2 className="text-xl sm:text-2xl font-bold tracking-wider mb-6 text-second-color text-center">
-          Trolley Controls
-        </h2> */}
-        
         {/* Trolley Data */}
         <div className="flex flex-col sm:flex-row justify-start items-start sm:items-center mb-8 gap-4 sm:gap-0">
           <div className="flex flex-col text-left text-base sm:text-lg font-medium text-gray-800 gap-2">
@@ -403,6 +587,11 @@ export default function RobotDetails() {
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6 }}
         >
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs text-green-600">Auto-refresh every 10 seconds</span>
+          </div>
+
           {/* Robot Section Title */}
           <div className="mb-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-main-color text-center">
@@ -428,12 +617,16 @@ export default function RobotDetails() {
               <UserNotificationsTab 
                 robotId={id} 
                 sectionName="main" 
+                publish={publishMessage}
+                client={client}
               />
             )}
             
             {activeTab === "logs" && (
               <UserLogsTab 
                 sectionName="main" 
+                publish={publishMessage}
+                client={client}
               />
             )}
           </div>
@@ -466,17 +659,38 @@ export default function RobotDetails() {
                   <UserNotificationsTab 
                     robotId={id} 
                     sectionName="car" 
+                    publish={publishMessage}
+                    client={client}
                   />
                 )}
                 
                 {activeTrolleyTab === "logs" && (
                   <UserLogsTab 
                     sectionName="car" 
+                    publish={publishMessage}
+                    client={client}
                   />
                 )}
               </div>
             </>
           )}
+
+          {/* Schedule Section */}
+          <div className="mb-6 mt-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-green-600 text-center">
+              Schedule Settings
+            </h2>
+          </div>
+
+          {/* Schedule Display */}
+          <div className="bg-white rounded-3xl shadow-lg p-6 sm:p-10 border border-gray-100">
+            <ScheduleDisplay
+              scheduleButton={scheduleButton}
+              publish={publishMessage}
+              topic={Sections?.car?.Topic_main}
+              loading={scheduleLoading}
+            />
+          </div>
 
           {/* Back Button */}
           <div className="mt-8 text-center">
