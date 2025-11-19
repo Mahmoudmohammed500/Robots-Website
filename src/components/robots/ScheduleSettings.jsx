@@ -6,11 +6,13 @@ import { useParams } from "react-router-dom";
 export default function ScheduleSettings({
   schedule = { days: [], hour: 8, minute: 0 },
   setSchedule = () => {},
-  projectId // نأخذ projectId من props
+  projectId, 
+  publish, 
+  topic 
 }) {
-  const { id: robotId } = useParams(); // نجيب RobotId من URL
+  const { id: robotId } = useParams(); 
   const [saving, setSaving] = useState(false);
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const size = 200;
   const radius = size / 2 - 20;
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -41,13 +43,38 @@ export default function ScheduleSettings({
     }
   };
 
-  const saveScheduleAsButton = async () => {
-    if (!robotId) return alert("RobotId is missing!");
-    if (!schedule.days.length) return alert("Please select at least one day");
-    if (!projectId) return alert("ProjectId is missing!");
+  const getDaysAsBinaryString = () => {
+    return days.map(day => schedule.days.includes(day) ? '1' : '0').join('_');
+  };
+
+  const handleSaveAndSendSchedule = async () => {
+    if (!robotId) {
+      alert("RobotId is missing!");
+      return;
+    }
+    
+    if (!schedule.days.length) {
+      alert("Please select at least one day");
+      return;
+    }
+    
+    if (!projectId) {
+      alert("ProjectId is missing!");
+      return;
+    }
 
     try {
       setSaving(true);
+
+      if (publish && topic) {
+        const timeString = `${String(schedule.hour).padStart(2, "0")}_${String(schedule.minute).padStart(2, "0")}`;
+        const daysBinaryString = getDaysAsBinaryString();
+        const message = `schedule_${timeString}_${daysBinaryString}`;
+        
+        publish(topic, message);
+        console.log(`Schedule sent via MQTT: ${message} to topic: ${topic}`);
+      }
+
       const dayFlags = days.map((d) => (schedule.days.includes(d) ? 1 : 0));
       const btnName = `schedule_${schedule.hour}_${schedule.minute}_${dayFlags.join("_")}`;
 
@@ -60,10 +87,16 @@ export default function ScheduleSettings({
       };
 
       await postData(`${BASE_URL}/buttons.php?section=car`, newButton);
-      alert(` Schedule saved as button: ${btnName}`);
+      
+      const successMessage = topic && publish 
+        ? `Schedule saved as button: ${btnName} and sent via MQTT`
+        : `Schedule saved as button: ${btnName}`;
+      
+      alert(successMessage);
+      
     } catch (err) {
-      console.error("Failed to save schedule button:", err);
-      alert(" Failed to save schedule");
+      console.error("Failed to save schedule:", err);
+      alert("Failed to save schedule");
     } finally {
       setSaving(false);
     }
@@ -198,9 +231,17 @@ export default function ScheduleSettings({
             {schedule.days.length ? schedule.days.join(", ") : "—"} @ {String(schedule.hour).padStart(2, "0")}:
             {String(schedule.minute).padStart(2, "0")}
           </span>
+          <br />
+          <span className="text-xs text-gray-500">
+            Binary: {getDaysAsBinaryString()} (Mon-Sun)
+          </span>
         </div>
-        <Button onClick={saveScheduleAsButton} disabled={saving} className="bg-second-color text-white">
-          {saving ? "Saving..." : "Save schedule"}
+        <Button 
+          onClick={handleSaveAndSendSchedule} 
+          disabled={saving} 
+          className="bg-second-color text-white"
+        >
+          {saving ? "Saving..." : "Schedule"}
         </Button>
       </div>
     </div>

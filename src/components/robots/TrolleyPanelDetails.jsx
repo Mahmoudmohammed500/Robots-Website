@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 
-export default function TrolleyPanelDetails({ robotId, imgSrc = "/assets/placeholder-trolley.jpg", trolleyData = {} }) {
+export default function TrolleyPanelDetails({ 
+  robotId, 
+  imgSrc = "/assets/placeholder-trolley.jpg", 
+  trolleyData = {},
+  publish, 
+  client 
+}) {
   const safeImgSrc = imgSrc && imgSrc.trim() !== "" ? imgSrc : "/assets/placeholder-trolley.jpg";
   const carSection = trolleyData?.Sections?.car || {};
   const [buttonsWithColors, setButtonsWithColors] = useState([]);
@@ -12,6 +18,7 @@ export default function TrolleyPanelDetails({ robotId, imgSrc = "/assets/placeho
         const data = await res.json();
         setButtonsWithColors(data || []);
       } catch (err) {
+        console.error("Failed to fetch buttons", err);
       }
     };
     fetchButtons();
@@ -27,6 +34,26 @@ export default function TrolleyPanelDetails({ robotId, imgSrc = "/assets/placeho
   const getButtonColor = (btnName) => {
     const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
     return btnData?.Color || "#4F46E5";
+  };
+
+  const getButtonOperation = (btnName) => {
+    const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
+    return btnData?.Operation || btnName; // Default to button name if no operation found
+  };
+
+  const handleButtonClick = (btnName) => {
+    const topic = carSection.Topic_main;
+    if (!topic) {
+      console.error("No topic found for car section");
+      return;
+    }
+    const operation = getButtonOperation(btnName);
+    
+    if (publish) {
+      publish(topic, operation);
+    } else {
+      console.log(`Would publish to ${topic}: ${operation}`);
+    }
   };
 
   return (
@@ -50,9 +77,10 @@ export default function TrolleyPanelDetails({ robotId, imgSrc = "/assets/placeho
             <label className="text-xs text-gray-500 mb-2 block">Active Buttons</label>
             <div className="flex flex-wrap gap-2">
               {activeButtons.map((btn) => (
-                <div
+                <button
                   key={btn}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl border select-none cursor-default"
+                  onClick={() => handleButtonClick(btn)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border select-none cursor-pointer hover:opacity-90 transition-opacity"
                   style={{
                     backgroundColor: getButtonColor(btn),
                     borderColor: getButtonColor(btn),
@@ -60,7 +88,7 @@ export default function TrolleyPanelDetails({ robotId, imgSrc = "/assets/placeho
                   }}
                 >
                   {btn} ✓
-                </div>
+                </button>
               ))}
               {activeButtons.length === 0 && <div className="text-gray-500 italic text-sm">No active buttons</div>}
             </div>

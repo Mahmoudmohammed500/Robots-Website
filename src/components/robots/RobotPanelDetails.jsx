@@ -2,7 +2,13 @@ import React, { useEffect, useState } from "react";
 
 const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
 
-export default function RobotMainPanelView({ robot, setRobot, allButtons = ALL_BUTTONS }) {
+export default function RobotMainPanelView({ 
+  robot, 
+  setRobot, 
+  allButtons = ALL_BUTTONS,
+  publish, 
+  client 
+}) {
   const mainSection = robot?.Sections?.main || {};
   const [buttonsWithColors, setButtonsWithColors] = useState([]);
 
@@ -13,6 +19,7 @@ export default function RobotMainPanelView({ robot, setRobot, allButtons = ALL_B
         const data = await res.json();
         setButtonsWithColors(data || []);
       } catch (err) {
+        console.error("Failed to fetch buttons", err);
       }
     };
     fetchButtons();
@@ -28,6 +35,26 @@ export default function RobotMainPanelView({ robot, setRobot, allButtons = ALL_B
   const getButtonColor = (btnName) => {
     const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
     return btnData?.Color || "#4F46E5"; 
+  };
+
+  const getButtonOperation = (btnName) => {
+    const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
+    return btnData?.Operation || btnName; // Default to button name if no operation found
+  };
+
+  const handleButtonClick = (btnName) => {
+    const topic = mainSection.Topic_main;
+    if (!topic) {
+      console.error("No topic found for main section");
+      return;
+    }
+    const operation = getButtonOperation(btnName);
+    
+    if (publish) {
+      publish(topic, operation);
+    } else {
+      console.log(`Would publish to ${topic}: ${operation}`);
+    }
   };
 
   return (
@@ -55,9 +82,10 @@ export default function RobotMainPanelView({ robot, setRobot, allButtons = ALL_B
             <label className="text-xs text-gray-500 mb-2 block">Active Buttons</label>
             <div className="flex flex-wrap gap-2">
               {activeButtons.map((btn) => (
-                <div
+                <button
                   key={btn}
-                  className="px-4 py-2 rounded-xl font-medium border cursor-default select-none"
+                  onClick={() => handleButtonClick(btn)}
+                  className="px-4 py-2 rounded-xl font-medium border cursor-pointer select-none hover:opacity-90 transition-opacity"
                   style={{
                     backgroundColor: getButtonColor(btn),
                     borderColor: getButtonColor(btn),
@@ -65,7 +93,7 @@ export default function RobotMainPanelView({ robot, setRobot, allButtons = ALL_B
                   }}
                 >
                   {btn} ✓
-                </div>
+                </button>
               ))}
               {activeButtons.length === 0 && <div className="text-gray-500 italic">No active buttons</div>}
             </div>
@@ -84,5 +112,5 @@ function ViewField({ label, value }) {
         {value ?? "-"}
       </div>
     </div>
-  );
+  ); 
 }

@@ -35,6 +35,7 @@ export default function NotificationCenter({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [currentProject, setCurrentProject] = useState(null);
+  const [robotsLoaded, setRobotsLoaded] = useState(false);
   const API_BASE = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -44,8 +45,10 @@ export default function NotificationCenter({
   }, []);
 
   useEffect(() => {
-    applyFilters();
-  }, [notifications, searchTerm, filterType]);
+    if (robotsLoaded && notifications.length > 0) {
+      applyFilters();
+    }
+  }, [notifications, searchTerm, filterType, robotsLoaded]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -97,32 +100,16 @@ export default function NotificationCenter({
   const fetchAllRobots = async () => {
     try {
       const res = await axios.get(`${API_BASE}/robots.php`);
-      
       const robotsArray = Array.isArray(res.data) ? res.data : [];
-      
-      if (robotsArray.length > 0) {
-      }
-      
       return robotsArray;
     } catch (err) {
+      console.error("Failed to fetch robots:", err);
       return [];
     }
   };
 
   const isAlertNotification = (note) => {
-    // First check if there's a type field
-    if (note.type === 'alert') return true;
-    if (note.type === 'info') return false;
-    
-    // Fallback to message content checking
-    const message = note.message?.toLowerCase() || '';
-    return message.includes('alert') || 
-           message.includes('error') || 
-           message.includes('warning') ||
-           message.includes('critical') ||
-           message.includes('fail') ||
-           message.includes('stopped') ||
-           message.includes('emergency');
+    return note.type === 'alert';
   };
 
   const findSectionByTopic = (topicMain, robot) => {
@@ -137,7 +124,6 @@ export default function NotificationCenter({
 
   const findRobotByTopic = (topicMain) => {
     if (!topicMain || !robots.length) return null;
-    
     
     for (const robot of robots) {
       if (!robot.Sections) continue;
@@ -154,7 +140,7 @@ export default function NotificationCenter({
 
   const getRobotNameByRobotId = (robotId) => {
     if (!robotId || !robots.length) {
-      return null;
+      return "Loading...";
     }
     
     const searchId = robotId.toString().trim();
@@ -168,64 +154,62 @@ export default function NotificationCenter({
       return robotName;
     }
     
-    return null;
+    return "Robot Not Found";
   };
 
   const getSectionNameFromTopic = (topic) => {
-    if (!topic) return null;
+    if (!topic) return "Unknown Section";
     
     const parts = topic.split('/');
     if (parts.length >= 2) {
       const sectionType = parts[1];
       if (sectionType === 'car') {
-        return 'trolley';
+        return 'Trolley';
       } else if (sectionType === 'main') {
-        return 'robot';
+        return 'Robot';
       }
-      return sectionType;
+      return sectionType.charAt(0).toUpperCase() + sectionType.slice(1);
     }
-    return null;
+    return "Unknown Section";
   };
 
   const getRobotNameFromTopic = (topic) => {
-    if (!topic) return null;
+    if (!topic) return "Unknown Robot";
     
     const parts = topic.split('/');
     if (parts.length > 0) {
       const robotNameFromTopic = parts[0];
       if (robotNameFromTopic && robotNameFromTopic !== 'robot') {
-        return robotNameFromTopic;
+        return robotNameFromTopic.charAt(0).toUpperCase() + robotNameFromTopic.slice(1);
       }
     }
-    return null;
+    return "Unknown Robot";
   };
 
   const getRobotAndSectionInfo = (note) => {
-    if (!note) return { robotName: null, sectionName: null };
+    if (!note) return { robotName: "Loading...", sectionName: "Loading..." };
     
-    let robotName = null;
-    let sectionName = null;
+    let robotName = "Unknown Robot";
+    let sectionName = "Unknown Section";
 
     if (note.RobotId) {
       robotName = getRobotNameByRobotId(note.RobotId);
     }
 
-    if (!robotName && note.topic_main) {
+    if ((!robotName || robotName === "Robot Not Found") && note.topic_main) {
       const robotFromTopic = findRobotByTopic(note.topic_main);
       if (robotFromTopic) {
-        robotName = robotFromTopic.RobotName || robotFromTopic.robotName;
+        robotName = robotFromTopic.RobotName || robotFromTopic.robotName || "Unknown Robot";
       }
     }
 
-    if (!robotName && note.topic_main) {
+    if ((!robotName || robotName === "Robot Not Found") && note.topic_main) {
       robotName = getRobotNameFromTopic(note.topic_main);
     }
 
     if (note.topic_main) {
       sectionName = getSectionNameFromTopic(note.topic_main);
     }
-
-   
 
     return { robotName, sectionName };
   };
@@ -234,12 +218,15 @@ export default function NotificationCenter({
     try {
       setLoading(true);
       setError(null);
+      setRobotsLoaded(false);
 
       const projectName = getProjectNameFromCookie();
       const project = await fetchProjectByName(projectName);
-      
+      setCurrentProject(project);
+
       const allRobots = await fetchAllRobots();
       setRobots(allRobots);
+      setRobotsLoaded(true);
 
       const res = await axios.get(`${API_BASE}/notifications.php`, {
         headers: { "Content-Type": "application/json" },
@@ -258,16 +245,18 @@ export default function NotificationCenter({
       });
 
       setNotifications(sortedNotifications);
-      setCurrentProject(project);
       
     } catch (err) {
       setError("Failed to load notifications: " + (err.message || "Unknown error"));
+      setRobotsLoaded(true);
     } finally {
       setLoading(false);
     }
   };
 
   const applyFilters = () => {
+    if (!robotsLoaded) return;
+
     let filtered = [...notifications];
 
     if (searchTerm) {
@@ -279,7 +268,7 @@ export default function NotificationCenter({
 
     if (filterType === "alerts") {
       filtered = filtered.filter(note => isAlertNotification(note));
-    } else if (filterType === "info") {
+    } else if (filterType === "notifications") {
       filtered = filtered.filter(note => !isAlertNotification(note));
     }
 
@@ -347,15 +336,22 @@ export default function NotificationCenter({
   const getNotificationIcon = (note) => {
     if (isAlertNotification(note))
       return <AlertTriangle className="w-4 h-4 text-red-500 mr-2" />;
-    return <Info className="w-4 h-4 text-blue-500 mr-2" />;
+    return <Bell className="w-4 h-4 text-blue-500 mr-2" />; 
   };
 
   const getNotificationType = (note) => {
-    return isAlertNotification(note) ? "Alert" : "Information";
+    return isAlertNotification(note) ? "Alert" : "Notification";
   };
 
   const handleBackToDashboard = () => {
     navigate("/homeDashboard");
+  };
+
+  const getProjectDisplayName = () => {
+    if (currentProject) {
+      return currentProject.ProjectName || "Unknown Project";
+    }
+    return "All Projects";
   };
 
   // Render different layouts based on mode
@@ -379,7 +375,7 @@ export default function NotificationCenter({
                 <Bell className="w-8 h-8 text-main-color" />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-800">Notifications Dashboard</h1>
-                  <p className="text-gray-600">Viewing all notifications</p>
+                  {/* <p className="text-gray-600">Project: {getProjectDisplayName()}</p> */}
                 </div>
               </div>
             </div>
@@ -424,12 +420,12 @@ export default function NotificationCenter({
                   Alerts
                 </Button>
                 <Button
-                  variant={filterType === "info" ? "default" : "outline"}
-                  onClick={() => setFilterType("info")}
+                  variant={filterType === "notifications" ? "default" : "outline"} 
+                  onClick={() => setFilterType("notifications")}
                   className="flex items-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
                 >
-                  <Info className="w-4 h-4" />
-                  Info
+                  <Bell className="w-4 h-4" /> 
+                  Notifications
                 </Button>
               </div>
             </div>
@@ -467,12 +463,12 @@ export default function NotificationCenter({
               <CardContent className="p-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Info Notifications</p>
+                    <p className="text-sm font-medium text-gray-600">Normal Notifications</p> 
                     <p className="text-2xl font-bold text-gray-800">
                       {notifications.filter(note => !isAlertNotification(note)).length}
                     </p>
                   </div>
-                  <Info className="w-8 h-8 text-green-500" />
+                  <Bell className="w-8 h-8 text-green-500" /> 
                 </div>
               </CardContent>
             </Card>
@@ -546,14 +542,14 @@ export default function NotificationCenter({
                         onClick={() => handleClickNotification(note)}
                       >
                         <CardHeader className="p-0 pb-3">
-                          <div className="flex justify-between items-start">
+                          <div className="">
                             <CardTitle
                               className={`text-base font-semibold line-clamp-2 flex items-start ${getTitleColor(
                                 note
                               )}`}
                             >
                               {getNotificationIcon(note)}
-                              <span className="flex-1">{note.message}</span>
+                              <span className="">{note.message}</span>
                             </CardTitle>
                             <Badge
                               variant={isAlert ? "destructive" : "secondary"}
@@ -588,17 +584,6 @@ export default function NotificationCenter({
                           </div>
 
                           <div className="mt-2 space-y-1">
-                            <div>
-                              {robotName ? (
-                                <p className="text-sm text-gray-500">
-                                  <strong>Robot name:</strong> {robotName}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-gray-400">
-                                  <strong>Robot name:</strong> Not specified
-                                </p>
-                              )}
-                            </div>
                             <div>
                               {sectionName && (
                                 <p className="text-sm text-gray-500">
@@ -676,13 +661,9 @@ export default function NotificationCenter({
             <Bell className="w-5 h-5" />
             <div>
               <h3 className="text-lg font-semibold">Notifications</h3>
-              {currentProject ? (
-                <p className="text-sm text-white/80">
-                  Project: {currentProject.ProjectName}
-                </p>
-              ) : (
-                <p className="text-sm text-white/80">All Projects</p>
-              )}
+              <p className="text-sm text-white/80">
+                Project: {getProjectDisplayName()}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -734,12 +715,12 @@ export default function NotificationCenter({
               Alerts
             </Button>
             <Button
-              variant={filterType === "info" ? "default" : "outline"}
-              onClick={() => setFilterType("info")}
+              variant={filterType === "notifications" ? "default" : "outline"} 
+              onClick={() => setFilterType("notifications")}
               className="flex-1 text-xs h-8 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
             >
-              <Info className="w-3 h-3 mr-1" />
-              Info
+              <Bell className="w-3 h-3 mr-1" /> 
+              Notifications
             </Button>
           </div>
         </div>
@@ -771,9 +752,9 @@ export default function NotificationCenter({
           <div className="p-6 text-center">
             <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 text-sm mb-1">
-              {currentProject
-                ? `No notifications for ${currentProject.ProjectName}`
-                : "No notifications found"}
+              {getProjectDisplayName() === "All Projects" 
+                ? "No notifications found" 
+                : `No notifications for ${getProjectDisplayName()}`}
             </p>
             {(searchTerm || filterType !== "all") && (
               <button
@@ -852,18 +833,12 @@ export default function NotificationCenter({
 
                       <div className="space-y-1">
                         <div>
-                          {robotName ? (
-                            <p className="text-xs text-gray-500">
-                              <strong>Robot name:</strong> {robotName}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-gray-400">
-                              <strong>Robot name:</strong> Not specified
-                            </p>
-                          )}
+                          <p className="text-xs text-gray-500">
+                            <strong>Robot name:</strong> {robotName}
+                          </p>
                         </div>
                         <div>
-                          {sectionName && (
+                          {sectionName && sectionName !== "Unknown Section" && (
                             <p className="text-xs text-gray-500">
                               <strong>Section:</strong> {sectionName}
                             </p>

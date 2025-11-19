@@ -11,6 +11,7 @@ import TrolleyPanelDetails from "@/components/robots/TrolleyPanelDetails";
 import { toast } from "sonner";
 import Loading from "@/pages/Loading";
 import { getData } from "@/services/getServices";
+import useMqtt from "@/hooks/useMqtt";
 
 const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
 
@@ -24,8 +25,87 @@ export default function RobotDetailsFull() {
   const [trolleyTab, setTrolleyTab] = useState("control");
   const [robotTab, setRobotTab] = useState("control");
 
+  const fetchRobot = async () => {
+    try {
+      const data = await getData(`${BASE_URL}/robots.php/${id}`);
+      setRobot(data || {});
+    } catch (err) {
+    }
+  };
+
+  const handleCyclesUpdate = (robotId, sectionName, newCycles) => {
+    
+    if (robotId == id) {
+      setRobot(prevRobot => {
+        if (!prevRobot || !prevRobot.Sections || !prevRobot.Sections[sectionName]) {
+          return prevRobot;
+        }
+
+        const updatedRobot = {
+          ...prevRobot,
+          Sections: {
+            ...prevRobot.Sections,
+            [sectionName]: {
+              ...prevRobot.Sections[sectionName],
+              Cycles: newCycles
+            }
+          }
+        };
+
+        return updatedRobot;
+      });
+    } else {
+    }
+  };
+
+  // mqtt setup   onCyclesUpdate
+  const { client, isConnected, publishMessage } = useMqtt({
+    host: "bc501a2acdf343aa811f1923d9af4727.s1.eu.hivemq.cloud",
+    port: 8884,
+    clientId: "clientId-1Kyy79c7WB",
+    username: "testrobotsuser",
+    password: "Testrobotsuser@1234",
+    onCyclesUpdate: handleCyclesUpdate 
+  });
+
+  // MQTT subscribe helper
+  const subscribe = (topic) => {
+    if (client && client.subscribe) {
+      client.subscribe(topic);
+    }
+  };
+
   useEffect(() => {
-    const fetchRobot = async () => {
+    const interval = setInterval(() => {
+      if (id && isConnected) {
+        fetchRobot();
+      }
+    }, 10000); 
+
+    return () => clearInterval(interval);
+  }, [id, isConnected]);
+
+  useEffect(() => {
+    if (!isConnected || !robot) return;
+
+    Object.values(robot.Sections).forEach(section => {
+      if (section.Topic_publish) subscribe(section.Topic_publish);
+    });
+  }, [isConnected, robot]);
+
+  // mqtt subscribe to robot topics
+  useEffect(() => {
+    if (!isConnected || !robot) return;
+
+    Object.values(robot.Sections || {}).forEach(section => {
+      if (section.Topic_subscribe) {
+        subscribe(section.Topic_subscribe);
+      }
+    });
+  }, [isConnected, robot]);
+
+  useEffect(() => {
+    const loadRobot = async () => {
       try {
         setLoading(true);
         const data = await getData(`${BASE_URL}/robots.php/${id}`);
@@ -38,7 +118,7 @@ export default function RobotDetailsFull() {
       }
     };
 
-    fetchRobot();
+    loadRobot();
   }, [id]);
 
   const getActiveButtons = () => {
@@ -72,7 +152,20 @@ export default function RobotDetailsFull() {
     return [...new Set([...activeStaticButtons, ...newActiveButtons])];
   };
 
-  if (loading) return <Loading />;
+  // message sender method mqtt
+  const handleButtonClick = (topic, value) => {
+    publishMessage(topic, value);
+  };
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-main-color mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading robot data...</p>
+        </div>
+      </div>
+    );
 
   if (!robot || Object.keys(robot).length === 0)
     return (
@@ -103,6 +196,10 @@ export default function RobotDetailsFull() {
               Project ID:{" "}
               <span className="font-mono">{robot.projectId || "-"}</span>
             </p>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-green-600">Auto-refresh every 10 seconds</span>
+            </div>
           </div>
           <div className="flex gap-3">
             <Button
@@ -153,13 +250,17 @@ export default function RobotDetailsFull() {
                   robotId={id}
                   imgSrc="/assets/placeholder-trolley.jpg"
                   trolleyData={robot}
+                  publish={handleButtonClick}
+                  client={client}
                 />
               )}
               {trolleyTab === "notifications" && (
                 <NotificationsTab
-                  projectId={robot.projectId || "-"}
+                  projectId={robot.projectId  || "-"}
                   robotId={robot.id || "-"}
                   sectionName="car"
+                  publish={handleButtonClick}
+                  client={client}
                 />
               )}
               {trolleyTab === "logs" && (
@@ -167,6 +268,8 @@ export default function RobotDetailsFull() {
                   projectId={robot.projectId || "-"}
                   robotId={robot.id || "-"}
                   sectionName="car"
+                  publish={handleButtonClick}
+                  client={client}
                 />
               )}
             </div>
@@ -191,6 +294,8 @@ export default function RobotDetailsFull() {
               schedule={robot.schedule || { days: [], hour: 8, minute: 0 }}
               setSchedule={(s) => setRobot((r) => ({ ...r, schedule: s }))}
               projectId={robot.projectId}
+              publish={handleButtonClick}
+              topic={robot.Sections?.car?.Topic_main}
             />
           </section>
         )}
@@ -231,20 +336,26 @@ export default function RobotDetailsFull() {
                 robot={robot}
                 setRobot={setRobot}
                 allButtons={ALL_BUTTONS}
+                publish={handleButtonClick}
+                client={client}
               />
             )}
             {robotTab === "notifications" && (
               <NotificationsTab
-                projectId={robot.projectId || "-"}
-                robotId={robot.id || "-"}
+                projectId={robot.projectId}
+                robotId={robot.id}
                 sectionName="main"
+                publish={handleButtonClick}
+                client={client}
               />
             )}
             {robotTab === "logs" && (
               <LogsTab
-                projectId={robot.projectId || "-"}
-                robotId={robot.id || "-"}
+                projectId={robot.projectId}
+                robotId={robot.id}
                 sectionName="main"
+                publish={handleButtonClick}
+                client={client}
               />
             )}
           </div>
