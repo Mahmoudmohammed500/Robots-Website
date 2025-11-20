@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LogoImg from "../assets/logo omega-2022.png";
 import NotificationsDropdown from "../components/DropdownNotes";
+import axios from "axios";
 
 export default function Navbar() {
   const { logout, projectName, userName } = useAuth();
@@ -14,11 +15,113 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [desktopNotifications, setDesktopNotifications] = useState(false);
   const [mobileNotifications, setMobileNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lastOpenedTime, setLastOpenedTime] = useState(null);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [bellColor, setBellColor] = useState("currentColor"); 
+  const [isBlinking, setIsBlinking] = useState(false);
   
   const desktopDropdownRef = useRef(null);
   const mobileDropdownRef = useRef(null);
   const desktopBellRef = useRef(null);
   const mobileBellRef = useRef(null);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
+  const isNewNotification = (note) => {
+    try {
+      const noteDate = new Date(`${note.date}T${note.time}`);
+      
+      if (!lastOpenedTime) return true;
+      
+      const lastOpened = new Date(lastOpenedTime);
+      return noteDate > lastOpened;
+    } catch {
+      return false;
+    }
+  };
+
+  const isAlertNotification = (note) => {
+    return note.type === 'alert';
+  };
+
+  const startBlinking = () => {
+    if (isBlinking) return;
+    
+    setIsBlinking(true);
+    let isRed = true;
+    
+    const blinkInterval = setInterval(() => {
+      if (!isBlinking) {
+        clearInterval(blinkInterval);
+        return;
+      }
+      
+      setBellColor(isRed ? "#ef4444" : "#3b82f6");
+      isRed = !isRed;
+    }, 1000); 
+    
+    return () => clearInterval(blinkInterval);
+  };
+
+  const stopBlinking = () => {
+    setIsBlinking(false);
+    setBellColor("currentColor");
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_BASE}/notifications.php`, {
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      const allNotifications = Array.isArray(res.data) ? res.data : [];
+      
+      const projectNotifications = allNotifications.filter(note => {
+        return true; 
+      });
+      
+      setNotifications(projectNotifications);
+      
+      const hasNew = projectNotifications.some(note => isNewNotification(note));
+      setHasNewNotifications(hasNew);
+      
+      
+      
+      if (hasNew && !lastOpenedTime) {
+        startBlinking();
+      }
+      
+    } catch (err) {
+      console.error("Failed to load notifications:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const savedLastOpenedTime = localStorage.getItem('notificationsLastOpened');
+    if (savedLastOpenedTime) {
+      setLastOpenedTime(savedLastOpenedTime);
+      console.log("🕒 Last opened time loaded:", savedLastOpenedTime);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hasNewNotifications && !lastOpenedTime) {
+      startBlinking();
+    } else {
+      stopBlinking();
+    }
+  }, [hasNewNotifications, lastOpenedTime]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [projectName]);
 
   const getFirstName = (fullName) => {
     if (!fullName) return "User";
@@ -32,15 +135,29 @@ export default function Navbar() {
   };
 
   const handleDesktopBellClick = () => {
+    const now = new Date().toISOString();
+    setLastOpenedTime(now);
+    localStorage.setItem('notificationsLastOpened', now);
+    setHasNewNotifications(false);
+    stopBlinking(); 
+    
     setDesktopNotifications(prev => !prev);
     setMobileNotifications(false);
     setMenuOpen(false);
+    
   };
 
   const handleMobileBellClick = () => {
+    const now = new Date().toISOString();
+    setLastOpenedTime(now);
+    localStorage.setItem('notificationsLastOpened', now);
+    setHasNewNotifications(false);
+    stopBlinking(); 
+    
     setMobileNotifications(prev => !prev);
     setDesktopNotifications(false);
     setMenuOpen(false);
+    
   };
 
   useEffect(() => {
@@ -99,7 +216,10 @@ export default function Navbar() {
                 desktopNotifications ? 'bg-main-color/20 text-main-color' : 'text-main-color hover:bg-main-color/10'
               }`}
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-5 h-5" style={{ color: bellColor }} />
+              {hasNewNotifications && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+              )}
             </button>
 
             <AnimatePresence>
@@ -142,7 +262,10 @@ export default function Navbar() {
                 mobileNotifications ? 'bg-main-color/20 text-main-color' : 'text-main-color hover:bg-main-color/10'
               }`}
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-5 h-5" style={{ color: bellColor }} />
+              {hasNewNotifications && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+              )}
             </button>
 
             <AnimatePresence>

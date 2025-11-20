@@ -318,7 +318,7 @@ export default function RobotDetails() {
 
   const handleButtonClick = (btnName, sectionType = "main") => {
     const section = robot?.Sections?.[sectionType];
-    const topic = section?.Topic_main;
+    const topic = section?.Topic_main;n
     
     if (!topic) {
       console.error(`No topic found for ${sectionType} section`);

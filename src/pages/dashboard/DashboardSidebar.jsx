@@ -13,6 +13,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Logo from "../../assets/logo omega-2022.png";
 import NotificationCenter from "@/components/NotificationDashboard"; 
+import axios from "axios";
 
 export default function DashboardSidebar({ children }) {
   const navigate = useNavigate();
@@ -21,11 +22,107 @@ export default function DashboardSidebar({ children }) {
   const [isOpen, setIsOpen] = useState(true);
   const [showSidebarNotifications, setShowSidebarNotifications] = useState(false);
   const [showHeaderNotifications, setShowHeaderNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lastOpenedTime, setLastOpenedTime] = useState(null);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [bellColor, setBellColor] = useState("currentColor"); 
+  const [isBlinking, setIsBlinking] = useState(false);
   
   const sidebarDropdownRef = useRef(null);
   const sidebarBellRef = useRef(null);
   const headerDropdownRef = useRef(null);
   const headerBellRef = useRef(null);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
+  const isNewNotification = (note) => {
+    try {
+      const noteDate = new Date(`${note.date}T${note.time}`);
+      
+      if (!lastOpenedTime) return true;
+      
+      const lastOpened = new Date(lastOpenedTime);
+      return noteDate > lastOpened;
+    } catch {
+      return false;
+    }
+  };
+
+  const isAlertNotification = (note) => {
+    return note.type === 'alert';
+  };
+
+  const startBlinking = () => {
+    if (isBlinking) return;
+    
+    setIsBlinking(true);
+    let isRed = true;
+    
+    const blinkInterval = setInterval(() => {
+      if (!isBlinking) {
+        clearInterval(blinkInterval);
+        return;
+      }
+      
+      setBellColor(isRed ? "#ef4444" : "#3b82f6");
+      isRed = !isRed;
+    }, 1000); 
+    
+    return () => clearInterval(blinkInterval);
+  };
+
+  const stopBlinking = () => {
+    setIsBlinking(false);
+    setBellColor("currentColor");
+  };
+
+  const fetchAllNotifications = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_BASE}/notifications.php`, {
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      const allNotifications = Array.isArray(res.data) ? res.data : [];
+      setNotifications(allNotifications);
+      
+      const hasNew = allNotifications.some(note => isNewNotification(note));
+      setHasNewNotifications(hasNew);
+      
+      
+      
+      if (hasNew && !lastOpenedTime) {
+        startBlinking();
+      }
+      
+    } catch (err) {
+      console.error("Failed to load notifications:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const savedLastOpenedTime = localStorage.getItem('dashboardNotificationsLastOpened');
+    if (savedLastOpenedTime) {
+      setLastOpenedTime(savedLastOpenedTime);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hasNewNotifications && !lastOpenedTime) {
+      startBlinking();
+    } else {
+      stopBlinking();
+    }
+  }, [hasNewNotifications, lastOpenedTime]);
+
+  useEffect(() => {
+    fetchAllNotifications();
+    const interval = setInterval(fetchAllNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const menuItems = [
     { name: "All Projects", icon: FolderKanban, path: "/homeDashboard" },
@@ -41,13 +138,29 @@ export default function DashboardSidebar({ children }) {
   };
 
   const handleSidebarBellClick = () => {
+    const now = new Date().toISOString();
+    setLastOpenedTime(now);
+    localStorage.setItem('dashboardNotificationsLastOpened', now);
+    setHasNewNotifications(false);
+    stopBlinking(); 
+    
     setShowSidebarNotifications(prev => !prev);
     setShowHeaderNotifications(false);
+    
+    console.log("🔔 Sidebar bell clicked, stopped blinking");
   };
 
   const handleHeaderBellClick = () => {
+    const now = new Date().toISOString();
+    setLastOpenedTime(now);
+    localStorage.setItem('dashboardNotificationsLastOpened', now);
+    setHasNewNotifications(false);
+    stopBlinking(); 
+    
     setShowHeaderNotifications(prev => !prev);
     setShowSidebarNotifications(false);
+    
+    console.log("🔔 Header bell clicked, stopped blinking");
   };
 
   // Close dropdowns if clicked outside
@@ -128,7 +241,10 @@ export default function DashboardSidebar({ children }) {
                   showSidebarNotifications ? "bg-white/30 " : "hover:bg-white/20"
                 }`}
               >
-                <Bell size={20} />
+                <Bell size={20} style={{ color: bellColor }} />
+                {hasNewNotifications && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                )}
               </button>
               
               {/* Sidebar Notifications Dropdown */}
@@ -220,7 +336,10 @@ export default function DashboardSidebar({ children }) {
                 showHeaderNotifications ? "bg-white/30 " : "hover:bg-white/20"
               }`}
             >
-              <Bell size={22} />
+              <Bell size={22} style={{ color: bellColor }} />
+              {hasNewNotifications && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+              )}
             </button>
             
             {showHeaderNotifications && (

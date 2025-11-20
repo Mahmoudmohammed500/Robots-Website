@@ -23,6 +23,11 @@ export default function AddUser() {
     ProjectName: "",
   });
 
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [accessPassword, setAccessPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const ACCESS_PASSWORD = "#aoxns@343."; 
+
   // Fetch user data if editing
   useEffect(() => {
     if (id) {
@@ -44,6 +49,17 @@ export default function AddUser() {
     }
   }, [id]);
 
+  const handlePasswordSubmit = () => {
+    if (accessPassword === ACCESS_PASSWORD) {
+      setIsUnlocked(true);
+      toast.success("User form has been successfully unlocked.");
+      setAccessPassword("");
+    } else {
+      toast.error("Incorrect password");
+      setAccessPassword("");
+    }
+  };
+
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
@@ -51,6 +67,8 @@ export default function AddUser() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    
     try {
       const submitData = { ...formData };
       if (!submitData.Password) delete submitData.Password;
@@ -63,6 +81,7 @@ export default function AddUser() {
         // Add new user
         if (!submitData.Password) {
           toast.error("Password is required for new users");
+          setLoading(false);
           return;
         }
         await postData(`${BASE_URL}/users`, submitData);
@@ -71,6 +90,8 @@ export default function AddUser() {
       navigate(-1);
     } catch (error) {
       toast.error("Failed to submit user");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,103 +117,134 @@ export default function AddUser() {
           </CardHeader>
 
           <CardContent>
-            <form
-              onSubmit={handleSubmit}
-              className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6"
-            >
-              {/* Full Name */}
-              <div className="flex flex-col space-y-2 sm:col-span-2">
-                <Label htmlFor="Username" className="text-gray-700 font-medium">
-                  Full Name
-                </Label>
-                <Input
-                  id="Username"
-                  value={formData.Username}
-                  onChange={handleChange}
-                  placeholder="Enter full name"
-                  className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
-                />
+            {!isUnlocked ? (
+              // Password Input Section
+              <div className="mt-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-main-color mb-4 text-center">
+                  Enter password to access user form
+                </h3>
+                <div className="flex gap-3 items-center">
+                  <Input
+                    type="password"
+                    value={accessPassword}
+                    onChange={(e) => setAccessPassword(e.target.value)}
+                    placeholder="Enter the password"
+                    className="flex-1 h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handlePasswordSubmit();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handlePasswordSubmit}
+                    className="h-12 bg-main-color text-white hover:bg-main-color/90"
+                  >
+                    Unlock
+                  </Button>
+                </div>
               </div>
+            ) : (
+              // User Form (Unlocked)
+              <form
+                onSubmit={handleSubmit}
+                className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6"
+              >
+                {/* Full Name */}
+                <div className="flex flex-col space-y-2 sm:col-span-2">
+                  <Label htmlFor="Username" className="text-gray-700 font-medium">
+                    Full Name
+                  </Label>
+                  <Input
+                    id="Username"
+                    value={formData.Username}
+                    onChange={handleChange}
+                    placeholder="Enter full name"
+                    className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                  />
+                </div>
 
-              {/* Email */}
-              <div className="flex flex-col space-y-2 sm:col-span-2">
-                <Label htmlFor="Email" className="text-gray-700 font-medium">
-                  Email
-                </Label>
-                <Input
-                  id="Email"
-                  type="email"
-                  value={formData.Email}
-                  onChange={handleChange}
-                  placeholder="Enter email address"
-                  className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
-                />
-              </div>
+                {/* Email */}
+                <div className="flex flex-col space-y-2 sm:col-span-2">
+                  <Label htmlFor="Email" className="text-gray-700 font-medium">
+                    Email
+                  </Label>
+                  <Input
+                    id="Email"
+                    type="email"
+                    value={formData.Email}
+                    onChange={handleChange}
+                    placeholder="Enter email address"
+                    className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                  />
+                </div>
 
-              {/* Password */}
-              <div className="flex flex-col space-y-2 sm:col-span-2">
-                <Label htmlFor="Password" className="text-gray-700 font-medium">
-                  Password
-                </Label>
-                <Input
-                  id="Password"
-                  type="text"
-                  value={formData.Password}
-                  onChange={handleChange}
-                  placeholder={
-                    id
-                      ? "Leave empty to keep current password"
-                      : "Enter password"
-                  }
-                  className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
-                />
-              </div>
+                {/* Password */}
+                <div className="flex flex-col space-y-2 sm:col-span-2">
+                  <Label htmlFor="Password" className="text-gray-700 font-medium">
+                    Password
+                  </Label>
+                  <Input
+                    id="Password"
+                    type="text"
+                    value={formData.Password}
+                    onChange={handleChange}
+                    placeholder={
+                      id
+                        ? "Leave empty to keep current password"
+                        : "Enter password"
+                    }
+                    className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                  />
+                </div>
 
-              {/* Telephone */}
-              <div className="flex flex-col space-y-2 sm:col-span-2">
-                <Label
-                  htmlFor="TelephoneNumber"
-                  className="text-gray-700 font-medium"
-                >
-                  Phone Number
-                </Label>
-                <Input
-                  id="TelephoneNumber"
-                  type="tel"
-                  value={formData.TelephoneNumber}
-                  onChange={handleChange}
-                  placeholder="Enter phone number"
-                  className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
-                />
-              </div>
+                {/* Telephone */}
+                <div className="flex flex-col space-y-2 sm:col-span-2">
+                  <Label
+                    htmlFor="TelephoneNumber"
+                    className="text-gray-700 font-medium"
+                  >
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="TelephoneNumber"
+                    type="tel"
+                    value={formData.TelephoneNumber}
+                    onChange={handleChange}
+                    placeholder="Enter phone number"
+                    className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                  />
+                </div>
 
-              {/* Project Name */}
-              <div className="flex flex-col space-y-2 sm:col-span-2">
-                <Label
-                  htmlFor="ProjectName"
-                  className="text-gray-700 font-medium"
-                >
-                  Project Name
-                </Label>
-                <Input
-                  id="ProjectName"
-                  value={formData.ProjectName}
-                  onChange={handleChange}
-                  placeholder="Enter project name"
-                  className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
-                />
-              </div>
+                {/* Project Name */}
+                <div className="flex flex-col space-y-2 sm:col-span-2">
+                  <Label
+                    htmlFor="ProjectName"
+                    className="text-gray-700 font-medium"
+                  >
+                    Project Name
+                  </Label>
+                  <Input
+                    id="ProjectName"
+                    value={formData.ProjectName}
+                    onChange={handleChange}
+                    placeholder="Enter project name"
+                    className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                  />
+                </div>
 
-              {/* Submit Button */}
-              <div className="sm:col-span-2 flex justify-center pt-4">
-                <Button
-                  type="submit"
-                  className="w-full sm:w-1/2 h-12 bg-main-color text-white text-lg rounded-xl hover:bg-main-color/90 transition-all cursor-pointer"
-                >
-                  {id ? "Update User" : "Add User"}
-                </Button>
-              </div>
-            </form>
+                {/* Submit Button */}
+                <div className="sm:col-span-2 flex justify-center pt-4">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full sm:w-1/2 h-12 bg-main-color text-white text-lg rounded-xl hover:bg-main-color/90 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {loading ? "Saving..." : (id ? "Update User" : "Add User")}
+                  </Button>
+                </div>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

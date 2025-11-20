@@ -22,6 +22,26 @@ import { Badge } from "@/components/ui/badge";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+const blinkStyles = `
+@keyframes blink-red {
+  0%, 50% { color: #ef4444; }
+  51%, 100% { color: currentColor; }
+}
+
+@keyframes blink-blue {
+  0%, 50% { color: #3b82f6; }
+  51%, 100% { color: currentColor; }
+}
+
+.bell-blink-red {
+  animation: blink-red 2s infinite;
+}
+
+.bell-blink-blue {
+  animation: blink-blue 2s infinite;
+}
+`;
+
 export default function NotificationCenter({ 
   onClose, 
   mode = "dropdown",
@@ -36,9 +56,107 @@ export default function NotificationCenter({
   const [filterType, setFilterType] = useState("all");
   const [currentProject, setCurrentProject] = useState(null);
   const [robotsLoaded, setRobotsLoaded] = useState(false);
+  const [lastProcessedAlertId, setLastProcessedAlertId] = useState(null);
   const API_BASE = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+
+  const fetchAllUsers = async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/users`);
+      console.log("Users fetched:", response.data);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      return [];
+    }
+  };
+
+  const sendAlertEmails = async (notification, projectName) => {
+    try {
+      console.log("Starting to send alert emails for project:", projectName);
+      
+      const allUsers = await fetchAllUsers();
+      
+      const projectUsers = allUsers.filter(user => {
+        const userProject = user.ProjectName || user.projectName || "";
+        const isSameProject = userProject.trim().toLowerCase() === projectName.trim().toLowerCase();
+        const hasEmail = user.Email || user.email;
+        
+        console.log(`User: ${user.Username}, Project: ${userProject}, Email: ${hasEmail}, Match: ${isSameProject}`);
+        
+        return isSameProject && hasEmail;
+      });
+
+      console.log(`Found ${projectUsers.length} users for project ${projectName}`, projectUsers);
+
+      if (projectUsers.length === 0) {
+        console.log("No users found for this project with valid emails");
+        return;
+      }
+
+      const { robotName, sectionName } = getRobotAndSectionInfo(notification);
+
+      const emailData = {
+        subject: `🚨 Alert Notification - ${projectName}`,
+        message: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+              .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+              .header { background: #ef4444; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+              .content { padding: 20px; }
+              .alert-details { background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0; }
+              .detail-item { margin: 8px 0; }
+              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+              .priority { color: #ef4444; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h2>🚨 Alert Notification</h2>
+              </div>
+              <div class="content">
+                <h3>Project: ${projectName}</h3>
+                <div class="alert-details">
+                  <div class="detail-item"><strong>Alert Message:</strong> ${notification.message}</div>
+                  <div class="detail-item"><strong>Robot:</strong> ${robotName}</div>
+                  <div class="detail-item"><strong>Section:</strong> ${sectionName}</div>
+                  <div class="detail-item"><strong>Date:</strong> ${notification.date}</div>
+                  <div class="detail-item"><strong>Time:</strong> ${notification.time}</div>
+                  ${notification.topic_main ? `<div class="detail-item"><strong>Topic:</strong> ${notification.topic_main}</div>` : ''}
+                  <div class="detail-item priority">Priority: High - Immediate Attention Required</div>
+                </div>
+                <p>Please check the system immediately for further details and take appropriate action.</p>
+              </div>
+              <div class="footer">
+                <p>This is an automated alert from your Robot Monitoring System.</p>
+                <p>Do not reply to this email.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+        users: projectUsers.map(user => ({
+          email: user.Email || user.email,
+          username: user.Username || user.username,
+          project: user.ProjectName || user.projectName
+        }))
+      };
+
+      console.log("Sending email data:", emailData);
+      const emailResponse = await axios.post(`${API_BASE}/send-alert-emails`, emailData);
+      
+      console.log(`Alert emails sent to ${projectUsers.length} users successfully`);
+      return emailResponse.data;
+      
+    } catch (error) {
+      console.error("Failed to send alert emails:", error);
+    }
+  };
 
   useEffect(() => {
     fetchCurrentProjectAndNotifications();
@@ -47,8 +165,10 @@ export default function NotificationCenter({
   useEffect(() => {
     if (robotsLoaded && notifications.length > 0) {
       applyFilters();
+      
+      checkForNewAlerts();
     }
-  }, [notifications, searchTerm, filterType, robotsLoaded]);
+  }, [notifications, robotsLoaded]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -62,6 +182,62 @@ export default function NotificationCenter({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [onClose]);
+
+  const checkForNewAlerts = async () => {
+    try {
+      const currentProjectName = currentProject?.ProjectName;
+      if (!currentProjectName) {
+        console.log("No current project found, skipping email alerts");
+        return;
+      }
+
+      const newAlerts = notifications.filter(note => 
+        isAlertNotification(note) && 
+        isNewNotification(note) &&
+        note.notificationId !== lastProcessedAlertId
+      );
+
+      if (newAlerts.length > 0) {
+        console.log(`Found ${newAlerts.length} new alerts, sending emails...`, newAlerts);
+        
+        const latestAlert = newAlerts[0];
+        await sendAlertEmails(latestAlert, currentProjectName);
+        
+        setLastProcessedAlertId(latestAlert.notificationId);
+      }
+    } catch (error) {
+      console.error("Error in alert email processing:", error);
+    }
+  };
+
+  const getBellBlinkClass = () => {
+    if (!robotsLoaded || notifications.length === 0) return "";
+    
+    const hasNewAlert = notifications.some(note => 
+      isAlertNotification(note) && isNewNotification(note)
+    );
+    
+    const hasNewNotification = notifications.some(note => 
+      !isAlertNotification(note) && isNewNotification(note)
+    );
+
+    if (hasNewAlert) return "bell-blink-red";
+    if (hasNewNotification) return "bell-blink-blue";
+    
+    return "";
+  };
+
+  const isNewNotification = (note) => {
+    try {
+      const noteDate = new Date(`${note.date}T${note.time}`);
+      const now = new Date();
+      const diffInMinutes = (now - noteDate) / (1000 * 60);
+      
+      return diffInMinutes < 5;
+    } catch {
+      return false;
+    }
+  };
 
   const getProjectNameFromCookie = () => {
     try {
@@ -221,6 +397,7 @@ export default function NotificationCenter({
       setRobotsLoaded(false);
 
       const projectName = getProjectNameFromCookie();
+      console.log("Current project from cookie:", projectName);
       const project = await fetchProjectByName(projectName);
       setCurrentProject(project);
 
@@ -233,6 +410,7 @@ export default function NotificationCenter({
       });
       
       const allNotifications = Array.isArray(res.data) ? res.data : [];
+      console.log("Fetched notifications:", allNotifications);
 
       const sortedNotifications = allNotifications.sort((a, b) => {
         try {
@@ -247,6 +425,7 @@ export default function NotificationCenter({
       setNotifications(sortedNotifications);
       
     } catch (err) {
+      console.error("Error fetching data:", err);
       setError("Failed to load notifications: " + (err.message || "Unknown error"));
       setRobotsLoaded(true);
     } finally {
@@ -262,7 +441,8 @@ export default function NotificationCenter({
     if (searchTerm) {
       filtered = filtered.filter(note =>
         note.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.topic_main?.toLowerCase().includes(searchTerm.toLowerCase())
+        note.topic_main?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (note.RobotId && note.RobotId.toString().includes(searchTerm))
       );
     }
 
@@ -358,6 +538,7 @@ export default function NotificationCenter({
   if (mode === "page") {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
+        <style>{blinkStyles}</style>
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -372,10 +553,10 @@ export default function NotificationCenter({
                 Back to Dashboard
               </Button>
               <div className="flex items-center gap-3">
-                <Bell className="w-8 h-8 text-main-color" />
+                <Bell className={`w-8 h-8 text-main-color ${getBellBlinkClass()}`} />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-800">Notifications Dashboard</h1>
-                  {/* <p className="text-gray-600">Project: {getProjectDisplayName()}</p> */}
+                  <p className="text-gray-600">Project: {getProjectDisplayName()}</p>
                 </div>
               </div>
             </div>
@@ -654,11 +835,13 @@ export default function NotificationCenter({
       `}
       onClick={(e) => e.stopPropagation()}
     >
+      <style>{blinkStyles}</style>
+      
       {/* Header */}
       <div className="bg-main-color text-white p-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
+            <Bell className={`w-5 h-5 ${getBellBlinkClass()}`} />
             <div>
               <h3 className="text-lg font-semibold">Notifications</h3>
               <p className="text-sm text-white/80">
