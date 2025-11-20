@@ -19,7 +19,7 @@ export default function RobotDetailsFull() {
   const { id } = useParams();
   const navigate = useNavigate();
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
   const [robot, setRobot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [trolleyTab, setTrolleyTab] = useState("control");
@@ -29,15 +29,17 @@ export default function RobotDetailsFull() {
     try {
       const data = await getData(`${BASE_URL}/robots.php/${id}`);
       setRobot(data || {});
-    } catch (err) {
-    }
+    } catch (err) {}
   };
 
   const handleCyclesUpdate = (robotId, sectionName, newCycles) => {
-    
     if (robotId == id) {
-      setRobot(prevRobot => {
-        if (!prevRobot || !prevRobot.Sections || !prevRobot.Sections[sectionName]) {
+      setRobot((prevRobot) => {
+        if (
+          !prevRobot ||
+          !prevRobot.Sections ||
+          !prevRobot.Sections[sectionName]
+        ) {
           return prevRobot;
         }
 
@@ -47,9 +49,9 @@ export default function RobotDetailsFull() {
             ...prevRobot.Sections,
             [sectionName]: {
               ...prevRobot.Sections[sectionName],
-              Cycles: newCycles
-            }
-          }
+              Cycles: newCycles,
+            },
+          },
         };
 
         return updatedRobot;
@@ -65,7 +67,7 @@ export default function RobotDetailsFull() {
     clientId: "clientId-1Kyy79c7WB",
     username: "testrobotsuser",
     password: "Testrobotsuser@1234",
-    onCyclesUpdate: handleCyclesUpdate 
+    onCyclesUpdate: handleCyclesUpdate,
   });
 
   // MQTT subscribe helper
@@ -80,7 +82,7 @@ export default function RobotDetailsFull() {
       if (id && isConnected) {
         fetchRobot();
       }
-    }, 10000); 
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [id, isConnected]);
@@ -88,7 +90,7 @@ export default function RobotDetailsFull() {
   useEffect(() => {
     if (!isConnected || !robot) return;
 
-    Object.values(robot.Sections).forEach(section => {
+    Object.values(robot.Sections).forEach((section) => {
       if (section.Topic_publish) subscribe(section.Topic_publish);
     });
   }, [isConnected, robot]);
@@ -97,7 +99,7 @@ export default function RobotDetailsFull() {
   useEffect(() => {
     if (!isConnected || !robot) return;
 
-    Object.values(robot.Sections || {}).forEach(section => {
+    Object.values(robot.Sections || {}).forEach((section) => {
       if (section.Topic_subscribe) {
         subscribe(section.Topic_subscribe);
       }
@@ -186,29 +188,36 @@ export default function RobotDetailsFull() {
       animate={{ opacity: 1, y: 0 }}
     >
       <div className="max-w-5xl mx-auto space-y-10">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-main-color">
-              {robot.RobotName || "Robot Details"}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Project ID:{" "}
-              <span className="font-mono">{robot.projectId || "-"}</span>
-            </p>
-            <div className="flex items-center gap-2 mt-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-green-600">Auto-refresh every 10 seconds</span>
+        {/* HEADER + IMAGE */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-5">
+            <img
+              src={
+                robot?.Image && robot.Image !== "Array"
+                  ? `${UPLOADS_URL}/${robot.Image}?t=${Date.now()}`
+                  : RobotImg
+              }
+              alt="Robot"
+              className="h-40 w-40 object-cover rounded-xl border shadow-md"
+            />
+
+            <div>
+              <h1 className="text-3xl font-bold text-main-color">
+                {robot.RobotName || "Robot Details"}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Project ID:{" "}
+                <span className="font-mono">{robot.projectId || "-"}</span>
+              </p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => navigate(-1)}
-              className="bg-white border text-main-color"
-            >
-              Back
-            </Button>
-          </div>
+
+          <Button
+            onClick={() => navigate(-1)}
+            className="bg-white border text-main-color"
+          >
+            Back
+          </Button>
         </div>
 
         {/* TROLLEY SECTION */}
@@ -256,7 +265,7 @@ export default function RobotDetailsFull() {
               )}
               {trolleyTab === "notifications" && (
                 <NotificationsTab
-                  projectId={robot.projectId  || "-"}
+                  projectId={robot.projectId || "-"}
                   robotId={robot.id || "-"}
                   sectionName="car"
                   publish={handleButtonClick}
