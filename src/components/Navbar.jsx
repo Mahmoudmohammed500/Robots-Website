@@ -19,7 +19,7 @@ export default function Navbar() {
   const [loading, setLoading] = useState(false);
   const [lastOpenedTime, setLastOpenedTime] = useState(null);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
-  const [bellColor, setBellColor] = useState("currentColor"); 
+  const [bellColor, setBellColor] = useState("currentColor");
   const [isBlinking, setIsBlinking] = useState(false);
   
   const desktopDropdownRef = useRef(null);
@@ -58,9 +58,16 @@ export default function Navbar() {
         return;
       }
       
-      setBellColor(isRed ? "#ef4444" : "#3b82f6");
-      isRed = !isRed;
-    }, 1000); 
+      // Only blink if there are new notifications
+      if (hasNewNotifications) {
+        setBellColor(isRed ? "#ef4444" : "#3b82f6");
+        isRed = !isRed;
+      } else {
+        setBellColor("currentColor");
+        clearInterval(blinkInterval);
+        setIsBlinking(false);
+      }
+    }, 1000);
     
     return () => clearInterval(blinkInterval);
   };
@@ -80,7 +87,7 @@ export default function Navbar() {
       const allNotifications = Array.isArray(res.data) ? res.data : [];
       
       const projectNotifications = allNotifications.filter(note => {
-        return true; 
+        return true;
       });
       
       setNotifications(projectNotifications);
@@ -88,7 +95,8 @@ export default function Navbar() {
       const hasNew = projectNotifications.some(note => isNewNotification(note));
       setHasNewNotifications(hasNew);
       
-      
+      console.log("Notifications loaded:", projectNotifications.length);
+      console.log("Has new notifications:", hasNew);
       
       if (hasNew && !lastOpenedTime) {
         startBlinking();
@@ -105,7 +113,6 @@ export default function Navbar() {
     const savedLastOpenedTime = localStorage.getItem('notificationsLastOpened');
     if (savedLastOpenedTime) {
       setLastOpenedTime(savedLastOpenedTime);
-      console.log("🕒 Last opened time loaded:", savedLastOpenedTime);
     }
   }, []);
 
@@ -139,12 +146,11 @@ export default function Navbar() {
     setLastOpenedTime(now);
     localStorage.setItem('notificationsLastOpened', now);
     setHasNewNotifications(false);
-    stopBlinking(); 
+    stopBlinking();
     
     setDesktopNotifications(prev => !prev);
     setMobileNotifications(false);
     setMenuOpen(false);
-    
   };
 
   const handleMobileBellClick = () => {
@@ -152,12 +158,11 @@ export default function Navbar() {
     setLastOpenedTime(now);
     localStorage.setItem('notificationsLastOpened', now);
     setHasNewNotifications(false);
-    stopBlinking(); 
+    stopBlinking();
     
     setMobileNotifications(prev => !prev);
     setDesktopNotifications(false);
     setMenuOpen(false);
-    
   };
 
   useEffect(() => {
@@ -188,26 +193,22 @@ export default function Navbar() {
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-sm border-b border-gray-100">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-5 md:px-10 py-3 relative">
-        {/* Logo */}
         <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => navigate("/home")}>
           <motion.img src={LogoImg} alt="Logo" className="h-9 w-auto object-contain" whileHover={{ scale: 1.05 }} />
         </div>
 
-        {/* Project Name */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 cursor-pointer" onClick={() => navigate("/robots")}>
           <h1 className="text-lg md:text-xl font-semibold tracking-tight whitespace-nowrap">
             <span className="text-main-color">{projectName || "My Project"}</span>
           </h1>
         </div>
 
-        {/* Desktop: User + Logout + Notifications */}
         <div className="hidden md:flex items-center gap-3 relative">
           <div className="flex items-center gap-2 px-4 py-2">
             <UserCheck className="w-5 h-5 text-second-color" />
             <span className="text-main-color text-lg md:text-xl font-semibold tracking-tight">{getFirstName(userName)}</span>
           </div>
 
-          {/* Notification Icon */}
           <div className="relative">
             <button
               ref={desktopBellRef}
@@ -251,9 +252,7 @@ export default function Navbar() {
           </Button>
         </div>
 
-        {/* Mobile: Notifications + Menu Button */}
         <div className="flex items-center gap-2 md:hidden">
-          {/* Notification Icon for Mobile */}
           <div className="relative">
             <button
               ref={mobileBellRef}
@@ -288,7 +287,6 @@ export default function Navbar() {
             </AnimatePresence>
           </div>
 
-          {/* Menu Button */}
           <button 
             onClick={() => setMenuOpen(!menuOpen)}
             className={`p-2 rounded-lg transition ${
@@ -300,7 +298,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {menuOpen && (
           <motion.nav 

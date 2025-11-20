@@ -26,7 +26,7 @@ export default function DashboardSidebar({ children }) {
   const [loading, setLoading] = useState(false);
   const [lastOpenedTime, setLastOpenedTime] = useState(null);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
-  const [bellColor, setBellColor] = useState("currentColor"); 
+  const [bellColor, setBellColor] = useState("currentColor");
   const [isBlinking, setIsBlinking] = useState(false);
   
   const sidebarDropdownRef = useRef(null);
@@ -65,9 +65,16 @@ export default function DashboardSidebar({ children }) {
         return;
       }
       
-      setBellColor(isRed ? "#ef4444" : "#3b82f6");
-      isRed = !isRed;
-    }, 1000); 
+      // Only blink if there are new notifications
+      if (hasNewNotifications) {
+        setBellColor(isRed ? "#ef4444" : "#3b82f6");
+        isRed = !isRed;
+      } else {
+        setBellColor("currentColor");
+        clearInterval(blinkInterval);
+        setIsBlinking(false);
+      }
+    }, 1000);
     
     return () => clearInterval(blinkInterval);
   };
@@ -90,7 +97,8 @@ export default function DashboardSidebar({ children }) {
       const hasNew = allNotifications.some(note => isNewNotification(note));
       setHasNewNotifications(hasNew);
       
-      
+      console.log("Dashboard notifications loaded:", allNotifications.length);
+      console.log("Dashboard has new notifications:", hasNew);
       
       if (hasNew && !lastOpenedTime) {
         startBlinking();
@@ -142,12 +150,10 @@ export default function DashboardSidebar({ children }) {
     setLastOpenedTime(now);
     localStorage.setItem('dashboardNotificationsLastOpened', now);
     setHasNewNotifications(false);
-    stopBlinking(); 
+    stopBlinking();
     
     setShowSidebarNotifications(prev => !prev);
     setShowHeaderNotifications(false);
-    
-    console.log("🔔 Sidebar bell clicked, stopped blinking");
   };
 
   const handleHeaderBellClick = () => {
@@ -155,18 +161,14 @@ export default function DashboardSidebar({ children }) {
     setLastOpenedTime(now);
     localStorage.setItem('dashboardNotificationsLastOpened', now);
     setHasNewNotifications(false);
-    stopBlinking(); 
+    stopBlinking();
     
     setShowHeaderNotifications(prev => !prev);
     setShowSidebarNotifications(false);
-    
-    console.log("🔔 Header bell clicked, stopped blinking");
   };
 
-  // Close dropdowns if clicked outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // Check for sidebar notifications
       if (showSidebarNotifications && 
           sidebarDropdownRef.current && 
           !sidebarDropdownRef.current.contains(e.target) &&
@@ -175,7 +177,6 @@ export default function DashboardSidebar({ children }) {
         setShowSidebarNotifications(false);
       }
       
-      // Check for header notifications
       if (showHeaderNotifications && 
           headerDropdownRef.current && 
           !headerDropdownRef.current.contains(e.target) &&
@@ -191,14 +192,12 @@ export default function DashboardSidebar({ children }) {
 
   return (
     <div className="flex bg-gray-50 min-h-screen max-lg:w-0 relative">
-      {/* ===== Sidebar (Desktop) ===== */}
       <div
         className={`hidden lg:flex fixed top-0 left-0 h-screen bg-linear-to-b from-main-color to-second-color text-white 
         shadow-2xl border-r border-main-color/20 z-40 transition-all duration-300 ease-in-out 
         ${isOpen ? "w-72" : "w-16"} flex-col justify-between`}
       >
         <div>
-          {/* Sidebar toggle */}
           <div className="text-right">
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -210,7 +209,6 @@ export default function DashboardSidebar({ children }) {
             </button>
           </div>
           
-          {/* ===== Logo & Admin Info ===== */}
           <div className={`flex items-center justify-between px-3 py-5 gap-2 border-b border-white/10 relative 
             ${isOpen ? "flex-row" : "flex-col"}`}>
             {isOpen ? (
@@ -233,7 +231,6 @@ export default function DashboardSidebar({ children }) {
               />
             )}
             
-            {/* Notification Icon - Sidebar */}
             <div className="relative " ref={sidebarBellRef}>
               <button
                 onClick={handleSidebarBellClick}
@@ -247,7 +244,6 @@ export default function DashboardSidebar({ children }) {
                 )}
               </button>
               
-              {/* Sidebar Notifications Dropdown */}
               {showSidebarNotifications && (
                 <div 
                   ref={sidebarDropdownRef}
@@ -263,7 +259,6 @@ export default function DashboardSidebar({ children }) {
             </div>
           </div>
 
-          {/* ===== Menu items ===== */}
           <nav className={`flex flex-col gap-2 p-4 ${isOpen ? "overflow-y-auto" : "overflow-hidden"}`}>
             {menuItems.map((item, index) => {
               const Icon = item.icon;
@@ -292,7 +287,6 @@ export default function DashboardSidebar({ children }) {
           </nav>
         </div>
 
-        {/* ===== Footer ===== */}
         <div className="border-t border-white/10 p-4 flex flex-col">
           <button
             onClick={handleLogout}
@@ -313,7 +307,6 @@ export default function DashboardSidebar({ children }) {
         </div>
       </div>
 
-      {/* ===== Mobile Header ===== */}
       <header className="lg:hidden fixed top-0 left-0 right-0 bg-linear-to-r from-main-color to-second-color text-white flex items-center justify-between px-4 py-3 z-40">
         <div className="flex items-center gap-2 select-none">
           <img
@@ -328,7 +321,6 @@ export default function DashboardSidebar({ children }) {
         </div>
 
         <nav className="flex items-center gap-4 sm:gap-5 ">
-          {/* Notification Section - Header */}
           <div className="relative" ref={headerBellRef}>
             <button
               onClick={handleHeaderBellClick}
@@ -353,7 +345,6 @@ export default function DashboardSidebar({ children }) {
             )}
           </div>
 
-          {/* Other Menu Items */}
           {menuItems.map((item, index) => {
             const Icon = item.icon;
             const active = location.pathname === item.path;
@@ -384,7 +375,6 @@ export default function DashboardSidebar({ children }) {
         </nav>
       </header>
 
-      {/* ===== Main Content ===== */}
       <main
         className={`flex-1 transition-all duration-300 ease-in-out overflow-y-auto pt-[70px] lg:pt-0 ${
           isOpen ? "lg:pl-[18rem]" : "lg:pl-[4rem]"
