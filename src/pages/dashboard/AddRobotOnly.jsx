@@ -34,7 +34,6 @@ export default function AddRobotOnly() {
   const [loading, setLoading] = useState(false);
   const [isMainUnlocked, setIsMainUnlocked] = useState(false);
   const [mainPassword, setMainPassword] = useState("");
-  const MAIN_PASSWORD = "1234";
   const MAIN_PASSWORD = "#aoxns@343."; 
 
   const handlePasswordSubmit = () => {
