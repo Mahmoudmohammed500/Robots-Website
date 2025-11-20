@@ -11,6 +11,8 @@ export default function AddRobotWithTrolley() {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const [loading, setLoading] = useState(false);
+
   const type = location.state?.type || "withTrolley";
   const showTrolley = type === "withTrolley";
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -29,19 +31,22 @@ export default function AddRobotWithTrolley() {
         Topic_subscribe: "",
         Topic_main: "",
       },
-      car: showTrolley ? {
-        Voltage: "",
-        Cycles: "",
-        Status: "",
-        ActiveBtns: [],
-        Topic_subscribe: "",
-        Topic_main: "",
-      } : {}
-    }
+      car: showTrolley
+        ? {
+            Voltage: "",
+            Cycles: "",
+            Status: "",
+            ActiveBtns: [],
+            Topic_subscribe: "",
+            Topic_main: "",
+          }
+        : {},
+    },
   });
 
   const [isMainUnlocked, setIsMainUnlocked] = useState(false);
   const [mainPassword, setMainPassword] = useState("");
+  const MAIN_PASSWORD = "1234";
   const MAIN_PASSWORD = "#aoxns@343."; 
 
   const handlePasswordSubmit = () => {
@@ -56,87 +61,76 @@ export default function AddRobotWithTrolley() {
   };
 
   const handleSubmit = async () => {
-    if (!robot.RobotName) {
-      toast.warning("Please enter robot name");
-      return;
-    }
+    if (!robot.RobotName) return toast.warning("Please enter robot name");
+    if (!robot.mqttUrl) return toast.warning("Please enter MQTT URL");
 
-    if (!robot.mqttUrl) {
-      toast.warning("Please enter MQTT URL");
-      return;
-    }
-
-    console.log("Current robot state:", robot);
-
-    const payload = {
-      RobotName: robot.RobotName,
-      Image: robot.Image || "",
-      projectId: Number(id),
-      mqttUrl: robot.mqttUrl,
-      isTrolley: showTrolley,
-      Sections: {
-        main: {
-          ...robot.Sections.main,
-          Voltage: robot.Sections.main.Voltage ? Number(robot.Sections.main.Voltage) : 0,
-          Cycles: robot.Sections.main.Cycles ? Number(robot.Sections.main.Cycles) : 0,
-          Status: robot.Sections.main.Status || "Idle",
-          ActiveBtns: []
-        },
-        car: showTrolley ? {
-          ...robot.Sections.car,
-          Voltage: robot.Sections.car.Voltage ? Number(robot.Sections.car.Voltage) : 0,
-          Cycles: robot.Sections.car.Cycles ? Number(robot.Sections.car.Cycles) : 0,
-          Status: robot.Sections.car.Status || "Idle",
-          ActiveBtns: []
-        } : {}
-      },
-    };
-
-    console.log("Payload to send:", payload);
+    setLoading(true);
 
     try {
-      const res = await postData(`${BASE_URL}/robots`, payload);
-      toast.success("Robot saved successfully!");
-      navigate(-1);
+      const fd = new FormData();
+      fd.append("RobotName", robot.RobotName);
+      fd.append("mqttUrl", robot.mqttUrl);
+      fd.append("projectId", Number(id));
+      fd.append("isTrolley", showTrolley ? 1 : 0);
+      fd.append("Sections", JSON.stringify(robot.Sections));
+
+      if (robot.Image) {
+        fd.append("Image", robot.Image);
+      }
+
+      const res = await fetch(`${BASE_URL}/robots`, {
+        method: "POST",
+        body: fd,
+      });
+
+      const data = await res.json();
+      if (data.success || data.message?.toLowerCase().includes("success")) {
+        toast.success("Robot saved successfully!");
+        navigate(-1);
+      } else {
+        toast.error(data.message || "Failed to save robot.");
+      }
     } catch (err) {
       console.error("Save error:", err);
       toast.error("Failed to save robot.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const updateMainSection = (updates) => {
-    setRobot(prev => ({
+    setRobot((prev) => ({
       ...prev,
       Sections: {
         ...prev.Sections,
-        main: { ...prev.Sections.main, ...updates }
-      }
+        main: { ...prev.Sections.main, ...updates },
+      },
     }));
   };
 
   const updateCarSection = (updates) => {
-    setRobot(prev => ({
+    setRobot((prev) => ({
       ...prev,
       Sections: {
         ...prev.Sections,
-        car: { ...prev.Sections.car, ...updates }
-      }
+        car: { ...prev.Sections.car, ...updates },
+      },
     }));
   };
 
   const updateRobotName = (name) => {
-    setRobot(prev => ({ ...prev, RobotName: name }));
+    setRobot((prev) => ({ ...prev, RobotName: name }));
   };
 
   const updateMqttUrl = (url) => {
-    setRobot(prev => ({ ...prev, mqttUrl: url }));
+    setRobot((prev) => ({ ...prev, mqttUrl: url }));
   };
 
   const updateImage = (file, preview) => {
-    setRobot(prev => ({ 
-      ...prev, 
-      Image: file, 
-      imagePreview: preview 
+    setRobot((prev) => ({
+      ...prev,
+      Image: file,
+      imagePreview: preview,
     }));
   };
 
@@ -209,7 +203,8 @@ export default function AddRobotWithTrolley() {
               // Password Input Section
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-semibold text-main-color mb-4">
-                  Enter the password to access the robot control                </h3>
+                  Enter the password to access the robot control{" "}
+                </h3>
                 <div className="flex gap-3 items-center">
                   <input
                     type="password"
@@ -218,7 +213,7 @@ export default function AddRobotWithTrolley() {
                     placeholder="Enter the password"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-main-color"
                     onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         handlePasswordSubmit();
                       }
                     }}

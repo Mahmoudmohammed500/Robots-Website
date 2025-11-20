@@ -34,6 +34,7 @@ export default function AddRobotOnly() {
   const [loading, setLoading] = useState(false);
   const [isMainUnlocked, setIsMainUnlocked] = useState(false);
   const [mainPassword, setMainPassword] = useState("");
+  const MAIN_PASSWORD = "1234";
   const MAIN_PASSWORD = "#aoxns@343."; 
 
   const handlePasswordSubmit = () => {
@@ -74,66 +75,42 @@ export default function AddRobotOnly() {
   };
 
   const handleSave = async () => {
-    if (!robot.RobotName.trim()) {
-      toast.error("Please enter a robot name!");
-      return;
-    }
-
-    if (!robot.mqttUrl.trim()) {
-      toast.error("Please enter MQTT URL!");
-      return;
-    }
-
-    if (!robot.projectId) {
-      toast.error("Project ID is missing!");
-      return;
-    }
+    if (!robot.RobotName.trim())
+      return toast.error("Please enter a robot name!");
+    if (!robot.mqttUrl.trim()) return toast.error("Please enter MQTT URL!");
+    if (!robot.projectId) return toast.error("Project ID is missing!");
 
     setLoading(true);
 
     try {
-      const payload = {
-        RobotName: robot.RobotName.trim(),
-        Image: robot.Image || "warehousebot.png",
-        projectId: Number(robot.projectId),
-        mqttUrl: robot.mqttUrl.trim(),
-        isTrolley: false,
-        Sections: {
-          main: {
-            Voltage: robot.Sections.main.Voltage
-              ? Number(robot.Sections.main.Voltage)
-              : 0,
-            Cycles: robot.Sections.main.Cycles
-              ? Number(robot.Sections.main.Cycles)
-              : 0,
-            Status: robot.Sections.main.Status || "Idle",
-            ActiveBtns: [],
-            Topic_subscribe: robot.Sections.main.Topic_subscribe || "",
-            Topic_main: robot.Sections.main.Topic_main || "",
-          },
-        },
-      };
+      const fd = new FormData();
+      fd.append("RobotName", robot.RobotName.trim());
+      fd.append("mqttUrl", robot.mqttUrl.trim());
+      fd.append("projectId", robot.projectId);
+      fd.append("isTrolley", robot.isTrolley ? 1 : 0);
+      fd.append("Sections", JSON.stringify(robot.Sections));
 
-      console.log("📦 Final Payload:", JSON.stringify(payload, null, 2));
-
-      const response = await postData(`${BASE_URL}/robots`, payload);
-      console.log("✅ Robot added successfully:", response);
-      toast.success("Robot added successfully!");
-      navigate(-1);
-    } catch (error) {
-      console.error("❌ Error saving robot:", error);
-
-      if (error.code === "ERR_NETWORK") {
-        toast.error(
-          "Network error! Please check:\n1. Server is running\n2. CORS is configured"
-        );
-      } else if (error.response) {
-        toast.error(
-          `Server error: ${error.response.status} - ${error.response.statusText}`
-        );
-      } else {
-        toast.error("Failed to save robot. Check console for details.");
+      // Append image file only if selected
+      if (robot.Image) {
+        fd.append("Image", robot.Image);
       }
+
+      const res = await fetch(`${BASE_URL}/robots`, {
+        method: "POST",
+        body: fd,
+      });
+
+      const data = await res.json();
+
+      if (data.success || data.message?.toLowerCase().includes("success")) {
+        toast.success("Robot added successfully!");
+        navigate(-1);
+      } else {
+        toast.error(data.message || "Something went wrong!");
+      }
+    } catch (err) {
+      console.error("❌ Error saving robot:", err);
+      toast.error("Failed to save robot.");
     } finally {
       setLoading(false);
     }
@@ -189,7 +166,8 @@ export default function AddRobotOnly() {
               // Password Input Section
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-semibold text-main-color mb-4">
-                  Enter the password to access the robot control                </h3>
+                  Enter the password to access the robot control{" "}
+                </h3>
                 <div className="flex gap-3 items-center">
                   <input
                     type="password"
@@ -198,7 +176,7 @@ export default function AddRobotOnly() {
                     placeholder="Enter the password"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-main-color"
                     onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         handlePasswordSubmit();
                       }
                     }}
@@ -207,7 +185,7 @@ export default function AddRobotOnly() {
                     onClick={handlePasswordSubmit}
                     className="bg-main-color text-white"
                   >
-                   open
+                    open
                   </Button>
                 </div>
               </div>
