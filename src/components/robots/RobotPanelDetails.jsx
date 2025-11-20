@@ -2,15 +2,16 @@ import React, { useEffect, useState } from "react";
 
 const ALL_BUTTONS = ["Forward", "Backward", "Stop", "Left", "Right"];
 
-export default function RobotMainPanelView({ 
-  robot, 
-  setRobot, 
+export default function RobotMainPanelView({
+  robot,
+  setRobot,
   allButtons = ALL_BUTTONS,
-  publish, 
-  client 
+  publish,
+  client,
 }) {
   const mainSection = robot?.Sections?.main || {};
   const [buttonsWithColors, setButtonsWithColors] = useState([]);
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
 
   useEffect(() => {
     const fetchButtons = async () => {
@@ -26,19 +27,26 @@ export default function RobotMainPanelView({
   }, []);
 
   const getActiveButtons = () => {
-    if (!mainSection.ActiveBtns || !Array.isArray(mainSection.ActiveBtns)) return [];
-    return mainSection.ActiveBtns.map(btn => (typeof btn === "object" && btn !== null ? btn.Name || btn.name || "" : btn)).filter(Boolean);
+    if (!mainSection.ActiveBtns || !Array.isArray(mainSection.ActiveBtns))
+      return [];
+    return mainSection.ActiveBtns.map((btn) =>
+      typeof btn === "object" && btn !== null ? btn.Name || btn.name || "" : btn
+    ).filter(Boolean);
   };
 
   const activeButtons = getActiveButtons();
 
   const getButtonColor = (btnName) => {
-    const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
-    return btnData?.Color || "#4F46E5"; 
+    const btnData = buttonsWithColors.find(
+      (b) => b.BtnName?.toLowerCase() === btnName.toLowerCase()
+    );
+    return btnData?.Color || "#4F46E5";
   };
 
   const getButtonOperation = (btnName) => {
-    const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
+    const btnData = buttonsWithColors.find(
+      (b) => b.BtnName?.toLowerCase() === btnName.toLowerCase()
+    );
     return btnData?.Operation || btnName; // Default to button name if no operation found
   };
 
@@ -49,7 +57,7 @@ export default function RobotMainPanelView({
       return;
     }
     const operation = getButtonOperation(btnName);
-    
+
     if (publish) {
       publish(topic, operation);
     } else {
@@ -62,9 +70,13 @@ export default function RobotMainPanelView({
       <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
         <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
           <img
-            src={robot?.Image || "/assets/placeholder-robot.jpg"}
-            alt={robot?.RobotName || "Robot"}
-            className="w-48 h-40 object-cover rounded-xl border border-gray-200 shadow-sm"
+            src={
+              robot?.Image && robot.Image !== "Array"
+                ? `${UPLOADS_URL}/${robot.Image}?t=${Date.now()}`
+                : RobotImg
+            }
+            alt="Robot"
+            className="h-40 w-40 object-cover rounded-xl border shadow-md"
           />
         </div>
 
@@ -76,10 +88,15 @@ export default function RobotMainPanelView({
           <ViewField label="Robot ID" value={robot?.id || "-"} />
           <ViewField label="MQTT URL" value={robot?.mqttUrl || "-"} />
           <ViewField label="Topic Main" value={mainSection.Topic_main || "-"} />
-          <ViewField label="Topic Subscribe" value={mainSection.Topic_subscribe || "-"} />
+          <ViewField
+            label="Topic Subscribe"
+            value={mainSection.Topic_subscribe || "-"}
+          />
 
           <div className="col-span-2">
-            <label className="text-xs text-gray-500 mb-2 block">Active Buttons</label>
+            <label className="text-xs text-gray-500 mb-2 block">
+              Active Buttons
+            </label>
             <div className="flex flex-wrap gap-2">
               {activeButtons.map((btn) => (
                 <button
@@ -95,7 +112,9 @@ export default function RobotMainPanelView({
                   {btn} ✓
                 </button>
               ))}
-              {activeButtons.length === 0 && <div className="text-gray-500 italic">No active buttons</div>}
+              {activeButtons.length === 0 && (
+                <div className="text-gray-500 italic">No active buttons</div>
+              )}
             </div>
           </div>
         </div>
@@ -112,5 +131,5 @@ function ViewField({ label, value }) {
         {value ?? "-"}
       </div>
     </div>
-  ); 
+  );
 }

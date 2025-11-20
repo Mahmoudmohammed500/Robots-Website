@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
 
-export default function TrolleyPanelDetails({ 
-  robotId, 
-  imgSrc = "/assets/placeholder-trolley.jpg", 
+export default function TrolleyPanelDetails({
+  robotId,
+  imgSrc = "/assets/placeholder-trolley.jpg",
   trolleyData = {},
-  publish, 
-  client 
+  publish,
+  client,
 }) {
-  const safeImgSrc = imgSrc && imgSrc.trim() !== "" ? imgSrc : "/assets/placeholder-trolley.jpg";
+  const safeImgSrc =
+    imgSrc && imgSrc.trim() !== "" ? imgSrc : "/assets/placeholder-trolley.jpg";
   const carSection = trolleyData?.Sections?.car || {};
   const [buttonsWithColors, setButtonsWithColors] = useState([]);
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
 
   useEffect(() => {
     const fetchButtons = async () => {
@@ -25,19 +27,26 @@ export default function TrolleyPanelDetails({
   }, []);
 
   const getActiveButtons = () => {
-    if (!carSection.ActiveBtns || !Array.isArray(carSection.ActiveBtns)) return [];
-    return carSection.ActiveBtns.map(btn => (typeof btn === "object" && btn !== null ? btn.Name || btn.name || "" : btn)).filter(Boolean);
+    if (!carSection.ActiveBtns || !Array.isArray(carSection.ActiveBtns))
+      return [];
+    return carSection.ActiveBtns.map((btn) =>
+      typeof btn === "object" && btn !== null ? btn.Name || btn.name || "" : btn
+    ).filter(Boolean);
   };
 
   const activeButtons = getActiveButtons();
 
   const getButtonColor = (btnName) => {
-    const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
+    const btnData = buttonsWithColors.find(
+      (b) => b.BtnName?.toLowerCase() === btnName.toLowerCase()
+    );
     return btnData?.Color || "#4F46E5";
   };
 
   const getButtonOperation = (btnName) => {
-    const btnData = buttonsWithColors.find(b => b.BtnName?.toLowerCase() === btnName.toLowerCase());
+    const btnData = buttonsWithColors.find(
+      (b) => b.BtnName?.toLowerCase() === btnName.toLowerCase()
+    );
     return btnData?.Operation || btnName; // Default to button name if no operation found
   };
 
@@ -48,7 +57,7 @@ export default function TrolleyPanelDetails({
       return;
     }
     const operation = getButtonOperation(btnName);
-    
+
     if (publish) {
       publish(topic, operation);
     } else {
@@ -59,11 +68,22 @@ export default function TrolleyPanelDetails({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 transition hover:shadow-lg">
       <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
+        {/* <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
           <div className="relative">
-            <img src={safeImgSrc} alt="trolley" className="w-48 h-40 object-cover rounded-xl border border-gray-200 shadow-sm" />
+            <img
+              src={
+                carSection?.Image &&
+                carSection.Image !== "Array" &&
+                carSection.Image !== "" &&
+                typeof carSection.Image === "string"
+                  ? `${UPLOADS_URL}/${carSection.Image}?t=${Date.now()}`
+                  : safeImgSrc
+              }
+              alt="trolley"
+              className="h-40 w-40 object-cover rounded-xl border shadow-md"
+            />
           </div>
-        </div>
+        </div> */}
 
         <div className="flex-1 grid grid-cols-2 gap-4">
           <ViewField label="Voltage" value={carSection.Voltage ?? "-"} />
@@ -71,10 +91,15 @@ export default function TrolleyPanelDetails({
           <ViewField label="Status" value={carSection.Status || "-"} />
           <ViewField label="MQTT URL" value={trolleyData.mqttUrl || "-"} />
           <ViewField label="Topic Main" value={carSection.Topic_main || "-"} />
-          <ViewField label="Topic Subscribe" value={carSection.Topic_subscribe || "-"} />
+          <ViewField
+            label="Topic Subscribe"
+            value={carSection.Topic_subscribe || "-"}
+          />
 
           <div className="col-span-2">
-            <label className="text-xs text-gray-500 mb-2 block">Active Buttons</label>
+            <label className="text-xs text-gray-500 mb-2 block">
+              Active Buttons
+            </label>
             <div className="flex flex-wrap gap-2">
               {activeButtons.map((btn) => (
                 <button
@@ -90,7 +115,11 @@ export default function TrolleyPanelDetails({
                   {btn} ✓
                 </button>
               ))}
-              {activeButtons.length === 0 && <div className="text-gray-500 italic text-sm">No active buttons</div>}
+              {activeButtons.length === 0 && (
+                <div className="text-gray-500 italic text-sm">
+                  No active buttons
+                </div>
+              )}
             </div>
           </div>
         </div>
