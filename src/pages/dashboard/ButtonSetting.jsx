@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Save, Trash2, Play, Square, XCircle, Copy } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Play, Square, XCircle, Copy, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { HexColorPicker } from "react-colorful";
@@ -269,6 +269,11 @@ export default function ButtonSetting() {
     navigate(-1);
   };
 
+  // دالة جديدة للانتقال إلى صفحة تفاصيل الروبوت
+  const handleViewRobot = () => {
+    navigate(`/homeDashboard/robotDetails/${id}`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-600">
@@ -283,12 +288,22 @@ export default function ButtonSetting() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
-        <Button
-          onClick={handleBack}
-          className="mb-6 flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color transition-all duration-200"
-        >
-          <ArrowLeft size={18} /> Back to {isTrolley ? "Trolley" : "Robot"} Settings
-        </Button>
+        {/* الأزرار العلوية */}
+        <div className="flex gap-3 mb-6">
+          <Button
+            onClick={handleBack}
+            className="flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color transition-all duration-200 flex-1"
+          >
+            <ArrowLeft size={18} /> Back to {isTrolley ? "Trolley" : "Robot"} Settings
+          </Button>
+          
+          <Button
+            onClick={handleViewRobot}
+            className="flex items-center gap-2 bg-blue-600 text-white hover:bg-white hover:text-blue-600 border border-blue-600 transition-all duration-200 flex-1"
+          >
+            <Eye size={18} /> View Robot
+          </Button>
+        </div>
 
         {error && (
           <motion.div

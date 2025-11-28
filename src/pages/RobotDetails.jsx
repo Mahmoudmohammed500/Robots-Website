@@ -57,8 +57,12 @@ export default function RobotDetails() {
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  const { client, isConnected, publishMessage } = useMqtt({
-    host: "bc501a2acdf343aa811f1923d9af4727.s1.eu.hivemq.cloud",
+  const { 
+    client, 
+    isConnected, 
+    publishButtonMessage  
+  } = useMqtt({
+    host: "43f3644dc69f4e39bdc98298800bf5e1.s1.eu.hivemq.cloud",
     port: 8884,
     clientId: "clientId-1Kyy79c7WB",
     username: "testrobotsuser",
@@ -82,7 +86,6 @@ export default function RobotDetails() {
       
       let robotData;
       if (location.state?.robot) {
-       
         robotData = await getData(`${BASE_URL}/robots/${id}`);
         if (!robotData) {
           console.warn("Robot not found in API");
@@ -309,16 +312,9 @@ export default function RobotDetails() {
     }, 600);
   };
 
-  const getButtonOperation = (btnName) => {
-    const btnData = buttonsWithColors.find(b => 
-      b.BtnName?.toLowerCase() === btnName.toLowerCase()
-    );
-    return btnData?.Operation || btnName;
-  };
-
   const handleButtonClick = (btnName, sectionType = "main") => {
     const section = robot?.Sections?.[sectionType];
-    const topic = section?.Topic_main;n
+    const topic = section?.Topic_main;
     
     if (!topic) {
       console.error(`No topic found for ${sectionType} section`);
@@ -326,17 +322,15 @@ export default function RobotDetails() {
       return;
     }
     
-    const operation = getButtonOperation(btnName);
-    
-    if (publishMessage) {
-      publishMessage(topic, operation);
+    if (publishButtonMessage) {
+      publishButtonMessage(topic, btnName);
       toast.success(`Sent: ${btnName} to ${topic}`);
       
       setTimeout(() => {
         fetchAllData();
       }, 2000);
     } else {
-      console.log(`Would publish to ${topic}: ${operation}`);
+      console.log(`Would publish to ${topic}: ${btnName}`);
       toast.info(`MQTT not connected. Would send: ${btnName}`);
     }
   };
@@ -431,7 +425,7 @@ export default function RobotDetails() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
+          {/* <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
             <span>⏱ {displayTime}</span>
             <RefreshCcw 
               className={`w-6 sm:w-8 h-6 sm:h-8 text-main-color cursor-pointer hover:text-main-color/70 transition-transform duration-600 ${
@@ -440,7 +434,7 @@ export default function RobotDetails() {
               onClick={handleResetTimer}
               title="Reset timer to 24 hours"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Active Buttons */}
@@ -453,7 +447,7 @@ export default function RobotDetails() {
         )}
 
         {/* Topic Information */}
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+        {/* <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Connection Information</h3>
           <div className="space-y-3">
             <div>
@@ -469,7 +463,7 @@ export default function RobotDetails() {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
       </motion.div>
     );
   };
@@ -509,7 +503,7 @@ export default function RobotDetails() {
         )}
 
         {/* Trolley Topic Information */}
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mt-6">
+        {/* <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mt-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Trolley Connection Information</h3>
           <div className="space-y-3">
             <div>
@@ -525,7 +519,7 @@ export default function RobotDetails() {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
       </motion.div>
     );
   };
@@ -617,7 +611,7 @@ export default function RobotDetails() {
               <UserNotificationsTab 
                 robotId={id} 
                 sectionName="main" 
-                publish={publishMessage}
+                publish={publishButtonMessage} 
                 client={client}
               />
             )}
@@ -625,7 +619,7 @@ export default function RobotDetails() {
             {activeTab === "logs" && (
               <UserLogsTab 
                 sectionName="main" 
-                publish={publishMessage}
+                publish={publishButtonMessage} 
                 client={client}
               />
             )}
@@ -659,7 +653,7 @@ export default function RobotDetails() {
                   <UserNotificationsTab 
                     robotId={id} 
                     sectionName="car" 
-                    publish={publishMessage}
+                    publish={publishButtonMessage} 
                     client={client}
                   />
                 )}
@@ -667,7 +661,7 @@ export default function RobotDetails() {
                 {activeTrolleyTab === "logs" && (
                   <UserLogsTab 
                     sectionName="car" 
-                    publish={publishMessage}
+                    publish={publishButtonMessage} 
                     client={client}
                   />
                 )}
@@ -686,7 +680,7 @@ export default function RobotDetails() {
           <div className="bg-white rounded-3xl shadow-lg p-6 sm:p-10 border border-gray-100">
             <ScheduleDisplay
               scheduleButton={scheduleButton}
-              publish={publishMessage}
+              publish={publishButtonMessage} // publishButtonMessage
               topic={Sections?.car?.Topic_main}
               loading={scheduleLoading}
             />

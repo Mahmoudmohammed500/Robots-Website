@@ -112,7 +112,7 @@ export default function ProjectDetails() {
 
   //  MQTT
   const { client, isConnected, publishMessage } = useMqtt({
-    host: "bc501a2acdf343aa811f1923d9af4727.s1.eu.hivemq.cloud",
+    host: "43f3644dc69f4e39bdc98298800bf5e1.s1.eu.hivemq.cloud",
     port: 8884,
     clientId: "clientId-1Kyy79c7WB",
     username: "testrobotsuser",

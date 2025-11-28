@@ -43,25 +43,13 @@ export default function RobotMainPanelView({
     return btnData?.Color || "#4F46E5";
   };
 
-  const getButtonOperation = (btnName) => {
-    const btnData = buttonsWithColors.find(
-      (b) => b.BtnName?.toLowerCase() === btnName.toLowerCase()
-    );
-    return btnData?.Operation || btnName; // Default to button name if no operation found
-  };
-
   const handleButtonClick = (btnName) => {
-    const topic = mainSection.Topic_main;
-    if (!topic) {
-      console.error("No topic found for main section");
-      return;
-    }
-    const operation = getButtonOperation(btnName);
-
+    console.log("🤖 Robot Button Clicked:", btnName);
+    
     if (publish) {
-      publish(topic, operation);
+      publish(btnName);
     } else {
-      console.log(`Would publish to ${topic}: ${operation}`);
+      console.log(`Would publish robot button: ${btnName}`);
     }
   };
 
@@ -73,7 +61,7 @@ export default function RobotMainPanelView({
             src={
               robot?.Image && robot.Image !== "Array"
                 ? `${UPLOADS_URL}/${robot.Image}?t=${Date.now()}`
-                : RobotImg
+                : "/assets/placeholder-robot.jpg"
             }
             alt="Robot"
             className="h-40 w-40 object-cover rounded-xl border shadow-md"
@@ -87,7 +75,7 @@ export default function RobotMainPanelView({
           <ViewField label="Status" value={mainSection.Status || "-"} />
           <ViewField label="Robot ID" value={robot?.id || "-"} />
           <ViewField label="MQTT URL" value={robot?.mqttUrl || "-"} />
-          <ViewField label="Topic Main" value={mainSection.Topic_main || "-"} />
+          <ViewField label="Topic Publisher " value={mainSection.Topic_main || "-"} />
           <ViewField
             label="Topic Subscribe"
             value={mainSection.Topic_subscribe || "-"}

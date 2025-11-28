@@ -43,54 +43,25 @@ export default function TrolleyPanelDetails({
     return btnData?.Color || "#4F46E5";
   };
 
-  const getButtonOperation = (btnName) => {
-    const btnData = buttonsWithColors.find(
-      (b) => b.BtnName?.toLowerCase() === btnName.toLowerCase()
-    );
-    return btnData?.Operation || btnName; // Default to button name if no operation found
-  };
-
   const handleButtonClick = (btnName) => {
-    const topic = carSection.Topic_main;
-    if (!topic) {
-      console.error("No topic found for car section");
-      return;
-    }
-    const operation = getButtonOperation(btnName);
-
+    console.log("🛒 Trolley Button Clicked:", btnName);
+    
     if (publish) {
-      publish(topic, operation);
+      publish(btnName);
     } else {
-      console.log(`Would publish to ${topic}: ${operation}`);
+      console.log(`Would publish trolley button: ${btnName}`);
     }
   };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 transition hover:shadow-lg">
       <div className="flex flex-col md:flex-row gap-6">
-        {/* <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
-          <div className="relative">
-            <img
-              src={
-                carSection?.Image &&
-                carSection.Image !== "Array" &&
-                carSection.Image !== "" &&
-                typeof carSection.Image === "string"
-                  ? `${UPLOADS_URL}/${carSection.Image}?t=${Date.now()}`
-                  : safeImgSrc
-              }
-              alt="trolley"
-              className="h-40 w-40 object-cover rounded-xl border shadow-md"
-            />
-          </div>
-        </div> */}
-
         <div className="flex-1 grid grid-cols-2 gap-4">
           <ViewField label="Voltage" value={carSection.Voltage ?? "-"} />
           <ViewField label="Cycles" value={carSection.Cycles ?? "-"} />
           <ViewField label="Status" value={carSection.Status || "-"} />
           <ViewField label="MQTT URL" value={trolleyData.mqttUrl || "-"} />
-          <ViewField label="Topic Main" value={carSection.Topic_main || "-"} />
+          <ViewField label="Topic Publisher" value={carSection.Topic_main || "-"} />
           <ViewField
             label="Topic Subscribe"
             value={carSection.Topic_subscribe || "-"}

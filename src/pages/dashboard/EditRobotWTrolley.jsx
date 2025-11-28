@@ -115,23 +115,41 @@ export default function EditRobot() {
   };
 
   const updateMainSection = (updates) => {
-    console.log("Updating main section:", updates);
+    // منع تحديث الحقول الثابتة
+    const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
+    console.log("Updating main section (filtered):", allowedUpdates);
     setRobot((prev) => ({
       ...prev,
       Sections: { 
         ...prev.Sections, 
-        main: { ...prev.Sections.main, ...updates } 
+        main: { 
+          ...prev.Sections.main, 
+          ...allowedUpdates,
+          // الحفاظ على القيم الأصلية من API
+          Voltage: prev.Sections.main.Voltage,
+          Cycles: prev.Sections.main.Cycles,
+          Status: prev.Sections.main.Status
+        } 
       },
     }));
   };
 
   const updateCarSection = (updates) => {
-    console.log("Updating car section:", updates);
+    // منع تحديث الحقول الثابتة
+    const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
+    console.log("Updating car section (filtered):", allowedUpdates);
     setRobot((prev) => ({
       ...prev,
       Sections: { 
         ...prev.Sections, 
-        car: { ...prev.Sections.car, ...updates } 
+        car: { 
+          ...prev.Sections.car, 
+          ...allowedUpdates,
+          // الحفاظ على القيم الأصلية من API
+          Voltage: prev.Sections.car?.Voltage,
+          Cycles: prev.Sections.car?.Cycles,
+          Status: prev.Sections.car?.Status
+        } 
       },
     }));
   };
@@ -148,16 +166,7 @@ export default function EditRobot() {
       return;
     }
 
-    if (!robot.Sections.main.Voltage || !robot.Sections.main.Cycles) {
-      toast.warning("Please fill main section Voltage & Cycles");
-      return;
-    }
-
-    if (showTrolley && (!robot.Sections.car?.Voltage || !robot.Sections.car?.Cycles)) {
-      toast.warning("Please fill trolley section Voltage & Cycles");
-      return;
-    }
-
+    // إزالة التحقق من الحقول الثابتة
     setSubmitting(true);
 
     try {
@@ -169,8 +178,9 @@ export default function EditRobot() {
         Sections: {
           main: {
             ...robot.Sections.main,
-            Voltage: Number(robot.Sections.main.Voltage),
-            Cycles: Number(robot.Sections.main.Cycles),
+            // إرسال القيم كما هي من API بدون تحويل
+            Voltage: robot.Sections.main.Voltage,
+            Cycles: robot.Sections.main.Cycles,
           },
         },
       };
@@ -178,8 +188,9 @@ export default function EditRobot() {
       if (showTrolley && robot.Sections.car) {
         payload.Sections.car = {
           ...robot.Sections.car,
-          Voltage: Number(robot.Sections.car.Voltage),
-          Cycles: Number(robot.Sections.car.Cycles),
+          // إرسال القيم كما هي من API بدون تحويل
+          Voltage: robot.Sections.car.Voltage,
+          Cycles: robot.Sections.car.Cycles,
         };
       }
 
@@ -253,6 +264,8 @@ export default function EditRobot() {
               updateCarSection={updateCarSection}
               imagePreview={robot.imagePreview}
               updateImage={updateImage}
+              // تمرير prop للإشارة إلى أن الحقول للقراءة فقط
+              readOnlyFields={true}
             />
           </section>
         )}
@@ -299,6 +312,8 @@ export default function EditRobot() {
                 updateImage={updateImage}
                 mqttUrl={robot.mqttUrl}
                 updateMqttUrl={updateMqttUrl}
+                // تمرير prop للإشارة إلى أن الحقول للقراءة فقط
+                readOnlyFields={true}
               />
             )}
           </div>

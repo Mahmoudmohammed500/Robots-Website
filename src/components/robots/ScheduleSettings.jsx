@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { postData } from "@/services/postServices";
 import { useParams } from "react-router-dom";
 
+
 export default function ScheduleSettings({
   schedule = { days: [], hour: 8, minute: 0 },
   setSchedule = () => {},
@@ -86,7 +87,7 @@ export default function ScheduleSettings({
         projectId: projectId, 
       };
 
-      await postData(`${BASE_URL}/buttons.php?section=car`, newButton);
+      // await postData(`${BASE_URL}/buttons.php?section=car`, newButton);
       
       const successMessage = topic && publish 
         ? `Schedule saved as button: ${btnName} and sent via MQTT`

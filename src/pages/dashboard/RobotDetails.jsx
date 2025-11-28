@@ -29,7 +29,9 @@ export default function RobotDetailsFull() {
     try {
       const data = await getData(`${BASE_URL}/robots.php/${id}`);
       setRobot(data || {});
-    } catch (err) {}
+    } catch (err) {
+      console.error("Error fetching robot:", err);
+    }
   };
 
   const handleCyclesUpdate = (robotId, sectionName, newCycles) => {
@@ -56,15 +58,18 @@ export default function RobotDetailsFull() {
 
         return updatedRobot;
       });
-    } else {
     }
   };
 
-  // mqtt setup   onCyclesUpdate
-  const { client, isConnected, publishMessage } = useMqtt({
-    host: "bc501a2acdf343aa811f1923d9af4727.s1.eu.hivemq.cloud",
-    port: 8884,
+  const { 
+    client, 
+    isConnected, 
+    publishButtonMessage,
+    publishMessage
+  } = useMqtt({
+    host: "43f3644dc69f4e39bdc98298800bf5e1.s1.eu.hivemq.cloud",
     clientId: "clientId-1Kyy79c7WB",
+    port: 8884,
     username: "testrobotsuser",
     password: "Testrobotsuser@1234",
     onCyclesUpdate: handleCyclesUpdate,
@@ -149,14 +154,43 @@ export default function RobotDetailsFull() {
               staticBtn.toLowerCase() === activeBtn.Name.toLowerCase()
           )
       )
-      .map((activeBtn) => activeBtn.Name);
+      .map((activeBtn) => {
+        const btnName = activeBtn.Name;
+        return btnName;
+      });
 
     return [...new Set([...activeStaticButtons, ...newActiveButtons])];
   };
 
-  // message sender method mqtt
-  const handleButtonClick = (topic, value) => {
-    publishMessage(topic, value);
+  const handleButtonClick = (btnName, sectionType = "main") => {
+    console.log("🎯 BUTTON CLICKED:", { btnName, sectionType });
+    
+    let topic;
+    if (sectionType === "main") {
+      topic = robot?.Sections?.main?.Topic_main;
+    } else if (sectionType === "car") {
+      topic = robot?.Sections?.car?.Topic_main;
+    }
+
+    if (!topic) {
+      console.error(`No topic found for ${sectionType} section`);
+      toast.error(`No topic configured for ${sectionType} section`);
+      return;
+    }
+
+    console.log("📤 PUBLISHING:", { topic, message: btnName });
+    
+    if (publishMessage) {
+      publishMessage(topic, btnName);
+      toast.success(`Sent: ${btnName}`);
+    } 
+    else if (publishButtonMessage) {
+      publishButtonMessage(topic, btnName);
+      toast.success(`Sent: ${btnName}`);
+    } else {
+      console.log(`Would publish to ${topic}: ${btnName}`);
+      toast.info(`MQTT not connected. Would send: ${btnName}`);
+    }
   };
 
   if (loading)
@@ -195,7 +229,7 @@ export default function RobotDetailsFull() {
               src={
                 robot?.Image && robot.Image !== "Array"
                   ? `${UPLOADS_URL}/${robot.Image}?t=${Date.now()}`
-                  : RobotImg
+                  : "/assets/placeholder-robot.jpg"
               }
               alt="Robot"
               className="h-40 w-40 object-cover rounded-xl border shadow-md"
@@ -259,7 +293,7 @@ export default function RobotDetailsFull() {
                   robotId={id}
                   imgSrc="/assets/placeholder-trolley.jpg"
                   trolleyData={robot}
-                  publish={handleButtonClick}
+                  publish={(btnName) => handleButtonClick(btnName, "car")}
                   client={client}
                 />
               )}
@@ -268,7 +302,7 @@ export default function RobotDetailsFull() {
                   projectId={robot.projectId || "-"}
                   robotId={robot.id || "-"}
                   sectionName="car"
-                  publish={handleButtonClick}
+                  publish={publishButtonMessage}
                   client={client}
                 />
               )}
@@ -277,7 +311,7 @@ export default function RobotDetailsFull() {
                   projectId={robot.projectId || "-"}
                   robotId={robot.id || "-"}
                   sectionName="car"
-                  publish={handleButtonClick}
+                  publish={publishButtonMessage}
                   client={client}
                 />
               )}
@@ -303,7 +337,7 @@ export default function RobotDetailsFull() {
               schedule={robot.schedule || { days: [], hour: 8, minute: 0 }}
               setSchedule={(s) => setRobot((r) => ({ ...r, schedule: s }))}
               projectId={robot.projectId}
-              publish={handleButtonClick}
+              publish={publishButtonMessage}
               topic={robot.Sections?.car?.Topic_main}
             />
           </section>
@@ -345,7 +379,7 @@ export default function RobotDetailsFull() {
                 robot={robot}
                 setRobot={setRobot}
                 allButtons={ALL_BUTTONS}
-                publish={handleButtonClick}
+                publish={(btnName) => handleButtonClick(btnName, "main")}
                 client={client}
               />
             )}
@@ -354,7 +388,7 @@ export default function RobotDetailsFull() {
                 projectId={robot.projectId}
                 robotId={robot.id}
                 sectionName="main"
-                publish={handleButtonClick}
+                publish={publishButtonMessage}
                 client={client}
               />
             )}
@@ -363,7 +397,7 @@ export default function RobotDetailsFull() {
                 projectId={robot.projectId}
                 robotId={robot.id}
                 sectionName="main"
-                publish={handleButtonClick}
+                publish={publishButtonMessage}
                 client={client}
               />
             )}

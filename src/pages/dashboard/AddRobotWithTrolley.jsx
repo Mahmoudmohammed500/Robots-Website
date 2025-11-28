@@ -24,18 +24,18 @@ export default function AddRobotWithTrolley() {
     mqttUrl: "",
     Sections: {
       main: {
-        Voltage: "",
-        Cycles: "",
-        Status: "",
+        Voltage: "0", // قيمة ثابتة
+        Cycles: "0", // قيمة ثابتة
+        Status: "stopped", // قيمة ثابتة
         ActiveBtns: [],
         Topic_subscribe: "",
         Topic_main: "",
       },
       car: showTrolley
         ? {
-            Voltage: "",
-            Cycles: "",
-            Status: "",
+            Voltage: "0", // قيمة ثابتة
+            Cycles: "0", // قيمة ثابتة
+            Status: "stopped", // قيمة ثابتة
             ActiveBtns: [],
             Topic_subscribe: "",
             Topic_main: "",
@@ -72,7 +72,26 @@ export default function AddRobotWithTrolley() {
       fd.append("mqttUrl", robot.mqttUrl);
       fd.append("projectId", Number(id));
       fd.append("isTrolley", showTrolley ? 1 : 0);
-      fd.append("Sections", JSON.stringify(robot.Sections));
+      
+      // التأكد من إرسال القيم الثابتة
+      const sectionsToSend = {
+        main: {
+          ...robot.Sections.main,
+          Voltage: "0",
+          Cycles: "0",
+          Status: "stopped"
+        },
+        car: showTrolley
+          ? {
+              ...robot.Sections.car,
+              Voltage: "0",
+              Cycles: "0", 
+              Status: "stopped"
+            }
+          : {}
+      };
+      
+      fd.append("Sections", JSON.stringify(sectionsToSend));
 
       if (robot.Image) {
         fd.append("Image", robot.Image);
@@ -99,21 +118,39 @@ export default function AddRobotWithTrolley() {
   };
 
   const updateMainSection = (updates) => {
+    // منع تحديث الحقول الثابتة في main section
+    const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     setRobot((prev) => ({
       ...prev,
       Sections: {
         ...prev.Sections,
-        main: { ...prev.Sections.main, ...updates },
+        main: { 
+          ...prev.Sections.main, 
+          ...allowedUpdates,
+          // الحفاظ على القيم الثابتة
+          Voltage: "0",
+          Cycles: "0",
+          Status: "stopped"
+        },
       },
     }));
   };
 
   const updateCarSection = (updates) => {
+    // منع تحديث الحقول الثابتة في car section
+    const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     setRobot((prev) => ({
       ...prev,
       Sections: {
         ...prev.Sections,
-        car: { ...prev.Sections.car, ...updates },
+        car: { 
+          ...prev.Sections.car, 
+          ...allowedUpdates,
+          // الحفاظ على القيم الثابتة
+          Voltage: "0",
+          Cycles: "0",
+          Status: "stopped"
+        },
       },
     }));
   };
@@ -182,6 +219,8 @@ export default function AddRobotWithTrolley() {
                 updateCarSection={updateCarSection}
                 imagePreview={robot.imagePreview}
                 updateImage={updateImage}
+                // تمرير prop إضافي للإشارة إلى أن هذه الحقول ثابتة
+                fixedFields={true}
               />
             </div>
           </section>
@@ -237,6 +276,8 @@ export default function AddRobotWithTrolley() {
                 updateImage={updateImage}
                 mqttUrl={robot.mqttUrl}
                 updateMqttUrl={updateMqttUrl}
+                // تمرير prop إضافي للإشارة إلى أن هذه الحقول ثابتة
+                fixedFields={true}
               />
             )}
           </div>

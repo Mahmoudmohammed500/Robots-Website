@@ -37,7 +37,7 @@ export default function RobotTrolleyPanel({
 
         <div className="flex-1 grid grid-cols-2 gap-4">
           {/* Voltage & Cycles */}
-          <EditableField
+          {/* <EditableField
             label="Voltage"
             value={carData.Voltage || ""}
             onChange={(v) => handleCarChange("Voltage", v)}
@@ -50,7 +50,7 @@ export default function RobotTrolleyPanel({
             onChange={(v) => handleCarChange("Cycles", v)}
             type="number"
             placeholder="Enter cycles"
-          />
+          /> */}
 
           {/* Topic Subscribe */}
           <EditableField
@@ -62,15 +62,15 @@ export default function RobotTrolleyPanel({
 
           {/* Topic Main */}
           <EditableField
-            label="Topic Main"
+            label="Topic Publisher"
             value={carData.Topic_main || ""}
             onChange={(v) => handleCarChange("Topic_main", v)}
-            placeholder="Enter main topic"
+            placeholder="Enter publisher topic"
           />
 
           {/* Status */}
           <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1">Status</label>
+            {/* <label className="text-xs text-gray-500 mb-1">Status</label>
             <select
               value={carData.Status || ""}
               onChange={(e) => handleCarChange("Status", e.target.value)}
@@ -80,7 +80,7 @@ export default function RobotTrolleyPanel({
               <option value="Running">Running</option>
               <option value="Stopped">Stopped</option>
               <option value="Idle">Idle</option>
-            </select>
+            </select> */}
           </div>
         </div>
       </div>

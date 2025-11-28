@@ -105,10 +105,10 @@ export default function RobotMainPanel({
 
           {/* Topic Main */}
           <EditableField 
-            label="Topic Main"
+            label="Topic Publisher "
             value={mainData.Topic_main || ""}
             onChange={(v) => handleMainChange("Topic_main", v)}
-            placeholder="Enter main topic"
+            placeholder="Enter publisher  topic"
           />
 
           {/* Status */}

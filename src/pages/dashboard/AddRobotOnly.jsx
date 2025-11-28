@@ -21,9 +21,9 @@ export default function AddRobotOnly() {
     isTrolley: false,
     Sections: {
       main: {
-        Voltage: "",
-        Cycles: "",
-        Status: "",
+        Voltage: "0", // قيمة ثابتة
+        Cycles: "0", // قيمة ثابتة
+        Status: "stopped", // قيمة ثابتة
         ActiveBtns: [],
         Topic_subscribe: "",
         Topic_main: "",
@@ -49,11 +49,20 @@ export default function AddRobotOnly() {
   };
 
   const updateMainSection = (updates) => {
+    // منع تحديث الحقول الثابتة
+    const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     setRobot((prev) => ({
       ...prev,
       Sections: {
         ...prev.Sections,
-        main: { ...prev.Sections.main, ...updates },
+        main: { 
+          ...prev.Sections.main, 
+          ...allowedUpdates,
+          // الحفاظ على القيم الثابتة
+          Voltage: "0",
+          Cycles: "0", 
+          Status: "stopped"
+        },
       },
     }));
   };
@@ -88,7 +97,19 @@ export default function AddRobotOnly() {
       fd.append("mqttUrl", robot.mqttUrl.trim());
       fd.append("projectId", robot.projectId);
       fd.append("isTrolley", robot.isTrolley ? 1 : 0);
-      fd.append("Sections", JSON.stringify(robot.Sections));
+      
+      // التأكد من إرسال القيم الثابتة
+      const sectionsToSend = {
+        ...robot.Sections,
+        main: {
+          ...robot.Sections.main,
+          Voltage: "0",
+          Cycles: "0",
+          Status: "stopped"
+        }
+      };
+      
+      fd.append("Sections", JSON.stringify(sectionsToSend));
 
       // Append image file only if selected
       if (robot.Image) {
@@ -200,6 +221,8 @@ export default function AddRobotOnly() {
                 updateImage={updateImage}
                 mqttUrl={robot.mqttUrl}
                 updateMqttUrl={updateMqttUrl}
+                // تمرير prop إضافي للإشارة إلى أن هذه الحقول ثابتة
+                fixedFields={true}
               />
             )}
           </div>

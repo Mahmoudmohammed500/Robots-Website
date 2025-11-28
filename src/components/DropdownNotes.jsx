@@ -52,6 +52,7 @@ export default function NotificationCenter({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [robots, setRobots] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [currentProject, setCurrentProject] = useState(null);
@@ -163,12 +164,16 @@ export default function NotificationCenter({
   }, []);
 
   useEffect(() => {
-    if (robotsLoaded && notifications.length > 0) {
+    if (robotsLoaded) {
       applyFilters();
-      
+    }
+  }, [searchTerm, filterType, notifications, robotsLoaded, currentProject]);
+
+  useEffect(() => {
+    if (robotsLoaded && notifications.length > 0 && currentProject) {
       checkForNewAlerts();
     }
-  }, [notifications, robotsLoaded]);
+  }, [notifications, robotsLoaded, currentProject]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -183,6 +188,29 @@ export default function NotificationCenter({
     };
   }, [onClose]);
 
+  // Check if notification belongs to current project
+  const isNotificationInCurrentProject = (notification) => {
+    if (!currentProject) return false;
+    
+    // If notification has a RobotId, find the robot and check its project
+    if (notification.RobotId) {
+      const robot = robots.find(r => r.id && r.id.toString() === notification.RobotId.toString());
+      if (robot && robot.projectId && currentProject.projectId) {
+        return parseInt(robot.projectId) === parseInt(currentProject.projectId);
+      }
+    }
+    
+    // If notification has topic_main, find robot by topic and check project
+    if (notification.topic_main) {
+      const robot = findRobotByTopic(notification.topic_main);
+      if (robot && robot.projectId && currentProject.projectId) {
+        return parseInt(robot.projectId) === parseInt(currentProject.projectId);
+      }
+    }
+    
+    return false;
+  };
+
   const checkForNewAlerts = async () => {
     try {
       const currentProjectName = currentProject?.ProjectName;
@@ -194,7 +222,8 @@ export default function NotificationCenter({
       const newAlerts = notifications.filter(note => 
         isAlertNotification(note) && 
         isNewNotification(note) &&
-        note.notificationId !== lastProcessedAlertId
+        note.notificationId !== lastProcessedAlertId &&
+        isNotificationInCurrentProject(note)
       );
 
       if (newAlerts.length > 0) {
@@ -214,11 +243,15 @@ export default function NotificationCenter({
     if (!robotsLoaded || notifications.length === 0) return "";
     
     const hasNewAlert = notifications.some(note => 
-      isAlertNotification(note) && isNewNotification(note)
+      isAlertNotification(note) && 
+      isNewNotification(note) &&
+      isNotificationInCurrentProject(note)
     );
     
     const hasNewNotification = notifications.some(note => 
-      !isAlertNotification(note) && isNewNotification(note)
+      !isAlertNotification(note) && 
+      isNewNotification(note) &&
+      isNotificationInCurrentProject(note)
     );
 
     if (hasNewAlert) return "bell-blink-red";
@@ -254,13 +287,23 @@ export default function NotificationCenter({
     }
   };
 
+  const fetchAllProjects = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/projects.php`);
+      const projectsArray = Array.isArray(res.data) ? res.data : [];
+      setProjects(projectsArray);
+      return projectsArray;
+    } catch (err) {
+      console.error("Failed to fetch projects:", err);
+      return [];
+    }
+  };
+
   const fetchProjectByName = async (projectName) => {
     try {
       if (!projectName) return null;
 
-      const res = await axios.get(`${API_BASE}/projects.php`);
-      const projects = Array.isArray(res.data) ? res.data : [];
-
+      const projects = await fetchAllProjects();
       const project = projects.find(
         (proj) =>
           proj.ProjectName &&
@@ -275,8 +318,21 @@ export default function NotificationCenter({
 
   const fetchAllRobots = async () => {
     try {
+      console.log("Fetching robots from API...");
       const res = await axios.get(`${API_BASE}/robots.php`);
-      const robotsArray = Array.isArray(res.data) ? res.data : [];
+      console.log("Raw robots API response:", res.data);
+      
+      let robotsArray = [];
+      
+      // Handle different response formats
+      if (Array.isArray(res.data)) {
+        robotsArray = res.data;
+      } else if (res.data && typeof res.data === 'object') {
+        // If it's an object, convert to array
+        robotsArray = Object.values(res.data);
+      }      
+
+      
       return robotsArray;
     } catch (err) {
       console.error("Failed to fetch robots:", err);
@@ -304,13 +360,16 @@ export default function NotificationCenter({
     for (const robot of robots) {
       if (!robot.Sections) continue;
       
+      // Check both main and car sections
       for (const [sectionName, section] of Object.entries(robot.Sections)) {
         if (section.Topic_main === topicMain) {
+          console.log(`Found robot by topic ${topicMain}:`, robot);
           return robot;
         }
       }
     }
     
+    console.log(`No robot found for topic: ${topicMain}`);
     return null;
   };
 
@@ -322,14 +381,25 @@ export default function NotificationCenter({
     const searchId = robotId.toString().trim();
     
     const robot = robots.find(r => {
-      return r.id != null && r.id.toString() === searchId;
+      // Try multiple possible ID fields
+      const possibleIds = [
+        r.id, 
+        r.robotId, 
+        r.RobotId, 
+        r.robot_id
+      ].map(id => id?.toString().trim()).filter(Boolean);
+      
+      return possibleIds.some(id => id === searchId);
     });
     
     if (robot) {
-      const robotName = robot.RobotName || robot.robotName || robot.name || 'Unknown Robot';
+      // Try multiple possible name fields
+      const robotName = robot.RobotName || robot.robotName || robot.name || robot.robot_name || 'Unknown Robot';
+      console.log(`Found robot: ${robotName} for ID: ${robotId}`, robot);
       return robotName;
     }
     
+    console.log(`Robot not found for ID: ${robotId}, available robots:`, robots);
     return "Robot Not Found";
   };
 
@@ -337,15 +407,25 @@ export default function NotificationCenter({
     if (!topic) return "Unknown Section";
     
     const parts = topic.split('/');
+    console.log(`Section topic parts:`, parts);
+    
     if (parts.length >= 2) {
       const sectionType = parts[1];
+      let sectionName = sectionType;
+      
       if (sectionType === 'car') {
-        return 'Trolley';
+        sectionName = 'Trolley';
       } else if (sectionType === 'main') {
-        return 'Robot';
+        sectionName = 'Robot';
+      } else {
+        // Capitalize section name
+        sectionName = sectionType.charAt(0).toUpperCase() + sectionType.slice(1);
       }
-      return sectionType.charAt(0).toUpperCase() + sectionType.slice(1);
+      
+      console.log(`Section name: ${sectionName}`);
+      return sectionName;
     }
+    
     return "Unknown Section";
   };
 
@@ -353,12 +433,31 @@ export default function NotificationCenter({
     if (!topic) return "Unknown Robot";
     
     const parts = topic.split('/');
+    console.log(`Topic parts:`, parts);
+    
     if (parts.length > 0) {
-      const robotNameFromTopic = parts[0];
-      if (robotNameFromTopic && robotNameFromTopic !== 'robot') {
-        return robotNameFromTopic.charAt(0).toUpperCase() + robotNameFromTopic.slice(1);
+      let robotNameFromTopic = parts[0];
+      
+      // Clean up the robot name
+      if (robotNameFromTopic) {
+        // Remove common prefixes/suffixes
+        robotNameFromTopic = robotNameFromTopic
+          .replace(/^robot_/i, '')
+          .replace(/^bot_/i, '')
+          .replace(/_/g, ' ')
+          .trim();
+        
+        // Capitalize first letter of each word
+        robotNameFromTopic = robotNameFromTopic
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+        
+        console.log(`Extracted robot name from topic: ${robotNameFromTopic}`);
+        return robotNameFromTopic || "Unknown Robot";
       }
     }
+    
     return "Unknown Robot";
   };
 
@@ -368,25 +467,35 @@ export default function NotificationCenter({
     let robotName = "Unknown Robot";
     let sectionName = "Unknown Section";
 
+    console.log("Getting robot info for notification:", note);
+
+    // First try: Use RobotId to find robot
     if (note.RobotId) {
       robotName = getRobotNameByRobotId(note.RobotId);
+      console.log(`Robot name from RobotId (${note.RobotId}): ${robotName}`);
     }
 
-    if ((!robotName || robotName === "Robot Not Found") && note.topic_main) {
+    // Second try: Use topic_main to find robot
+    if ((!robotName || robotName === "Robot Not Found" || robotName === "Unknown Robot") && note.topic_main) {
       const robotFromTopic = findRobotByTopic(note.topic_main);
       if (robotFromTopic) {
-        robotName = robotFromTopic.RobotName || robotFromTopic.robotName || "Unknown Robot";
+        robotName = robotFromTopic.RobotName || robotFromTopic.robotName || robotFromTopic.name || "Unknown Robot";
+        console.log(`Robot name from topic (${note.topic_main}): ${robotName}`);
       }
     }
 
-    if ((!robotName || robotName === "Robot Not Found") && note.topic_main) {
+    // Third try: Extract robot name from topic
+    if ((!robotName || robotName === "Robot Not Found" || robotName === "Unknown Robot") && note.topic_main) {
       robotName = getRobotNameFromTopic(note.topic_main);
+      console.log(`Robot name extracted from topic: ${robotName}`);
     }
 
+    // Get section name
     if (note.topic_main) {
       sectionName = getSectionNameFromTopic(note.topic_main);
     }
 
+    console.log(`Final result - Robot: ${robotName}, Section: ${sectionName}`);
     return { robotName, sectionName };
   };
 
@@ -403,6 +512,7 @@ export default function NotificationCenter({
 
       const allRobots = await fetchAllRobots();
       setRobots(allRobots);
+      
       setRobotsLoaded(true);
 
       const res = await axios.get(`${API_BASE}/notifications.php`, {
@@ -434,16 +544,29 @@ export default function NotificationCenter({
   };
 
   const applyFilters = () => {
-    if (!robotsLoaded) return;
-
+    console.log("Applying filters:", { 
+      searchTerm, 
+      filterType, 
+      notificationsCount: notifications.length,
+      currentProject: currentProject?.ProjectName 
+    });
+    
     let filtered = [...notifications];
 
+    // Filter by current project first
+    if (currentProject) {
+      filtered = filtered.filter(note => isNotificationInCurrentProject(note));
+      console.log(`Filtered to ${filtered.length} notifications for project ${currentProject.ProjectName}`);
+    }
+
     if (searchTerm) {
-      filtered = filtered.filter(note =>
-        note.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.topic_main?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (note.RobotId && note.RobotId.toString().includes(searchTerm))
-      );
+      filtered = filtered.filter(note => {
+        const messageMatch = note.message?.toLowerCase().includes(searchTerm.toLowerCase());
+        const topicMatch = note.topic_main?.toLowerCase().includes(searchTerm.toLowerCase());
+        const robotIdMatch = note.RobotId && note.RobotId.toString().includes(searchTerm);
+        
+        return messageMatch || topicMatch || robotIdMatch;
+      });
     }
 
     if (filterType === "alerts") {
@@ -452,6 +575,7 @@ export default function NotificationCenter({
       filtered = filtered.filter(note => !isAlertNotification(note));
     }
 
+    console.log("Final filtered results:", filtered.length);
     setFilteredNotifications(filtered);
   };
 
@@ -586,7 +710,10 @@ export default function NotificationCenter({
               <div className="flex gap-2">
                 <Button
                   variant={filterType === "all" ? "default" : "outline"}
-                  onClick={() => setFilterType("all")}
+                  onClick={() => {
+                    console.log("Setting filter to: all");
+                    setFilterType("all");
+                  }}
                   className="flex items-center gap-2"
                 >
                   <Filter className="w-4 h-4" />
@@ -594,7 +721,10 @@ export default function NotificationCenter({
                 </Button>
                 <Button
                   variant={filterType === "alerts" ? "default" : "outline"}
-                  onClick={() => setFilterType("alerts")}
+                  onClick={() => {
+                    console.log("Setting filter to: alerts");
+                    setFilterType("alerts");
+                  }}
                   className="flex items-center gap-2 bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
                 >
                   <AlertTriangle className="w-4 h-4" />
@@ -602,7 +732,10 @@ export default function NotificationCenter({
                 </Button>
                 <Button
                   variant={filterType === "notifications" ? "default" : "outline"} 
-                  onClick={() => setFilterType("notifications")}
+                  onClick={() => {
+                    console.log("Setting filter to: notifications");
+                    setFilterType("notifications");
+                  }}
                   className="flex items-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
                 >
                   <Bell className="w-4 h-4" /> 
@@ -619,7 +752,9 @@ export default function NotificationCenter({
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Notifications</p>
-                    <p className="text-2xl font-bold text-gray-800">{notifications.length}</p>
+                    <p className="text-2xl font-bold text-gray-800">
+                      {notifications.filter(note => !currentProject || isNotificationInCurrentProject(note)).length}
+                    </p>
                   </div>
                   <Bell className="w-8 h-8 text-blue-500" />
                 </div>
@@ -632,7 +767,10 @@ export default function NotificationCenter({
                   <div>
                     <p className="text-sm font-medium text-gray-600">Alert Notifications</p>
                     <p className="text-2xl font-bold text-gray-800">
-                      {notifications.filter(note => isAlertNotification(note)).length}
+                      {notifications.filter(note => 
+                        isAlertNotification(note) && 
+                        (!currentProject || isNotificationInCurrentProject(note))
+                      ).length}
                     </p>
                   </div>
                   <AlertTriangle className="w-8 h-8 text-red-500" />
@@ -646,7 +784,10 @@ export default function NotificationCenter({
                   <div>
                     <p className="text-sm font-medium text-gray-600">Normal Notifications</p> 
                     <p className="text-2xl font-bold text-gray-800">
-                      {notifications.filter(note => !isAlertNotification(note)).length}
+                      {notifications.filter(note => 
+                        !isAlertNotification(note) && 
+                        (!currentProject || isNotificationInCurrentProject(note))
+                      ).length}
                     </p>
                   </div>
                   <Bell className="w-8 h-8 text-green-500" /> 
@@ -681,8 +822,8 @@ export default function NotificationCenter({
               <div className="p-12 text-center">
                 <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 text-lg mb-2">
-                  {searchTerm || filterType !== "all" 
-                    ? "No notifications match your filters" 
+                  {currentProject 
+                    ? `No notifications found for project ${currentProject.ProjectName}` 
                     : "No notifications found"}
                 </p>
                 {(searchTerm || filterType !== "all") && (
@@ -704,7 +845,8 @@ export default function NotificationCenter({
               <div className="p-6">
                 <div className="mb-4 flex justify-between items-center">
                   <p className="text-gray-600">
-                    Showing {filteredNotifications.length} of {notifications.length} notifications
+                    Showing {filteredNotifications.length} of {notifications.filter(note => !currentProject || isNotificationInCurrentProject(note)).length} notifications
+                    {currentProject && ` for ${currentProject.ProjectName}`}
                   </p>
                   <Badge variant="secondary" className="text-sm">
                     Sorted by: Newest First
@@ -884,14 +1026,20 @@ export default function NotificationCenter({
           <div className="flex gap-2">
             <Button
               variant={filterType === "all" ? "default" : "outline"}
-              onClick={() => setFilterType("all")}
+              onClick={() => {
+                console.log("Setting filter to: all");
+                setFilterType("all");
+              }}
               className="flex-1 text-xs h-8"
             >
               All
             </Button>
             <Button
               variant={filterType === "alerts" ? "default" : "outline"}
-              onClick={() => setFilterType("alerts")}
+              onClick={() => {
+                console.log("Setting filter to: alerts");
+                setFilterType("alerts");
+              }}
               className="flex-1 text-xs h-8 bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
             >
               <AlertTriangle className="w-3 h-3 mr-1" />
@@ -899,7 +1047,10 @@ export default function NotificationCenter({
             </Button>
             <Button
               variant={filterType === "notifications" ? "default" : "outline"} 
-              onClick={() => setFilterType("notifications")}
+              onClick={() => {
+                console.log("Setting filter to: notifications");
+                setFilterType("notifications");
+              }}
               className="flex-1 text-xs h-8 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
             >
               <Bell className="w-3 h-3 mr-1" /> 
@@ -935,9 +1086,9 @@ export default function NotificationCenter({
           <div className="p-6 text-center">
             <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 text-sm mb-1">
-              {getProjectDisplayName() === "All Projects" 
-                ? "No notifications found" 
-                : `No notifications for ${getProjectDisplayName()}`}
+              {currentProject 
+                ? `No notifications for ${currentProject.ProjectName}` 
+                : "No notifications found"}
             </p>
             {(searchTerm || filterType !== "all") && (
               <button

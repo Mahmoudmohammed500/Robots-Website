@@ -72,7 +72,7 @@ export default function RobotMainPanel({
           </div>
 
           {/* Voltage & Cycles */}
-          <EditableField 
+          {/* <EditableField 
             label="Voltage" 
             value={mainData.Voltage || ""} 
             onChange={(v) => handleMainChange("Voltage", v)} 
@@ -85,7 +85,7 @@ export default function RobotMainPanel({
             onChange={(v) => handleMainChange("Cycles", v)} 
             type="number" 
             placeholder="Enter cycles"
-          />
+          /> */}
 
           {/* Topic Subscribe */}
           <EditableField 
@@ -97,15 +97,15 @@ export default function RobotMainPanel({
 
           {/* Topic Main */}
           <EditableField 
-            label="Topic Main"
+            label="Topic Publisher "
             value={mainData.Topic_main || ""}
             onChange={(v) => handleMainChange("Topic_main", v)}
-            placeholder="Enter main topic"
+            placeholder="Enter publisher topic"
           />
 
           {/* Status */}
           <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1">Status</label>
+            {/* <label className="text-xs text-gray-500 mb-1">Status</label>
             <div className="flex gap-2">
               <select
                 value={mainData.Status || ""}
@@ -125,7 +125,7 @@ export default function RobotMainPanel({
               >
                 <Power size={16} />
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

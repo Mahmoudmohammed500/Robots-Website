@@ -70,10 +70,10 @@ export default function RobotTrolleyPanel({
 
           {/* Topic Main */}
           <EditableField
-            label="Topic Main"
+            label="Topic Publisher "
             value={carData.Topic_main || ""}
             onChange={(v) => handleCarChange("Topic_main", v)}
-            placeholder="Enter main topic"
+            placeholder="Enter publisher topic"
           />
 
           {/* Status */}
