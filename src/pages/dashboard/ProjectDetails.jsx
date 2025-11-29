@@ -502,7 +502,7 @@ export default function ProjectDetails() {
               </CardHeader>
 
               {/* Active Buttons (main) */}
-              <CardContent className="px-4 pb-4 flex flex-wrap gap-2 mt-2">
+              {/* <CardContent className="px-4 pb-4 flex flex-wrap gap-2 mt-2">
                 {(() => {
                   let activeBtns = [];
                   try {
@@ -546,7 +546,7 @@ export default function ProjectDetails() {
                     </span>
                   );
                 })()}
-              </CardContent>
+              </CardContent> */}
 
               {/* Robot Actions */}
               <CardContent className="px-4 pb-4 flex gap-2 mt-2">

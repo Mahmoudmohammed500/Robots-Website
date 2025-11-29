@@ -13,7 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { User, Lock } from "lucide-react";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
 import LogoImg from "../assets/logo omega-2022.png";
 import { postData } from "@/services/postServices";
 
@@ -23,6 +23,7 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -57,7 +58,7 @@ export default function Login() {
           navigate("/homeDashboard", { replace: true });
         } else {
           toast.success(`Welcome back, ${userUsername}!`);
-          navigate("/home", { replace: true });
+          navigate("/robots", { replace: true });
         }
       } else {
         toast.error("Invalid username or password");
@@ -71,7 +72,9 @@ export default function Login() {
     }
   };
 
-  
+  const togglePasswordVisibility = () => {
+    setShowPassword((prevState) => !prevState);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-main-color/20 via-white to-second-color/20 relative overflow-hidden">
@@ -150,13 +153,26 @@ export default function Login() {
                   />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="pl-9 bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-main-color focus:border-main-color rounded-xl"
+                    className="pl-9 pr-10 bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-main-color focus:border-main-color rounded-xl"
                   />
+                  {/* Eye Icon Button */}
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={togglePasswordVisibility}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} aria-hidden="true" />
+                    ) : (
+                      <Eye size={20} aria-hidden="true" />
+                    )}
+                  </button>
                 </div>
               </div>
 

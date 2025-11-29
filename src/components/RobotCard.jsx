@@ -131,7 +131,7 @@ export default function RobotCard({ robot, onView }) {
             </div>
 
             {/* Active Buttons with colors from buttons.php */}
-            <div className="mt-2">
+            {/* <div className="mt-2">
               {activeBtns.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {activeBtns.map((btn, i) => {
@@ -155,7 +155,7 @@ export default function RobotCard({ robot, onView }) {
               ) : (
                 <span className="text-gray-400 text-xs italic">No active buttons</span>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
 

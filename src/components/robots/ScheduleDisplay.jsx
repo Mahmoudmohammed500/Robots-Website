@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { postData } from "@/services/postServices";
+import { useParams } from "react-router-dom";
 
 export default function ScheduleDisplay({ 
   scheduleButton,
@@ -8,12 +9,27 @@ export default function ScheduleDisplay({
   topic,
   loading = false
 }) {
+  const { id: robotId } = useParams();
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const [schedule, setSchedule] = useState({ days: [], hour: "", minute: 0, active: true });
   const [saving, setSaving] = useState(false);
   const size = 200;
   const radius = size / 2 - 20;
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // Get storage key for schedule visibility
+  const getScheduleVisibilityKey = () => `robot_${robotId}_schedule_visibility`;
+
+  // Load schedule visibility from localStorage
+  const loadScheduleVisibility = () => {
+    try {
+      const stored = localStorage.getItem(getScheduleVisibilityKey());
+      return stored ? JSON.parse(stored) : true; // Default to visible
+    } catch (error) {
+      console.error("Error loading schedule visibility:", error);
+      return true;
+    }
+  };
 
   useEffect(() => {
     if (scheduleButton?.BtnName) {
@@ -186,6 +202,13 @@ export default function ScheduleDisplay({
   const hours = Array.from({ length: 12 }, (_, i) => i + 1);
   const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
 
+  // Check if schedule should be visible
+  const isScheduleVisible = loadScheduleVisibility();
+
+  if (!isScheduleVisible) {
+    return null; // Don't render anything if schedule is hidden
+  }
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -219,7 +242,7 @@ export default function ScheduleDisplay({
         ))}
       </div>
 
-      <div className="flex gap-6 items-center">
+      <div className="flex max-md:flex-wrap gap-6 items-center">
         <svg
           width={size}
           height={size}

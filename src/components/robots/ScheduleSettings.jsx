@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
 import { postData } from "@/services/postServices";
 import { useParams } from "react-router-dom";
-
 
 export default function ScheduleSettings({
   schedule = { days: [], hour: 8, minute: 0 },
@@ -13,10 +13,61 @@ export default function ScheduleSettings({
 }) {
   const { id: robotId } = useParams(); 
   const [saving, setSaving] = useState(false);
+  const [updatingVisibility, setUpdatingVisibility] = useState(false);
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const size = 200;
   const radius = size / 2 - 20;
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // Get storage key for schedule visibility
+  const getScheduleVisibilityKey = () => `robot_${robotId}_schedule_visibility`;
+
+  // Load schedule visibility from localStorage
+  const loadScheduleVisibility = () => {
+    try {
+      const stored = localStorage.getItem(getScheduleVisibilityKey());
+      return stored ? JSON.parse(stored) : true; // Default to visible
+    } catch (error) {
+      console.error("Error loading schedule visibility:", error);
+      return true;
+    }
+  };
+
+  // Save schedule visibility to localStorage
+  const saveScheduleVisibility = (isVisible) => {
+    try {
+      localStorage.setItem(getScheduleVisibilityKey(), JSON.stringify(isVisible));
+    } catch (error) {
+      console.error("Error saving schedule visibility:", error);
+    }
+  };
+
+  // Function to update schedule visibility
+  const updateScheduleVisibility = (isVisible) => {
+    try {
+      setUpdatingVisibility(true);
+      
+      console.log("Updating schedule visibility in localStorage:", { isVisible });
+      
+      // Save to localStorage
+      saveScheduleVisibility(isVisible);
+
+      // You can add a toast here if needed
+      console.log(isVisible ? "Schedule is now visible to users" : "Schedule is now hidden from users");
+      
+    } catch (err) {
+      console.error("Error updating schedule visibility:", err);
+    } finally {
+      setTimeout(() => {
+        setUpdatingVisibility(false);
+      }, 500);
+    }
+  };
+
+  // Check if schedule is visible
+  const isScheduleVisible = () => {
+    return loadScheduleVisibility();
+  };
 
   const toggleDay = (d) => {
     const next = schedule.days.includes(d)
@@ -106,9 +157,36 @@ export default function ScheduleSettings({
   const hours = Array.from({ length: 12 }, (_, i) => i + 1);
   const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
 
+  const isVisible = isScheduleVisible();
+
   return (
-    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-      <h4 className="text-md font-semibold text-main-color mb-3">Schedule</h4>
+    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm relative group">
+      {/* Visibility Toggle Button - Top Right Corner */}
+      <button
+        onClick={() => updateScheduleVisibility(!isVisible)}
+        disabled={updatingVisibility}
+        className={`absolute -right-2 -top-2 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 z-20 ${
+          updatingVisibility 
+            ? 'bg-gray-400 cursor-not-allowed' 
+            : isVisible 
+              ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+              : 'bg-red-500 hover:bg-red-600 cursor-pointer'
+        } opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 shadow-md border border-white`}
+        title={isVisible ? "Hide schedule from users" : "Show schedule to users"}
+      >
+        {updatingVisibility ? (
+          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        ) : isVisible ? (
+          <Eye className="w-4 h-4 text-white" />
+        ) : (
+          <EyeOff className="w-4 h-4 text-white" />
+        )}
+      </button>
+
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-md font-semibold text-main-color">Schedule</h4>
+        <span className="text-xs text-gray-400">Hover to show visibility control</span>
+      </div>
 
       {/* Days */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -127,7 +205,7 @@ export default function ScheduleSettings({
         ))}
       </div>
 
-      <div className="flex gap-6 items-center">
+      <div className="flex max-md:flex-wrap gap-6 items-center">
         <svg
           width={size}
           height={size}

@@ -1152,7 +1152,7 @@ export default function NotificationCenter({
                           {note.date} • {note.time}
                         </p>
 
-                        {note.topic_main && (
+                        {/* {note.topic_main && (
                           <span
                             className={`text-xs px-2 py-1 rounded ${
                               isAlert
@@ -1162,7 +1162,7 @@ export default function NotificationCenter({
                           >
                             {note.topic_main}
                           </span>
-                        )}
+                        )} */}
                       </div>
 
                       <div className="space-y-1">
@@ -1177,11 +1177,11 @@ export default function NotificationCenter({
                               <strong>Section:</strong> {sectionName}
                             </p>
                           )}
-                          {note.topic_main && (
+                          {/* {note.topic_main && (
                             <p className="text-xs text-gray-500">
                               <strong>Topic:</strong> {note.topic_main}
                             </p>
-                          )}
+                          )} */}
                         </div>
                         {note.RobotId && (
                           <p className="text-xs text-gray-500">

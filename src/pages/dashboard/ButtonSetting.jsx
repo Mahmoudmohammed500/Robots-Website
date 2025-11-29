@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Save, Trash2, Play, Square, XCircle, Copy, Eye } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Play, Square, XCircle, Copy, Eye, AlertCircle, RotateCcw, FastForward, Rewind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { HexColorPicker } from "react-colorful";
@@ -69,6 +69,8 @@ export default function ButtonSetting() {
   const [color, setColor] = useState("#4CAF50");
   const [operation, setOperation] = useState("/start");
   const [projectId, setProjectId] = useState(10);
+  const [duplicateError, setDuplicateError] = useState("");
+  const [hexInput, setHexInput] = useState("#4CAF50");
 
   const isNewButton = buttonId === "new";
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -81,6 +83,40 @@ export default function ButtonSetting() {
 
   const section = getSectionFromPath();
   const isTrolley = section === "car";
+
+  // Check for duplicate buttons in the same section
+  const checkForDuplicates = () => {
+    if (!robotData || !robotData.Sections || !robotData.Sections[section]) {
+      return false;
+    }
+
+    const sectionButtons = robotData.Sections[section].ActiveBtns || [];
+    
+    // Check for duplicate name in the same section
+    const duplicateName = sectionButtons.some(btn => 
+      btn.Name?.toLowerCase() === name.toLowerCase() && 
+      btn.id !== buttonId
+    );
+
+    // Check for duplicate color in the same section
+    const duplicateColor = sectionButtons.some(btn => 
+      btn.Color === color && 
+      btn.id !== buttonId
+    );
+
+    if (duplicateName) {
+      setDuplicateError(`A button with the name "${name}" already exists in this ${isTrolley ? "trolley" : "robot"} section.`);
+      return true;
+    }
+
+    if (duplicateColor) {
+      setDuplicateError(`A button with the color ${color} already exists in this ${isTrolley ? "trolley" : "robot"} section.`);
+      return true;
+    }
+
+    setDuplicateError("");
+    return false;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,6 +133,7 @@ export default function ButtonSetting() {
             setButtonData(btn);
             setName(btn.BtnName || "");
             setColor(btn.Color || "#4CAF50");
+            setHexInput(btn.Color || "#4CAF50");
             setOperation(btn.Operation || "/start");
             setProjectId(btn.projectId || 10);
           } else {
@@ -112,6 +149,31 @@ export default function ButtonSetting() {
 
     fetchData();
   }, [id, buttonId, isNewButton, BASE_URL]);
+
+  // Check for duplicates when name or color changes
+  useEffect(() => {
+    if (name.trim() && color) {
+      checkForDuplicates();
+    } else {
+      setDuplicateError("");
+    }
+  }, [name, color]);
+
+  // Update hex input when color changes from picker
+  useEffect(() => {
+    setHexInput(color);
+  }, [color]);
+
+  // Handle hex color input
+  const handleHexInputChange = (value) => {
+    setHexInput(value);
+    
+    // Validate and update color if it's a valid hex color
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexColorRegex.test(value)) {
+      setColor(value);
+    }
+  };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -197,6 +259,12 @@ export default function ButtonSetting() {
       return;
     }
 
+    // Check for duplicates before saving
+    if (checkForDuplicates()) {
+      toast.error("Cannot save button due to duplicate name or color");
+      return;
+    }
+
     let finalOperation = operation.trim();
     if (!finalOperation.startsWith("/")) {
       finalOperation = "/" + finalOperation;
@@ -269,7 +337,6 @@ export default function ButtonSetting() {
     navigate(-1);
   };
 
-  // دالة جديدة للانتقال إلى صفحة تفاصيل الروبوت
   const handleViewRobot = () => {
     navigate(`/homeDashboard/robotDetails/${id}`);
   };
@@ -288,7 +355,6 @@ export default function ButtonSetting() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
-        {/* الأزرار العلوية */}
         <div className="flex gap-3 mb-6">
           <Button
             onClick={handleBack}
@@ -330,11 +396,25 @@ export default function ButtonSetting() {
             </p>
           </div>
 
+          {/* Duplicate Error Message */}
+          {duplicateError && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-700 text-center flex items-center justify-center gap-2"
+            >
+              <AlertCircle size={20} />
+              {duplicateError}
+            </motion.div>
+          )}
+
           <div className="flex justify-center gap-4 mb-8">
             <Button
               onClick={handleSaveButton}
-              disabled={submitting}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-xl flex items-center gap-2 transition-all"
+              disabled={submitting || duplicateError}
+              className={`bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-xl flex items-center gap-2 transition-all ${
+                (submitting || duplicateError) ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               <Save size={18} />
               {submitting ? "Saving..." : isNewButton ? "Create Button" : "Update Button"}
@@ -368,14 +448,26 @@ export default function ButtonSetting() {
             <h2 className="text-lg font-semibold mb-4 text-gray-700">Button Color</h2>
             <div className="flex flex-col items-center gap-4">
               <HexColorPicker color={color} onChange={setColor} className="mb-4" />
-              <div className="flex items-center gap-4">
+              
+              {/* Hex Color Input */}
+              <div className="flex items-center gap-4 w-full max-w-xs">
                 <div
-                  className="w-16 h-16 rounded-full border-2 border-gray-300 shadow-md"
+                  className="w-16 h-16 rounded-full border-2 border-gray-300 shadow-md flex-shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <div className="text-left">
-                  <p className="text-sm font-medium text-gray-700">Selected Color:</p>
-                  <p className="text-sm text-gray-600 font-mono">{color}</p>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                    Hex Color Code:
+                  </label>
+                  <Input
+                    value={hexInput}
+                    onChange={(e) => handleHexInputChange(e.target.value)}
+                    placeholder="#4CAF50"
+                    className="text-center font-mono bg-gray-50 border-gray-200 rounded-xl py-2"
+                  />
+                  <p className="text-xs text-gray-500 mt-1 text-left">
+                    Enter a valid hex color code (e.g., #FF5733)
+                  </p>
                 </div>
               </div>
             </div>
@@ -415,7 +507,7 @@ export default function ButtonSetting() {
 
             <div className="text-center">
               <p className="text-sm text-gray-600 mb-3">Quick select:</p>
-              <div className="flex justify-center gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-md mx-auto">
                 <Button
                   onClick={() => useOperation("/start")}
                   variant={operation === "/start" ? "default" : "outline"}
@@ -437,6 +529,39 @@ export default function ButtonSetting() {
                   }`}
                 >
                   <Square size={16} /> Stop
+                </Button>
+                <Button
+                  onClick={() => useOperation("/status")}
+                  variant={operation === "/status" ? "default" : "outline"}
+                  className={`flex items-center gap-2 ${
+                    operation === "/status"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <RotateCcw size={16} /> Status
+                </Button>
+                <Button
+                  onClick={() => useOperation("/forward")}
+                  variant={operation === "/forward" ? "default" : "outline"}
+                  className={`flex items-center gap-2 ${
+                    operation === "/forward"
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <FastForward size={16} /> Forward
+                </Button>
+                <Button
+                  onClick={() => useOperation("/backward")}
+                  variant={operation === "/backward" ? "default" : "outline"}
+                  className={`flex items-center gap-2 ${
+                    operation === "/backward"
+                      ? "bg-orange-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <Rewind size={16} /> Backward
                 </Button>
               </div>
             </div>

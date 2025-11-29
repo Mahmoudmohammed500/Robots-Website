@@ -26,6 +26,8 @@ export default function AddUser() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [accessPassword, setAccessPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
   const ACCESS_PASSWORD = "#aoxns@343."; 
 
   // Fetch user data if editing
@@ -47,7 +49,26 @@ export default function AddUser() {
       };
       fetchUser();
     }
-  }, [id]);
+  }, [id, BASE_URL]);
+
+  // Fetch projects from API
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setProjectsLoading(true);
+        const projectsData = await getData(`${BASE_URL}/projects.php`);
+        setProjects(projectsData || []);
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+        toast.error("Failed to load projects");
+        setProjects([]);
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [BASE_URL]);
 
   const handlePasswordSubmit = () => {
     if (accessPassword === ACCESS_PASSWORD) {
@@ -87,7 +108,7 @@ export default function AddUser() {
         await postData(`${BASE_URL}/users`, submitData);
         toast.success("User added successfully!");
       }
-      navigate(-1);
+      navigate("/homeDashboard/allUsers");
     } catch (error) {
       toast.error("Failed to submit user");
     } finally {
@@ -161,6 +182,7 @@ export default function AddUser() {
                     onChange={handleChange}
                     placeholder="Enter full name"
                     className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                    required
                   />
                 </div>
 
@@ -176,6 +198,7 @@ export default function AddUser() {
                     onChange={handleChange}
                     placeholder="Enter email address"
                     className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                    required
                   />
                 </div>
 
@@ -195,6 +218,7 @@ export default function AddUser() {
                         : "Enter password"
                     }
                     className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
+                    required={!id}
                   />
                 </div>
 
@@ -216,7 +240,7 @@ export default function AddUser() {
                   />
                 </div>
 
-                {/* Project Name */}
+                {/* Project Name - Dropdown */}
                 <div className="flex flex-col space-y-2 sm:col-span-2">
                   <Label
                     htmlFor="ProjectName"
@@ -224,13 +248,29 @@ export default function AddUser() {
                   >
                     Project Name
                   </Label>
-                  <Input
+                  <select
                     id="ProjectName"
                     value={formData.ProjectName}
                     onChange={handleChange}
-                    placeholder="Enter project name"
-                    className="h-12 border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl"
-                  />
+                    className="h-12 border border-gray-300 focus:border-main-color focus:ring-main-color rounded-xl px-3 bg-white transition-colors"
+                    required
+                  >
+                    <option value="">Select a project</option>
+                    {projectsLoading ? (
+                      <option value="" disabled>Loading projects...</option>
+                    ) : (
+                      projects.map((project) => (
+                        <option key={project.id || project.projectId} value={project.ProjectName || project.name}>
+                          {project.ProjectName || project.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {projects.length === 0 && !projectsLoading && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      No projects available. Please add projects first.
+                    </p>
+                  )}
                 </div>
 
                 {/* Submit Button */}

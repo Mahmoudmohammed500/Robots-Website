@@ -57,7 +57,7 @@ export default function AppRoutes() {
     if (userRole === 'admin') {
       return "/homeDashboard";
     } else {
-      return "/home";
+      return "/robots";
     }
   };
 

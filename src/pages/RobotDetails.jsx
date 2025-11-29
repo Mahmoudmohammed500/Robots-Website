@@ -38,6 +38,36 @@ function LazyImage({ src, alt, className, fallbackSrc }) {
   return <img src={currentSrc} alt={alt} className={className} onError={handleError} loading="lazy" />;
 }
 
+// Helper function to load button visibility from localStorage
+const loadButtonVisibility = (robotId, section) => {
+  try {
+    const storageKey = section === 'main' 
+      ? `robot_${robotId}_button_visibility`
+      : `robot_${robotId}_trolley_button_visibility`;
+    
+    const stored = localStorage.getItem(storageKey);
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    console.error("Error loading button visibility:", error);
+    return {};
+  }
+};
+
+// Helper function to load value visibility from localStorage
+const loadValueVisibility = (robotId, section) => {
+  try {
+    const storageKey = section === 'main' 
+      ? `robot_${robotId}_value_visibility`
+      : `robot_${robotId}_trolley_value_visibility`;
+    
+    const stored = localStorage.getItem(storageKey);
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    console.error("Error loading value visibility:", error);
+    return {};
+  }
+};
+
 export default function RobotDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -79,6 +109,30 @@ export default function RobotDetails() {
 
   const [scheduleButton, setScheduleButton] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  const isControlsTab = (tab) => tab === "controls";
+  
+  const shouldShowTrolleySection = () => {
+    return isControlsTab(activeTrolleyTab) && isControlsTab(activeTab);
+  };
+
+  const shouldShowScheduleSection = () => {
+    return isControlsTab(activeTab) && isControlsTab(activeTrolleyTab);
+  };
+
+  const shouldShowRobotSection = () => {
+    return isControlsTab(activeTab) && isControlsTab(activeTrolleyTab);
+  };
+
+  const isInNonControlsView = () => {
+    return !isControlsTab(activeTab) || !isControlsTab(activeTrolleyTab);
+  };
+
+  const getActiveNonControlsSection = () => {
+    if (!isControlsTab(activeTab)) return "robot";
+    if (!isControlsTab(activeTrolleyTab)) return "trolley";
+    return null;
+  };
 
   const fetchRobotData = useCallback(async () => {
     try {
@@ -305,7 +359,7 @@ export default function RobotDetails() {
     
     startTimer();
     
-    toast.success("Timer reset to 24:00:00");
+    // toast.success("Timer reset to 24:00:00");
     
     setTimeout(() => {
       setIsResetting(false);
@@ -324,7 +378,7 @@ export default function RobotDetails() {
     
     if (publishButtonMessage) {
       publishButtonMessage(topic, btnName);
-      toast.success(`Sent: ${btnName} to ${topic}`);
+      toast.success(`Sent: ${btnName} to this section`);
       
       setTimeout(() => {
         fetchAllData();
@@ -337,13 +391,13 @@ export default function RobotDetails() {
 
   const tabs = [
     { id: "controls", label: "Controls" },
-    { id: "notifications", label: "Notifications" },
+    { id: "notifications", label: "Notifications and alerts" },
     { id: "logs", label: "Logs" },
   ];
 
   const trolleyTabs = [
     { id: "controls", label: "Controls" },
-    { id: "notifications", label: "Notifications" },
+    { id: "notifications", label: "Notifications and alerts" },
     { id: "logs", label: "Logs" },
   ];
 
@@ -352,20 +406,32 @@ export default function RobotDetails() {
 
     let activeBtns = [];
     try {
-      if (Array.isArray(section.ActiveBtns)) activeBtns = section.ActiveBtns;
-      else if (typeof section.ActiveBtns === "string") activeBtns = JSON.parse(section.ActiveBtns);
+      if (Array.isArray(section.ActiveBtns)) {
+        activeBtns = section.ActiveBtns;
+      } else if (typeof section.ActiveBtns === "string") {
+        activeBtns = JSON.parse(section.ActiveBtns);
+      }
     } catch {
       activeBtns = [];
     }
 
+    // Load visibility settings from localStorage
+    const visibilityMap = loadButtonVisibility(id, sectionType);
+
+    // Filter out buttons that are not visible
     const filteredBtns = activeBtns.filter(btn => {
       const btnName = btn?.Name || btn?.name || '';
+      const btnId = btn.id || btnName;
       
+      // Check if button is hidden in localStorage
+      const isVisible = visibilityMap[btnId] !== false;
+      
+      // For car section, also filter out schedule buttons
       if (sectionType === "car") {
-        return !btnName.toLowerCase().includes('schedule');
+        return isVisible && !btnName.toLowerCase().includes('schedule');
       }
       
-      return true;
+      return isVisible;
     });
 
     return filteredBtns.map((btn, i) => {
@@ -388,9 +454,11 @@ export default function RobotDetails() {
   const renderRobotControls = () => {
     if (!robot) return null;
     
-    const { RobotName, Image, Sections = {} } = robot;
+    const { Sections = {} } = robot;
     const mainSection = Sections?.main || {};
-    const imageSrc = getRobotImageSrc(Image);
+
+    // Load value visibility for main section
+    const valueVisibility = loadValueVisibility(id, 'main');
 
     return (
       <motion.div
@@ -398,43 +466,40 @@ export default function RobotDetails() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Robot Image and Name */}
-        <div className="relative mb-6">
-          <LazyImage 
-            src={imageSrc} 
-            alt={RobotName || "Robot"} 
-            className="w-full h-56 sm:h-72 md:h-80 object-cover rounded-2xl shadow-md" 
-            fallbackSrc="/default-robot.jpg" 
-          />
-        </div>
-        
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-wider mb-6 text-gray-900 text-center">
-          {RobotName || "Unnamed Robot"}
-        </h2>
-
         {/* Info + Timer */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
           <div className="flex flex-col text-left text-base sm:text-lg font-medium text-gray-800 gap-2">
-            <div>Voltage: <span className="font-semibold">{mainSection.Voltage || "0"}V</span></div>
-            <div>Cycles: <span className="font-semibold">{mainSection.Cycles || "0"}</span></div>
-            <div className="flex items-center gap-2">
-              <RotateCcw className={`w-5 h-5 ${mainSection.Status === "Running" ? "text-green-500 animate-spin-slow" : "text-gray-400"}`} />
-              <span>Status: <span className={`font-semibold ml-1 ${mainSection.Status === "Running" ? "text-green-600" : mainSection.Status === "Idle" ? "text-yellow-600" : "text-gray-600"}`}>
-                {mainSection.Status || "Unknown"}
-              </span></span>
-            </div>
+            {/* Only show values that are visible */}
+            {valueVisibility["voltage"] !== false && (
+              <div>Voltage: <span className="font-semibold">{mainSection.Voltage || "0"}V</span></div>
+            )}
+            {valueVisibility["cycles"] !== false && (
+              <div>Cycles: <span className="font-semibold">{mainSection.Cycles || "0"}</span></div>
+            )}
+            {valueVisibility["status"] !== false && (
+              <div className="flex items-center gap-2">
+                <RotateCcw className={`w-5 h-5 ${mainSection.Status === "Running" ? "text-gray-800 animate-spin-slow" : "text-gray-800"}`} />
+                <span>Status: <span className={`font-semibold ml-1 ${mainSection.Status === "Running" ? "text-gray-800" : mainSection.Status === "Idle" ? "text-gray-800" : "text-gray-800"}`}>
+                  {mainSection.Status || "Unknown"}
+                </span></span>
+              </div>
+            )}
           </div>
 
-          {/* <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
-            <span>⏱ {displayTime}</span>
-            <RefreshCcw 
-              className={`w-6 sm:w-8 h-6 sm:h-8 text-main-color cursor-pointer hover:text-main-color/70 transition-transform duration-600 ${
-                isResetting ? 'rotate-180' : ''
-              }`}
-              onClick={handleResetTimer}
-              title="Reset timer to 24 hours"
-            />
-          </div> */}
+          {/* Timer with Auto-refresh label */}
+          <div className="flex flex-col items-end gap-2">
+            <span className="text-sm font-medium text-gray-600">Auto-refresh in</span>
+            <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
+              <span>⏱ {displayTime}</span>
+              <RefreshCcw 
+                className={`w-6 sm:w-8 h-6 sm:h-8 text-main-color cursor-pointer hover:text-main-color/70 transition-transform duration-600 ${
+                  isResetting ? 'rotate-180' : ''
+                }`}
+                onClick={handleResetTimer}
+                title="Reset timer to 24 hours"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Active Buttons */}
@@ -445,25 +510,6 @@ export default function RobotDetails() {
             </div>
           </div>
         )}
-
-        {/* Topic Information */}
-        {/* <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Connection Information</h3>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm font-medium text-gray-700">Subscribe Topic:</span>
-              <p className="text-gray-600 mt-1 font-mono text-sm bg-white p-2 rounded border">
-                {mainSection.Topic_subscribe || "Not configured"}
-              </p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">Publish Topic:</span>
-              <p className="text-gray-600 mt-1 font-mono text-sm bg-white p-2 rounded border">
-                {mainSection.Topic_main || "Not configured"}
-              </p>
-            </div>
-          </div>
-        </div> */}
       </motion.div>
     );
   };
@@ -474,6 +520,9 @@ export default function RobotDetails() {
     const { Sections = {} } = robot;
     const carSection = Sections?.car || {};
 
+    // Load value visibility for car section
+    const valueVisibility = loadValueVisibility(id, 'car');
+
     return (
       <motion.div 
         className="bg-white p-6 sm:p-10 pt-0" 
@@ -482,15 +531,37 @@ export default function RobotDetails() {
         transition={{ duration: 0.6, delay: 0.3 }}
       >
         {/* Trolley Data */}
-        <div className="flex flex-col sm:flex-row justify-start items-start sm:items-center mb-8 gap-4 sm:gap-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
           <div className="flex flex-col text-left text-base sm:text-lg font-medium text-gray-800 gap-2">
-            <div>Voltage: <span className="font-semibold">{carSection.Voltage || "0"}V</span></div>
-            <div>Cycles: <span className="font-semibold">{carSection.Cycles || "0"}</span></div>
-            <div className="flex items-center gap-2">
-              <RotateCcw className={`w-5 h-5 ${carSection.Status === "Running" ? "text-green-500 animate-spin-slow" : "text-gray-400"}`} />
-              <span>Status: <span className={`font-semibold ml-1 ${carSection.Status === "Running" ? "text-green-600" : carSection.Status === "Idle" ? "text-yellow-600" : "text-gray-600"}`}>
-                {carSection.Status || "Unknown"}
-              </span></span>
+            {/* Only show values that are visible */}
+            {valueVisibility["voltage-trolley"] !== false && (
+              <div>Voltage: <span className="font-semibold">{carSection.Voltage || "0"}V</span></div>
+            )}
+            {valueVisibility["cycles-trolley"] !== false && (
+              <div>Cycles: <span className="font-semibold">{carSection.Cycles || "0"}</span></div>
+            )}
+            {valueVisibility["status-trolley"] !== false && (
+              <div className="flex items-center gap-2">
+                <RotateCcw className={`w-5 h-5 ${carSection.Status === "Running" ? "text-green-500 animate-spin-slow" : "text-gray-400"}`} />
+                <span>Status: <span className={`font-semibold ml-1 ${carSection.Status === "Running" ? "text-green-600" : carSection.Status === "Idle" ? "text-yellow-600" : "text-gray-600"}`}>
+                  {carSection.Status || "Unknown"}
+                </span></span>
+              </div>
+            )}
+          </div>
+
+          {/* Timer with Auto-refresh label for Trolley */}
+          <div className="flex flex-col items-end gap-2">
+            <span className="text-sm font-medium text-gray-600">Auto-refresh in</span>
+            <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
+              <span>⏱ {displayTime}</span>
+              <RefreshCcw 
+                className={`w-6 sm:w-8 h-6 sm:h-8 text-second-color cursor-pointer hover:text-second-color/70 transition-transform duration-600 ${
+                  isResetting ? 'rotate-180' : ''
+                }`}
+                onClick={handleResetTimer}
+                title="Reset timer to 24 hours"
+              />
             </div>
           </div>
         </div>
@@ -501,25 +572,6 @@ export default function RobotDetails() {
             {getActiveButtons(carSection, "car")}
           </div>
         )}
-
-        {/* Trolley Topic Information */}
-        {/* <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mt-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Trolley Connection Information</h3>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm font-medium text-gray-700">Subscribe Topic:</span>
-              <p className="text-gray-600 mt-1 font-mono text-sm bg-white p-2 rounded border">
-                {carSection.Topic_subscribe || "Not configured"}
-              </p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">Publish Topic:</span>
-              <p className="text-gray-600 mt-1 font-mono text-sm bg-white p-2 rounded border">
-                {carSection.Topic_main || "Not configured"}
-              </p>
-            </div>
-          </div>
-        </div> */}
       </motion.div>
     );
   };
@@ -563,6 +615,8 @@ export default function RobotDetails() {
     (Sections.car.ActiveBtns && Sections.car.ActiveBtns.length > 0)
   );
 
+  const activeNonControlsSection = getActiveNonControlsSection();
+
   return (
     <div className="flex flex-col min-h-screen bg-linear-to-b from-white to-gray-50">
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
@@ -581,110 +635,218 @@ export default function RobotDetails() {
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6 }}
         >
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs text-green-600">Auto-refresh every 10 seconds</span>
-          </div>
+          {/* Robot Name - Always at the very top */}
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-wider mb-6 text-gray-900 text-center">
+            {robot.RobotName || "Unnamed Robot"}
+          </h1>
 
-          {/* Robot Section Title */}
-          <div className="mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-main-color text-center">
-              Robot Section
-            </h2>
-          </div>
-
-          {/* Robot Tabs Header */}
-          <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
-            <TabsHeader 
-              tabs={tabs} 
-              active={activeTab} 
-              onChange={setActiveTab} 
-              accent="main" 
+          {/* Robot Image - Smaller size, centered, appears only once */}
+          <div className="relative mb-12 flex justify-center">
+            <LazyImage 
+              src={getRobotImageSrc(robot.Image)} 
+              alt={robot.RobotName || "Robot"} 
+              className="w-full max-w-md h-48 sm:h-56 object-cover rounded-2xl shadow-md" 
+              fallbackSrc="/default-robot.jpg" 
             />
           </div>
 
-          {/* Robot Tab Content */}
-          <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
-            {activeTab === "controls" && renderRobotControls()}
-            
-            {activeTab === "notifications" && (
-              <UserNotificationsTab 
-                robotId={id} 
-                sectionName="main" 
-                publish={publishButtonMessage} 
-                client={client}
-              />
-            )}
-            
-            {activeTab === "logs" && (
-              <UserLogsTab 
-                sectionName="main" 
-                publish={publishButtonMessage} 
-                client={client}
-              />
-            )}
-          </div>
-
-          {/* Trolley Section - Only if trolley data exists */}
-          {hasTrolley && (
+          {isInNonControlsView() ? (
             <>
-              {/* Trolley Section Title */}
-              <div className="mb-6 mt-16">
-                <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">
-                  Trolley Section
-                </h2>
-              </div>
+              {activeNonControlsSection === "trolley" && hasTrolley && (
+                <>
+                  {/* Trolley Section Title */}
+                  <div className="mb-6">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">
+                      Trolley Section
+                    </h2>
+                  </div>
 
-              {/* Trolley Tabs Header */}
-              <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
-                <TabsHeader 
-                  tabs={trolleyTabs} 
-                  active={activeTrolleyTab} 
-                  onChange={setActiveTrolleyTab} 
-                  accent="second" 
-                />
-              </div>
+                  {/* Trolley Tabs Header */}
+                  <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
+                    <TabsHeader 
+                      tabs={trolleyTabs} 
+                      active={activeTrolleyTab} 
+                      onChange={setActiveTrolleyTab} 
+                      accent="second" 
+                    />
+                  </div>
 
-              {/* Trolley Tab Content */}
-              <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
-                {activeTrolleyTab === "controls" && renderTrolleyControls()}
-                
-                {activeTrolleyTab === "notifications" && (
-                  <UserNotificationsTab 
-                    robotId={id} 
-                    sectionName="car" 
-                    publish={publishButtonMessage} 
-                    client={client}
-                  />
-                )}
-                
-                {activeTrolleyTab === "logs" && (
-                  <UserLogsTab 
-                    sectionName="car" 
-                    publish={publishButtonMessage} 
-                    client={client}
-                  />
-                )}
-              </div>
+                  {/* Trolley Tab Content */}
+                  <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
+                    {activeTrolleyTab === "notifications" && (
+                      <UserNotificationsTab 
+                        robotId={id} 
+                        sectionName="car" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                    
+                    {activeTrolleyTab === "logs" && (
+                      <UserLogsTab 
+                        sectionName="car" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {activeNonControlsSection === "robot" && (
+                <>
+                  {/* Robot Section Title */}
+                  <div className="mb-6">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-main-color text-center">
+                      Robot Section
+                    </h2>
+                  </div>
+
+                  {/* Robot Tabs Header */}
+                  <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
+                    <TabsHeader 
+                      tabs={tabs} 
+                      active={activeTab} 
+                      onChange={setActiveTab} 
+                      accent="main" 
+                    />
+                  </div>
+
+                  {/* Robot Tab Content */}
+                  <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
+                    {activeTab === "notifications" && (
+                      <UserNotificationsTab 
+                        robotId={id} 
+                        sectionName="main" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                    
+                    {activeTab === "logs" && (
+                      <UserLogsTab 
+                        sectionName="main" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Trolley Section */}
+              {shouldShowTrolleySection() && hasTrolley && (
+                <>
+                  {/* Trolley Section Title */}
+                  <div className="mb-6">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">
+                      Trolley Section
+                    </h2>
+                  </div>
+
+                  {/* Trolley Tabs Header */}
+                  <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
+                    <TabsHeader 
+                      tabs={trolleyTabs} 
+                      active={activeTrolleyTab} 
+                      onChange={setActiveTrolleyTab} 
+                      accent="second" 
+                    />
+                  </div>
+
+                  {/* Trolley Tab Content */}
+                  <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
+                    {activeTrolleyTab === "controls" && renderTrolleyControls()}
+                    
+                    {activeTrolleyTab === "notifications" && (
+                      <UserNotificationsTab 
+                        robotId={id} 
+                        sectionName="car" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                    
+                    {activeTrolleyTab === "logs" && (
+                      <UserLogsTab 
+                        sectionName="car" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Schedule Section */}
+              {shouldShowScheduleSection() && (
+                <>
+                  {/* Schedule Section */}
+                  <div className="mb-6 mt-16">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-green-600 text-center">
+                      Schedule Settings
+                    </h2>
+                  </div>
+
+                  {/* Schedule Display */}
+                  <div className="bg-white rounded-3xl shadow-lg p-6 sm:p-10 border border-gray-100">
+                    <ScheduleDisplay
+                      scheduleButton={scheduleButton}
+                      publish={publishButtonMessage}
+                      topic={robot?.Sections?.car?.Topic_main}
+                      loading={scheduleLoading}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Robot Section */}
+              {shouldShowRobotSection() && (
+                <>
+                  {/* Robot Section Title */}
+                  <div className="mb-6 mt-16">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-main-color text-center">
+                      Robot Section
+                    </h2>
+                  </div>
+
+                  {/* Robot Tabs Header */}
+                  <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
+                    <TabsHeader 
+                      tabs={tabs} 
+                      active={activeTab} 
+                      onChange={setActiveTab} 
+                      accent="main" 
+                    />
+                  </div>
+
+                  {/* Robot Tab Content */}
+                  <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
+                    {activeTab === "controls" && renderRobotControls()}
+                    
+                    {activeTab === "notifications" && (
+                      <UserNotificationsTab 
+                        robotId={id} 
+                        sectionName="main" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                    
+                    {activeTab === "logs" && (
+                      <UserLogsTab 
+                        sectionName="main" 
+                        publish={publishButtonMessage} 
+                        client={client}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
             </>
           )}
-
-          {/* Schedule Section */}
-          <div className="mb-6 mt-16">
-            <h2 className="text-2xl sm:text-3xl font-bold text-green-600 text-center">
-              Schedule Settings
-            </h2>
-          </div>
-
-          {/* Schedule Display */}
-          <div className="bg-white rounded-3xl shadow-lg p-6 sm:p-10 border border-gray-100">
-            <ScheduleDisplay
-              scheduleButton={scheduleButton}
-              publish={publishButtonMessage} // publishButtonMessage
-              topic={Sections?.car?.Topic_main}
-              loading={scheduleLoading}
-            />
-          </div>
 
           {/* Back Button */}
           <div className="mt-8 text-center">

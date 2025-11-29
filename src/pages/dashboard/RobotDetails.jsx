@@ -279,7 +279,7 @@ export default function RobotDetailsFull() {
             <TabsHeader
               tabs={[
                 { id: "control", label: "Control" },
-                { id: "notifications", label: "Notifications" },
+                { id: "notifications", label: "Notifications and alerts" },
                 { id: "logs", label: "Logs" },
               ]}
               active={trolleyTab}
@@ -365,7 +365,7 @@ export default function RobotDetailsFull() {
           <TabsHeader
             tabs={[
               { id: "control", label: "Control" },
-              { id: "notifications", label: "Notifications" },
+              { id: "notifications", label: "Notifications and alerts" },
               { id: "logs", label: "Logs" },
             ]}
             active={robotTab}
