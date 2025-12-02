@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { 
   Card, 
   CardHeader, 
@@ -14,13 +14,19 @@ import {
   ArrowLeft,
   Filter,
   Search,
-  X
+  X,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useMqtt } from "@/context/MqttContext";
 
 export default function NotificationCenter({ 
   onClose, 
@@ -34,31 +40,92 @@ export default function NotificationCenter({
   const [robots, setRobots] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [activeTab, setActiveTab] = useState("all");
   const [currentProject, setCurrentProject] = useState(null);
+  const [showConnectionStatus, setShowConnectionStatus] = useState(false);
+  
+  //  MQTT Context
+  const { 
+    notifications: mqttNotifications, 
+    activeConnections,
+    connectionCount,
+    connectedCount,
+    reconnectAll,
+    reconnectRobot
+  } = useMqtt();
+  
   const API_BASE = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    fetchCurrentProjectAndNotifications();
-  }, []);
+    const fetchAndMergeNotifications = async () => {
+      try {
+        setLoading(true);
+        
+        const serverRes = await axios.get(`${API_BASE}/notifications.php`, {
+          headers: { "Content-Type": "application/json" },
+        });
+        
+        let serverNotifications = Array.isArray(serverRes.data) ? serverRes.data : [];
+        
+        const enhancedServerNotifications = enhanceNotificationsWithRobotInfo(serverNotifications);
+        
+        const allNotifications = [
+          ...mqttNotifications,
+          ...enhancedServerNotifications
+        ];
+        
+        const uniqueNotifications = removeDuplicates(allNotifications);
+        
+        const sortedNotifications = uniqueNotifications.sort((a, b) => {
+          try {
+            const dateA = a.timestamp || new Date(`${a.date}T${a.time}`).getTime();
+            const dateB = b.timestamp || new Date(`${b.date}T${b.time}`).getTime();
+            return dateB - dateA;
+          } catch {
+            return 0;
+          }
+        });
+        
+        setNotifications(sortedNotifications);
+        setError(null);
+        
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+        setError("Failed to load notifications: " + (err.message || "Unknown error"));
+        
+        const sortedMqtt = [...mqttNotifications].sort((a, b) => {
+          try {
+            return (b.timestamp || 0) - (a.timestamp || 0);
+          } catch {
+            return 0;
+          }
+        });
+        setNotifications(sortedMqtt);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchAndMergeNotifications();
+  }, [mqttNotifications, API_BASE]);
 
   useEffect(() => {
     applyFilters();
-  }, [notifications, searchTerm, filterType]);
+  }, [notifications, searchTerm, filterType, activeTab]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        onClose();
+  const removeDuplicates = (notificationsArray) => {
+    const seen = new Set();
+    return notificationsArray.filter(notif => {
+      const key = `${notif.topic_main}-${notif.message}-${notif.date}-${notif.time}-${notif.robotId || 'no-robot'}`;
+      if (seen.has(key)) {
+        return false;
       }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [onClose]);
+      seen.add(key);
+      return true;
+    });
+  };
 
   const getProjectNameFromCookie = () => {
     try {
@@ -98,8 +165,10 @@ export default function NotificationCenter({
     try {
       const res = await axios.get(`${API_BASE}/robots.php`);
       const robotsArray = Array.isArray(res.data) ? res.data : [];
+      setRobots(robotsArray);
       return robotsArray;
     } catch (err) {
+      console.error("Failed to fetch robots:", err);
       return [];
     }
   };
@@ -111,13 +180,9 @@ export default function NotificationCenter({
     const alertKeywords = ['alert', 'error', 'warning', 'critical', 'fail', 'stopped', 'emergency', 'fault', 'issue', 'problem'];
     const infoKeywords = ['info', 'information', 'started', 'running', 'completed', 'success', 'ready'];
     
-    // Check for alert keywords
     const hasAlertKeyword = alertKeywords.some(keyword => message.includes(keyword));
-    
-    // Check for info keywords to exclude false positives
     const hasInfoKeyword = infoKeywords.some(keyword => message.includes(keyword));
     
-    // If it has alert keywords and no conflicting info keywords, consider it an alert
     return hasAlertKeyword && !hasInfoKeyword;
   };
 
@@ -242,16 +307,37 @@ export default function NotificationCenter({
     return { robotName, sectionName, projectName };
   };
 
+  const extractActualMessageContent = (message) => {
+    if (!message) return "New message";
+    
+    const patterns = [
+      /^.+\([^)]+\):\s*(.+)$/, // "new car (main): 000000"
+      /^.+:\s*(.+)$/,          // "new car: 000000"
+      /^.+-\s*(.+)$/,          // "new car - 000000"
+    ];
+    
+    for (const pattern of patterns) {
+      const match = message.match(pattern);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    
+    return message;
+  };
+
   const enhanceNotificationsWithRobotInfo = (notificationsArray) => {
     return notificationsArray.map((note) => {
       const { robotName, sectionName, projectName } = getRobotAndProjectInfo(note);
+      
+      const actualMessage = extractActualMessageContent(note.message);
       
       return {
         ...note,
         robotName: robotName || "Unknown Robot",
         sectionName: sectionName,
-        projectName: projectName || "Unknown Project",
-        displayMessage: note.message || "New message"
+        projectName: projectName || "All Projects",
+        displayMessage: actualMessage 
       };
     });
   };
@@ -264,8 +350,7 @@ export default function NotificationCenter({
       const projectName = getProjectNameFromCookie();
       const project = await fetchProjectByName(projectName);
       
-      const allRobots = await fetchAllRobots();
-      setRobots(allRobots);
+      await fetchAllRobots();
 
       const res = await axios.get(`${API_BASE}/notifications.php`, {
         headers: { "Content-Type": "application/json" },
@@ -285,7 +370,24 @@ export default function NotificationCenter({
 
       const enhancedNotifications = enhanceNotificationsWithRobotInfo(sortedNotifications);
       
-      setNotifications(enhancedNotifications);
+      const mergedNotifications = [
+        ...mqttNotifications,
+        ...enhancedNotifications
+      ];
+      
+      const uniqueNotifications = removeDuplicates(mergedNotifications);
+      
+      const sortedMerged = uniqueNotifications.sort((a, b) => {
+        try {
+          const dateA = a.timestamp || new Date(`${a.date}T${a.time}`).getTime();
+          const dateB = b.timestamp || new Date(`${b.date}T${b.time}`).getTime();
+          return dateB - dateA;
+        } catch {
+          return 0;
+        }
+      });
+      
+      setNotifications(sortedMerged);
       setCurrentProject(project);
       
     } catch (err) {
@@ -320,12 +422,20 @@ export default function NotificationCenter({
       filtered = filtered.filter(note => !isAlertNotification(note));
     }
 
+    // Apply tab filter
+    if (activeTab === "realtime") {
+      filtered = filtered.filter(note => note.isMqtt || note.source === 'mqtt');
+    } else if (activeTab === "history") {
+      filtered = filtered.filter(note => !note.isMqtt && note.source !== 'mqtt');
+    }
+
     setFilteredNotifications(filtered);
   };
 
   const handleClearFilters = () => {
     setSearchTerm("");
     setFilterType("all");
+    setActiveTab("all");
   };
 
   const handleClickNotification = async (note) => {
@@ -398,6 +508,111 @@ export default function NotificationCenter({
     }
   };
 
+  const renderMqttStatus = () => {
+    const connected = activeConnections.filter(conn => conn.connected).length;
+    const total = activeConnections.length;
+    
+    if (total === 0) {
+      return (
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <WifiOff className="w-3 h-3" />
+          <span>No MQTT connections</span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-1">
+          {connected === total ? (
+            <>
+              <Wifi className="w-3 h-3 text-green-500" />
+              <span className="text-green-600 font-medium">{total} connected</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-3 h-3 text-amber-500" />
+              <span className="text-amber-600 font-medium">{connected}/{total} connected</span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderConnectionStatusPanel = () => (
+    <Card className="mb-4 border-gray-200">
+      <CardHeader className="py-3">
+        <CardTitle className="text-sm font-medium flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Wifi className="w-4 h-4" />
+            MQTT Connections
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => reconnectAll()}
+            className="h-7 text-xs"
+          >
+            <RefreshCw className="w-3 h-3 mr-1" />
+            Reconnect All
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-2">
+          {activeConnections.length === 0 ? (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No active MQTT connections
+            </div>
+          ) : (
+            activeConnections.map((conn, idx) => (
+              <div
+                key={conn.robotId || idx}
+                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
+              >
+                <div className="flex items-center gap-2">
+                  {conn.connected ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">{conn.robotName || `Robot ${conn.robotId}`}</p>
+                    <p className="text-xs text-gray-500">
+                      {conn.connected ? 'Connected' : 'Disconnected'}
+                    </p>
+                  </div>
+                </div>
+                {!conn.connected && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => reconnectRobot(conn.robotId)}
+                    className="h-7 text-xs"
+                  >
+                    Reconnect
+                  </Button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = notifications.length;
+    const alerts = notifications.filter(note => isAlertNotification(note)).length;
+    const info = total - alerts;
+    const realtime = notifications.filter(note => note.isMqtt).length;
+    const history = total - realtime;
+    
+    return { total, alerts, info, realtime, history };
+  }, [notifications]);
+
   // Render different layouts based on mode
   if (mode === "page") {
     return (
@@ -419,19 +634,103 @@ export default function NotificationCenter({
                 <Bell className="w-8 h-8 text-main-color" />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-800">Notifications Dashboard</h1>
-                  <p className="text-gray-600">Viewing all notifications</p>
+                  <p className="text-gray-600">Real-time & historical notifications</p>
                 </div>
               </div>
             </div>
 
-            <Button
-              onClick={fetchCurrentProjectAndNotifications}
-              className="flex items-center gap-2 bg-main-color hover:bg-second-color text-white"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowConnectionStatus(!showConnectionStatus)}
+                className="flex items-center gap-2"
+              >
+                <Wifi className="w-4 h-4" />
+                {connectedCount}/{connectionCount} Connected
+              </Button>
+              <Button
+                onClick={fetchCurrentProjectAndNotifications}
+                className="flex items-center gap-2 bg-main-color hover:bg-second-color text-white"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </Button>
+            </div>
           </div>
+
+          {showConnectionStatus && renderConnectionStatusPanel()}
+
+          {/* Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-white border-l-4 border-l-main-color">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Notifications</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+                  </div>
+                  <Bell className="w-8 h-8 text-main-color" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-l-4 border-l-red-500">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Alert Notifications</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats.alerts}</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-l-4 border-l-blue-500">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Info Notifications</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats.info}</p>
+                  </div>
+                  <Info className="w-8 h-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-l-4 border-l-green-500">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Real-time</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats.realtime}</p>
+                  </div>
+                  <Wifi className="w-8 h-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList className="grid grid-cols-4 w-full md:w-auto">
+              <TabsTrigger value="all">All Notifications</TabsTrigger>
+              <TabsTrigger value="realtime">
+                <span className="flex items-center gap-2">
+                  <Wifi className="w-3 h-3" />
+                  Real-time
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+              <TabsTrigger value="alerts">
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="w-3 h-3" />
+                  Alerts
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {/* Filters */}
           <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
@@ -465,7 +764,7 @@ export default function NotificationCenter({
                   }`}
                 >
                   <Filter className="w-4 h-4" />
-                  All
+                  All Types
                 </Button>
                 <Button
                   variant={filterType === "alerts" ? "default" : "outline"}
@@ -477,7 +776,7 @@ export default function NotificationCenter({
                   }`}
                 >
                   <AlertTriangle className="w-4 h-4" />
-                  Alerts
+                  Alerts Only
                 </Button>
                 <Button
                   variant={filterType === "info" ? "default" : "outline"}
@@ -489,11 +788,11 @@ export default function NotificationCenter({
                   }`}
                 >
                   <Info className="w-4 h-4" />
-                  Info
+                  Info Only
                 </Button>
               </div>
 
-              {(searchTerm || filterType !== "all") && (
+              {(searchTerm || filterType !== "all" || activeTab !== "all") && (
                 <Button
                   variant="outline"
                   onClick={handleClearFilters}
@@ -504,49 +803,6 @@ export default function NotificationCenter({
                 </Button>
               )}
             </div>
-          </div>
-
-          {/* Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-white border-l-4 border-l-main-color">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Notifications</p>
-                    <p className="text-2xl font-bold text-gray-800">{notifications.length}</p>
-                  </div>
-                  <Bell className="w-8 h-8 text-main-color" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-l-4 border-l-red-500">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Alert Notifications</p>
-                    <p className="text-2xl font-bold text-gray-800">
-                      {notifications.filter(note => isAlertNotification(note)).length}
-                    </p>
-                  </div>
-                  <AlertTriangle className="w-8 h-8 text-red-500" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-l-4 border-l-blue-500">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Info Notifications</p>
-                    <p className="text-2xl font-bold text-gray-800">
-                      {notifications.filter(note => !isAlertNotification(note)).length}
-                    </p>
-                  </div>
-                  <Info className="w-8 h-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Notifications List */}
@@ -575,11 +831,11 @@ export default function NotificationCenter({
               <div className="p-12 text-center">
                 <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 text-lg mb-2">
-                  {searchTerm || filterType !== "all" 
+                  {searchTerm || filterType !== "all" || activeTab !== "all"
                     ? "No notifications match your filters" 
                     : "No notifications found"}
                 </p>
-                {(searchTerm || filterType !== "all") && (
+                {(searchTerm || filterType !== "all" || activeTab !== "all") && (
                   <Button
                     variant="outline"
                     onClick={handleClearFilters}
@@ -597,14 +853,23 @@ export default function NotificationCenter({
                   <p className="text-gray-600">
                     Showing {filteredNotifications.length} of {notifications.length} notifications
                   </p>
-                  <Badge variant="secondary" className="text-sm bg-main-color text-white">
-                    Sorted by: Newest First
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-sm bg-main-color text-white">
+                      Sorted by: Newest First
+                    </Badge>
+                    {activeTab === "realtime" && (
+                      <Badge variant="outline" className="text-sm border-green-500 text-green-600">
+                        <Wifi className="w-3 h-3 mr-1" />
+                        Real-time
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   {filteredNotifications.map((note, i) => {
                     const isAlert = isAlertNotification(note);
+                    const isRealtime = note.isMqtt;
                     
                     return (
                       <Card
@@ -620,18 +885,31 @@ export default function NotificationCenter({
                               )}`}
                             >
                               {getNotificationIcon(note)}
-                              <span className="flex-1">{note.displayMessage}</span>
+                              <span className="flex-1">
+                                {note.displayMessage}
+                              </span>
                             </CardTitle>
-                            <Badge
-                              variant={isAlert ? "destructive" : "secondary"}
-                              className={`ml-2 ${
-                                isAlert 
-                                  ? "bg-red-100 text-red-800 hover:bg-red-200" 
-                                  : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                              }`}
-                            >
-                              {getNotificationType(note)}
-                            </Badge>
+                            <div className="flex gap-2">
+                              {isRealtime && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-green-500 text-green-600 bg-green-50"
+                                >
+                                  <Wifi className="w-3 h-3 mr-1" />
+                                  Live
+                                </Badge>
+                              )}
+                              <Badge
+                                variant={isAlert ? "destructive" : "secondary"}
+                                className={`${
+                                  isAlert 
+                                    ? "bg-red-100 text-red-800 hover:bg-red-200" 
+                                    : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                                }`}
+                              >
+                                {getNotificationType(note)}
+                              </Badge>
+                            </div>
                           </div>
                         </CardHeader>
 
@@ -643,6 +921,11 @@ export default function NotificationCenter({
                               }`}
                             >
                               {note.date} • {note.time}
+                              {isRealtime && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                                  Just now
+                                </span>
+                              )}
                             </p>
 
                             {note.topic_main && (
@@ -653,34 +936,24 @@ export default function NotificationCenter({
                                     : "bg-blue-200 text-blue-800"
                                 }`}
                               >
-                                Topic: {note.topic_main}
+                                {note.topic_main.split('/').slice(-1)[0]}
                               </span>
                             )}
                           </div>
 
                           <div className="mt-2 space-y-1">
                             <div className="flex flex-wrap gap-4">
-                             {/* {note?.projectName&&(
-                              <p className="text-sm text-gray-500">
-                                <strong>Project:</strong> {note?.projectName}
-                              </p>)}
-                              {note?.robotName&&(
-                              <p className="text-sm text-gray-500">
-                                <strong>Robot:</strong> {note?.robotName}
-                              </p>)} */}
+                              {note.robotName && note.robotName !== "Unknown Robot" && (
+                                <p className="text-sm text-gray-500">
+                                  <strong>Robot:</strong> {note.robotName}
+                                </p>
+                              )}
+                              {note.sectionName && (
+                                <p className="text-sm text-gray-500">
+                                  <strong>Section:</strong> {note.sectionName}
+                                </p>
+                              )}
                             </div>
-                            
-                            {/* {note.sectionName && (
-                              <p className="text-sm text-gray-500">
-                                <strong>Section:</strong> {note.sectionName}
-                              </p>
-                            )}
-                            
-                            {note.topic_main && (
-                              <p className="text-sm text-gray-500">
-                                <strong>Topic:</strong> {note.topic_main}
-                              </p>
-                            )} */}
                           </div>
                           
                           <div className="flex items-center justify-between mt-3">
@@ -689,6 +962,12 @@ export default function NotificationCenter({
                                 <div className="flex items-center gap-1">
                                   <AlertTriangle className="w-4 h-4 text-red-500" />
                                   <span className="text-sm text-red-600 font-medium">Priority Alert</span>
+                                </div>
+                              )}
+                              {isRealtime && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                  <span className="text-sm text-green-600">Active</span>
                                 </div>
                               )}
                             </div>
@@ -701,7 +980,7 @@ export default function NotificationCenter({
                                   : "border-blue-300 text-blue-700 hover:bg-blue-50"
                               }`}
                             >
-                              View Robot Details
+                              View Details
                             </Button>
                           </div>
                         </CardContent>
@@ -745,8 +1024,11 @@ export default function NotificationCenter({
             <Bell className="w-5 h-5" />
             <div>
               <h3 className="text-lg font-semibold">Notifications</h3>
-              
-                <p className="text-sm text-white/80">All Projects</p>
+              <p className="text-sm text-white/80">
+                {activeConnections.length > 0 
+                  ? `${connectedCount}/${connectionCount} connected` 
+                  : 'All Projects'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -841,27 +1123,32 @@ export default function NotificationCenter({
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-3 gap-2 p-3 bg-white border-b text-sm">
+      <div className="grid grid-cols-4 gap-1 p-3 bg-white border-b text-sm">
         <div className="text-center">
-          <p className="text-lg font-bold text-main-color">{notifications.length}</p>
+          <p className="text-lg font-bold text-main-color">{stats.total}</p>
           <p className="text-xs text-gray-600">Total</p>
         </div>
         <div className="text-center">
-          <p className="text-lg font-bold text-red-500">
-            {notifications.filter(note => isAlertNotification(note)).length}
-          </p>
+          <p className="text-lg font-bold text-red-500">{stats.alerts}</p>
           <p className="text-xs text-gray-600">Alerts</p>
         </div>
         <div className="text-center">
-          <p className="text-lg font-bold text-blue-500">
-            {notifications.filter(note => !isAlertNotification(note)).length}
-          </p>
+          <p className="text-lg font-bold text-blue-500">{stats.info}</p>
           <p className="text-xs text-gray-600">Info</p>
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-bold text-green-500">{stats.realtime}</p>
+          <p className="text-xs text-gray-600">Live</p>
         </div>
       </div>
 
+      {/* MQTT Status */}
+      <div className="px-3 py-2 border-b bg-gray-50">
+        {renderMqttStatus()}
+      </div>
+
       {/* Content */}
-      <div className="h-[calc(75vh-220px)] md:max-h-[60vh] overflow-y-auto">
+      <div className="h-[calc(75vh-280px)] md:max-h-[55vh] overflow-y-auto">
         {loading && (
           <div className="flex justify-center items-center py-8">
             <Loader className="w-6 h-6 animate-spin text-main-color mr-2" />
@@ -888,9 +1175,7 @@ export default function NotificationCenter({
             <p className="text-gray-500 text-sm mb-1">
               {searchTerm || filterType !== "all" 
                 ? "No notifications match your filters" 
-                : currentProject
-                  ? `No notifications for ${currentProject.ProjectName}`
-                  : "No notifications found"}
+                : "No notifications found"}
             </p>
             {(searchTerm || filterType !== "all") && (
               <button
@@ -917,6 +1202,7 @@ export default function NotificationCenter({
             <div className="space-y-2">
               {filteredNotifications.map((note, i) => {
                 const isAlert = isAlertNotification(note);
+                const isRealtime = note.isMqtt;
                 
                 return (
                   <Card
@@ -932,18 +1218,31 @@ export default function NotificationCenter({
                           }`}
                         >
                           {getNotificationIcon(note)}
-                          <span className="flex-1">{note.displayMessage}</span>
+                          <span className="flex-1">
+                            {note.displayMessage}
+                          </span>
                         </CardTitle>
-                        <Badge
-                          variant={isAlert ? "destructive" : "secondary"}
-                          className={`ml-2 text-xs ${
-                            isAlert 
-                              ? "bg-red-100 text-red-800 hover:bg-red-200" 
-                              : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                          }`}
-                        >
-                          {getNotificationType(note)}
-                        </Badge>
+                        <div className="flex gap-1">
+                          {isRealtime && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-green-500 text-green-600 bg-green-50"
+                            >
+                              <Wifi className="w-2 h-2 mr-1" />
+                              Live
+                            </Badge>
+                          )}
+                          <Badge
+                            variant={isAlert ? "destructive" : "secondary"}
+                            className={`text-xs ${
+                              isAlert 
+                                ? "bg-red-100 text-red-800 hover:bg-red-200" 
+                                : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                            }`}
+                          >
+                            {getNotificationType(note)}
+                          </Badge>
+                        </div>
                       </div>
                     </CardHeader>
 
@@ -955,42 +1254,39 @@ export default function NotificationCenter({
                           }`}
                         >
                           {note.date} • {note.time}
+                          {isRealtime && (
+                            <span className="ml-1 text-xs bg-green-100 text-green-800 px-1 py-0.5 rounded">
+                              now
+                            </span>
+                          )}
                         </p>
 
                         {note.topic_main && (
                           <span
-                            className={`text-xs px-2 py-1 rounded ${
+                            className={`text-xs px-2 py-0.5 rounded ${
                               isAlert
                                 ? "bg-red-200 text-red-800"
                                 : "bg-blue-200 text-blue-800"
                             }`}
                           >
-                            {note.topic_main}
+                            {note.topic_main.split('/').pop()}
                           </span>
                         )}
                       </div>
 
                       <div className="space-y-1">
                         <div className="flex flex-wrap gap-2">
-                          {/* <p className="text-xs text-gray-500">
-                            <strong>Project:</strong> {note.projectName}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            <strong>Robot:</strong> {note.robotName}
-                          </p> */}
+                          {note.robotName && note.robotName !== "Unknown Robot" && (
+                            <p className="text-xs text-gray-500">
+                              <strong>Robot:</strong> {note.robotName}
+                            </p>
+                          )}
+                          {note.sectionName && (
+                            <p className="text-xs text-gray-500">
+                              <strong>Section:</strong> {note.sectionName}
+                            </p>
+                          )}
                         </div>
-                        
-                        {/* {note.sectionName && (
-                          <p className="text-xs text-gray-500">
-                            <strong>Section:</strong> {note.sectionName}
-                          </p>
-                        )} */}
-                        
-                        {/* {note.topic_main && (
-                          <p className="text-xs text-gray-500">
-                            <strong>Topic:</strong> {note.topic_main}
-                          </p>
-                        )} */}
                       </div>
                       
                       <div className="flex items-center justify-between mt-2">
@@ -999,6 +1295,12 @@ export default function NotificationCenter({
                             <div className="flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3 text-red-500" />
                               <span className="text-xs text-red-600 font-medium">Priority</span>
+                            </div>
+                          )}
+                          {isRealtime && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                              <span className="text-xs text-green-600">Active</span>
                             </div>
                           )}
                         </div>
@@ -1011,7 +1313,7 @@ export default function NotificationCenter({
                               : "border-blue-300 text-blue-700 hover:bg-blue-50"
                           }`}
                         >
-                          View Details
+                          View
                         </Button>
                       </div>
                     </CardContent>
@@ -1025,13 +1327,22 @@ export default function NotificationCenter({
 
       {!loading && filteredNotifications.length > 0 && (
         <div className="border-t p-3 bg-gray-50">
-          <button
-            onClick={fetchCurrentProjectAndNotifications}
-            className="w-full text-center text-sm text-main-color hover:text-second-color font-medium py-1 flex items-center justify-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh Notifications
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={fetchCurrentProjectAndNotifications}
+              className="text-center text-sm text-main-color hover:text-second-color font-medium py-1 flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowConnectionStatus(!showConnectionStatus)}
+              className="text-center text-sm text-gray-600 hover:text-gray-800 font-medium py-1 flex items-center justify-center gap-2"
+            >
+              <Wifi className="w-4 h-4" />
+              {connectedCount}/{connectionCount}
+            </button>
+          </div>
         </div>
       )}
     </div>

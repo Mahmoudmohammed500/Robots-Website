@@ -14,6 +14,7 @@ export default function TrolleyPanelDetails({
   const [buttonsWithColors, setButtonsWithColors] = useState([]);
   const [updatingButtons, setUpdatingButtons] = useState({});
   const [updatingValues, setUpdatingValues] = useState({});
+  const [showMqttPassword, setShowMqttPassword] = useState(false);
   const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost/robots_web_apis";
   const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || "http://localhost/robots_web_apis/uploads";
 
@@ -191,9 +192,21 @@ export default function TrolleyPanelDetails({
     return visibility[valueId] !== false;
   };
 
+  const toggleMqttPasswordVisibility = () => {
+    setShowMqttPassword(!showMqttPassword);
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 transition hover:shadow-lg">
       <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
+          <img
+            src={safeImgSrc}
+            alt="trolley"
+            className="w-48 h-40 object-cover rounded-xl border border-gray-200 shadow-sm"
+          />
+        </div>
+
         <div className="flex-1 grid grid-cols-2 gap-4">
           <ViewFieldWithVisibility 
             label="Voltage" 
@@ -219,12 +232,30 @@ export default function TrolleyPanelDetails({
             onVisibilityChange={(isVisible) => updateValueVisibility("status-trolley", "Status", isVisible)}
             updating={updatingValues["status-trolley"]}
           />
-          <ViewField label="MQTT URL" value={trolleyData.mqttUrl || "-"} />
+
+          {/* MQTT Credentials from car section */}
+          <ViewField label="MQTT URL" value={carSection.mqttUrl || "-"} />
+          <ViewField label="MQTT Username" value={carSection.mqttUsername || "-"} />
+          
+          {/* MQTT Password with eye icon */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1">MQTT Password</label>
+            <div className="border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg p-2.5 cursor-default select-none overflow-hidden relative group">
+              <div className="truncate pr-8">
+                {showMqttPassword ? carSection.mqttPassword || "-" : "••••••••"}
+              </div>
+              <button
+                onClick={toggleMqttPasswordVisibility}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors opacity-0 group-hover:opacity-100"
+                title={showMqttPassword ? "Hide password" : "Show password"}
+              >
+                {showMqttPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+          </div>
+          
           <ViewField label="Topic Publisher" value={carSection.Topic_main || "-"} />
-          <ViewField
-            label="Topic Subscribe"
-            value={carSection.Topic_subscribe || "-"}
-          />
+          <ViewField label="Topic Subscribe" value={carSection.Topic_subscribe || "-"} />
 
           <div className="col-span-2">
             <div className="flex items-center justify-between mb-2">
@@ -299,8 +330,10 @@ function ViewField({ label, value }) {
   return (
     <div className="flex flex-col">
       <label className="text-xs text-gray-500 mb-1">{label}</label>
-      <div className="border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg p-2.5 cursor-default select-none">
-        {value}
+      <div className="border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg p-2.5 cursor-default select-none overflow-hidden">
+        <div className="truncate" title={value}>
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -333,8 +366,10 @@ function ViewFieldWithVisibility({ label, value, fieldId, isVisible, onVisibilit
           )}
         </button>
       </div>
-      <div className="border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg p-2.5 cursor-default select-none">
-        {value}
+      <div className="border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg p-2.5 cursor-default select-none overflow-hidden">
+        <div className="truncate" title={value}>
+          {value}
+        </div>
       </div>
     </div>
   );

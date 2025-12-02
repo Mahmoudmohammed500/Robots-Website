@@ -21,24 +21,29 @@ export default function AddRobotWithTrolley() {
     RobotName: "",
     Image: null,
     imagePreview: null,
-    mqttUrl: "",
     Sections: {
       main: {
-        Voltage: "0", // قيمة ثابتة
-        Cycles: "0", // قيمة ثابتة
-        Status: "stopped", // قيمة ثابتة
+        Voltage: "0",
+        Cycles: "0", 
+        Status: "stopped",
         ActiveBtns: [],
         Topic_subscribe: "",
         Topic_main: "",
+        mqttUrl: "",
+        mqttUsername: "",
+        mqttPassword: "",
       },
       car: showTrolley
         ? {
-            Voltage: "0", // قيمة ثابتة
-            Cycles: "0", // قيمة ثابتة
-            Status: "stopped", // قيمة ثابتة
+            Voltage: "0",
+            Cycles: "0",
+            Status: "stopped",
             ActiveBtns: [],
             Topic_subscribe: "",
             Topic_main: "",
+            mqttUrl: "",
+            mqttUsername: "",
+            mqttPassword: "",
           }
         : {},
     },
@@ -62,34 +67,34 @@ export default function AddRobotWithTrolley() {
 
   const handleSubmit = async () => {
     if (!robot.RobotName) return toast.warning("Please enter robot name");
-    if (!robot.mqttUrl) return toast.warning("Please enter MQTT URL");
+    if (!robot.Sections.main.mqttUrl) return toast.warning("Please enter MQTT URL for Robot");
 
     setLoading(true);
 
     try {
       const fd = new FormData();
       fd.append("RobotName", robot.RobotName);
-      fd.append("mqttUrl", robot.mqttUrl);
       fd.append("projectId", Number(id));
       fd.append("isTrolley", showTrolley ? 1 : 0);
       
-      // التأكد من إرسال القيم الثابتة
+      // Prepare sections with their own MQTT credentials
       const sectionsToSend = {
         main: {
           ...robot.Sections.main,
           Voltage: "0",
           Cycles: "0",
           Status: "stopped"
-        },
-        car: showTrolley
-          ? {
-              ...robot.Sections.car,
-              Voltage: "0",
-              Cycles: "0", 
-              Status: "stopped"
-            }
-          : {}
+        }
       };
+
+      if (showTrolley) {
+        sectionsToSend.car = {
+          ...robot.Sections.car,
+          Voltage: "0",
+          Cycles: "0",
+          Status: "stopped"
+        };
+      }
       
       fd.append("Sections", JSON.stringify(sectionsToSend));
 
@@ -118,7 +123,6 @@ export default function AddRobotWithTrolley() {
   };
 
   const updateMainSection = (updates) => {
-    // منع تحديث الحقول الثابتة في main section
     const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     setRobot((prev) => ({
       ...prev,
@@ -127,7 +131,6 @@ export default function AddRobotWithTrolley() {
         main: { 
           ...prev.Sections.main, 
           ...allowedUpdates,
-          // الحفاظ على القيم الثابتة
           Voltage: "0",
           Cycles: "0",
           Status: "stopped"
@@ -137,7 +140,6 @@ export default function AddRobotWithTrolley() {
   };
 
   const updateCarSection = (updates) => {
-    // منع تحديث الحقول الثابتة في car section
     const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     setRobot((prev) => ({
       ...prev,
@@ -146,7 +148,6 @@ export default function AddRobotWithTrolley() {
         car: { 
           ...prev.Sections.car, 
           ...allowedUpdates,
-          // الحفاظ على القيم الثابتة
           Voltage: "0",
           Cycles: "0",
           Status: "stopped"
@@ -157,10 +158,6 @@ export default function AddRobotWithTrolley() {
 
   const updateRobotName = (name) => {
     setRobot((prev) => ({ ...prev, RobotName: name }));
-  };
-
-  const updateMqttUrl = (url) => {
-    setRobot((prev) => ({ ...prev, mqttUrl: url }));
   };
 
   const updateImage = (file, preview) => {
@@ -219,7 +216,6 @@ export default function AddRobotWithTrolley() {
                 updateCarSection={updateCarSection}
                 imagePreview={robot.imagePreview}
                 updateImage={updateImage}
-                // تمرير prop إضافي للإشارة إلى أن هذه الحقول ثابتة
                 fixedFields={true}
               />
             </div>
@@ -274,9 +270,6 @@ export default function AddRobotWithTrolley() {
                 updateRobotName={updateRobotName}
                 imagePreview={robot.imagePreview}
                 updateImage={updateImage}
-                mqttUrl={robot.mqttUrl}
-                updateMqttUrl={updateMqttUrl}
-                // تمرير prop إضافي للإشارة إلى أن هذه الحقول ثابتة
                 fixedFields={true}
               />
             )}

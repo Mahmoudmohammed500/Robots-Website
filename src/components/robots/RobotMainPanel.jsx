@@ -1,5 +1,5 @@
-import React from "react";
-import { Upload, Power } from "lucide-react";
+import React, { useState } from "react";
+import { Upload, Eye, EyeOff } from "lucide-react";
 
 export default function RobotMainPanel({ 
   mainData = {}, 
@@ -8,9 +8,10 @@ export default function RobotMainPanel({
   updateRobotName = () => {},
   imagePreview = null,
   updateImage = () => {},
-  mqttUrl = "",
-  updateMqttUrl = () => {}
+  fixedFields = false
 }) {
+  const [showMqttPassword, setShowMqttPassword] = useState(false);
+
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -22,9 +23,8 @@ export default function RobotMainPanel({
     updateMainSection({ [field]: value });
   };
 
-  const toggleStatus = () => {
-    const newStatus = mainData.Status === "Running" ? "Stopped" : "Running";
-    handleMainChange("Status", newStatus);
+  const toggleMqttPasswordVisibility = () => {
+    setShowMqttPassword(!showMqttPassword);
   };
 
   return (
@@ -59,33 +59,46 @@ export default function RobotMainPanel({
             />
           </div>
 
-          {/* MQTT URL */}
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1">MQTT URL</label>
-            <input
-              type="text"
-              value={mqttUrl}
-              onChange={(e) => updateMqttUrl(e.target.value)}
-              className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color"
-              placeholder="Enter MQTT URL"
-            />
-          </div>
-
-          {/* Voltage & Cycles */}
-          {/* <EditableField 
-            label="Voltage" 
-            value={mainData.Voltage || ""} 
-            onChange={(v) => handleMainChange("Voltage", v)} 
-            type="number" 
-            placeholder="Enter voltage"
-          />
+          {/* MQTT URL for Robot */}
           <EditableField 
-            label="Cycles" 
-            value={mainData.Cycles || ""} 
-            onChange={(v) => handleMainChange("Cycles", v)} 
-            type="number" 
-            placeholder="Enter cycles"
-          /> */}
+            label="MQTT URL"
+            value={mainData.mqttUrl || ""}
+            onChange={(v) => handleMainChange("mqttUrl", v)}
+            placeholder="Enter MQTT URL for robot"
+          />
+
+          {/* MQTT Username for Robot */}
+          <EditableField 
+            label="MQTT Username"
+            value={mainData.mqttUsername || ""}
+            onChange={(v) => handleMainChange("mqttUsername", v)}
+            placeholder="Enter MQTT username for robot"
+          />
+
+          {/* MQTT Password for Robot with Eye Icon */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1">MQTT Password</label>
+            <div className="relative">
+              <input
+                type={showMqttPassword ? "text" : "password"}
+                value={mainData.mqttPassword || ""}
+                onChange={(e) => handleMainChange("mqttPassword", e.target.value)}
+                placeholder="Enter MQTT password for robot"
+                className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color w-full pr-10"
+              />
+              <button
+                type="button"
+                onClick={toggleMqttPasswordVisibility}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                {showMqttPassword ? (
+                  <EyeOff size={16} />
+                ) : (
+                  <Eye size={16} />
+                )}
+              </button>
+            </div>
+          </div>
 
           {/* Topic Subscribe */}
           <EditableField 
@@ -97,36 +110,11 @@ export default function RobotMainPanel({
 
           {/* Topic Main */}
           <EditableField 
-            label="Topic Publisher "
+            label="Topic Publisher"
             value={mainData.Topic_main || ""}
             onChange={(v) => handleMainChange("Topic_main", v)}
             placeholder="Enter publisher topic"
           />
-
-          {/* Status */}
-          <div className="flex flex-col">
-            {/* <label className="text-xs text-gray-500 mb-1">Status</label>
-            <div className="flex gap-2">
-              <select
-                value={mainData.Status || ""}
-                onChange={(e) => handleMainChange("Status", e.target.value)}
-                className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color"
-              >
-                <option value="">Select status</option>
-                <option value="Running">Running</option>
-                <option value="Stopped">Stopped</option>
-                <option value="Idle">Idle</option>
-              </select>
-              <button
-                onClick={toggleStatus}
-                className={`px-3 rounded-lg text-white flex items-center justify-center ${
-                  mainData.Status === "Running" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
-                }`}
-              >
-                <Power size={16} />
-              </button>
-            </div> */}
-          </div>
         </div>
       </div>
     </div>

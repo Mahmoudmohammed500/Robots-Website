@@ -23,6 +23,7 @@ export default function EditRobot() {
   const [isMainUnlocked, setIsMainUnlocked] = useState(false);
   const [mainPassword, setMainPassword] = useState("");
   const MAIN_PASSWORD = "#aoxns@343."; 
+  
   const handlePasswordSubmit = () => {
     if (mainPassword === MAIN_PASSWORD) {
       setIsMainUnlocked(true);
@@ -60,23 +61,31 @@ export default function EditRobot() {
           imagePreview: data.Image
             ? `${UPLOADS_URL}/${data.Image}`
             : "/assets/placeholder-robot.jpg",
-          mqttUrl: data.mqttUrl || "",
+          // Remove global mqttUrl since it's now in sections
           isTrolley: data.isTrolley == 1 || data.isTrolley === "true" || data.isTrolley === true,
           Sections: {
             main: {
               Voltage: mainSection.Voltage || "",
               Cycles: mainSection.Cycles || "",
               Status: mainSection.Status || "Stopped",
-              Topic_subscribe: mainSection.Topic_subscribe || "robot/main/in",
-              Topic_main: mainSection.Topic_main || "robot/main/out",
+              Topic_subscribe: mainSection.Topic_subscribe || "",
+              Topic_main: mainSection.Topic_main || "",
+              // Add MQTT credentials from main section
+              mqttUrl: mainSection.mqttUrl || "",
+              mqttUsername: mainSection.mqttUsername || "",
+              mqttPassword: mainSection.mqttPassword || "",
             },
             car: (data.isTrolley == 1 || data.isTrolley === "true" || data.isTrolley === true)
               ? {
                   Voltage: carSection.Voltage || "",
                   Cycles: carSection.Cycles || "",
                   Status: carSection.Status || "Stopped",
-                  Topic_subscribe: carSection.Topic_subscribe || "robot/car/in",
-                  Topic_main: carSection.Topic_main || "robot/car/out",
+                  Topic_subscribe: carSection.Topic_subscribe || "",
+                  Topic_main: carSection.Topic_main || "",
+                  // Add MQTT credentials from car section
+                  mqttUrl: carSection.mqttUrl || "",
+                  mqttUsername: carSection.mqttUsername || "",
+                  mqttPassword: carSection.mqttPassword || "",
                 }
               : null,
           },
@@ -104,18 +113,13 @@ export default function EditRobot() {
     setRobot((prev) => ({ ...prev, RobotName: name }));
   };
 
-  const updateMqttUrl = (url) => {
-    console.log("Updating MQTT URL to:", url);
-    setRobot((prev) => ({ ...prev, mqttUrl: url }));
-  };
-
   const updateImage = (file, preview) => {
     console.log("Updating image:", file, preview);
     setRobot((prev) => ({ ...prev, Image: file, imagePreview: preview }));
   };
 
   const updateMainSection = (updates) => {
-    // منع تحديث الحقول الثابتة
+    // Allow updating MQTT fields but prevent updating fixed fields
     const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     console.log("Updating main section (filtered):", allowedUpdates);
     setRobot((prev) => ({
@@ -125,7 +129,6 @@ export default function EditRobot() {
         main: { 
           ...prev.Sections.main, 
           ...allowedUpdates,
-          // الحفاظ على القيم الأصلية من API
           Voltage: prev.Sections.main.Voltage,
           Cycles: prev.Sections.main.Cycles,
           Status: prev.Sections.main.Status
@@ -135,7 +138,7 @@ export default function EditRobot() {
   };
 
   const updateCarSection = (updates) => {
-    // منع تحديث الحقول الثابتة
+    // Allow updating MQTT fields but prevent updating fixed fields
     const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     console.log("Updating car section (filtered):", allowedUpdates);
     setRobot((prev) => ({
@@ -145,7 +148,6 @@ export default function EditRobot() {
         car: { 
           ...prev.Sections.car, 
           ...allowedUpdates,
-          // الحفاظ على القيم الأصلية من API
           Voltage: prev.Sections.car?.Voltage,
           Cycles: prev.Sections.car?.Cycles,
           Status: prev.Sections.car?.Status
@@ -161,26 +163,27 @@ export default function EditRobot() {
       return;
     }
 
-    if (!robot.mqttUrl) {
-      toast.warning("Please enter MQTT URL");
+    if (!robot.Sections?.main?.mqttUrl) {
+      toast.warning("Please enter MQTT URL for Robot");
       return;
     }
 
-    // إزالة التحقق من الحقول الثابتة
     setSubmitting(true);
 
     try {
       const payload = {
         RobotName: robot.RobotName,
         Image: robot.Image instanceof File ? robot.Image.name : robot.Image,
-        mqttUrl: robot.mqttUrl,
         isTrolley: showTrolley ? 1 : 0,
         Sections: {
           main: {
             ...robot.Sections.main,
-            // إرسال القيم كما هي من API بدون تحويل
             Voltage: robot.Sections.main.Voltage,
             Cycles: robot.Sections.main.Cycles,
+            Status: robot.Sections.main.Status,
+            mqttUrl: robot.Sections.main.mqttUrl,
+            mqttUsername: robot.Sections.main.mqttUsername,
+            mqttPassword: robot.Sections.main.mqttPassword,
           },
         },
       };
@@ -188,9 +191,12 @@ export default function EditRobot() {
       if (showTrolley && robot.Sections.car) {
         payload.Sections.car = {
           ...robot.Sections.car,
-          // إرسال القيم كما هي من API بدون تحويل
           Voltage: robot.Sections.car.Voltage,
           Cycles: robot.Sections.car.Cycles,
+          Status: robot.Sections.car.Status,
+          mqttUrl: robot.Sections.car.mqttUrl,
+          mqttUsername: robot.Sections.car.mqttUsername,
+          mqttPassword: robot.Sections.car.mqttPassword,
         };
       }
 
@@ -217,7 +223,8 @@ export default function EditRobot() {
 
   console.log("=== FINAL ROBOT DATA BEFORE RENDER ===");
   console.log("Robot Name:", robot?.RobotName);
-  console.log("MQTT URL:", robot?.mqttUrl);
+  console.log("Main MQTT URL:", robot?.Sections?.main?.mqttUrl);
+  console.log("Main MQTT Username:", robot?.Sections?.main?.mqttUsername);
   console.log("Main Voltage:", robot?.Sections?.main?.Voltage);
   console.log("Main Cycles:", robot?.Sections?.main?.Cycles);
 
@@ -264,8 +271,7 @@ export default function EditRobot() {
               updateCarSection={updateCarSection}
               imagePreview={robot.imagePreview}
               updateImage={updateImage}
-              // تمرير prop للإشارة إلى أن الحقول للقراءة فقط
-              readOnlyFields={true}
+              // Remove readOnlyFields prop to allow editing
             />
           </section>
         )}
@@ -279,7 +285,8 @@ export default function EditRobot() {
               // Password Input Section
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-semibold text-main-color mb-4">
-                  Enter the password to access the robot control                </h3>
+                  Enter the password to access the robot control
+                </h3>
                 <div className="flex gap-3 items-center">
                   <input
                     type="password"
@@ -310,10 +317,7 @@ export default function EditRobot() {
                 updateRobotName={updateRobotName}
                 imagePreview={robot.imagePreview}
                 updateImage={updateImage}
-                mqttUrl={robot.mqttUrl}
-                updateMqttUrl={updateMqttUrl}
-                // تمرير prop للإشارة إلى أن الحقول للقراءة فقط
-                readOnlyFields={true}
+                // Remove readOnlyFields prop to allow editing
               />
             )}
           </div>

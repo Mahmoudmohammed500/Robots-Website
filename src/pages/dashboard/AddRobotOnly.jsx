@@ -16,17 +16,19 @@ export default function AddRobotOnly() {
     RobotName: "",
     Image: null,
     imagePreview: null,
-    mqttUrl: "",
     projectId: id || "",
     isTrolley: false,
     Sections: {
       main: {
-        Voltage: "0", // قيمة ثابتة
-        Cycles: "0", // قيمة ثابتة
-        Status: "stopped", // قيمة ثابتة
+        Voltage: "0", 
+        Cycles: "0", 
+        Status: "stopped", 
         ActiveBtns: [],
         Topic_subscribe: "",
         Topic_main: "",
+        mqttUrl: "",
+        mqttUsername: "", 
+        mqttPassword: "",
       },
     },
   });
@@ -49,7 +51,6 @@ export default function AddRobotOnly() {
   };
 
   const updateMainSection = (updates) => {
-    // منع تحديث الحقول الثابتة
     const { Voltage, Cycles, Status, ...allowedUpdates } = updates;
     setRobot((prev) => ({
       ...prev,
@@ -58,7 +59,6 @@ export default function AddRobotOnly() {
         main: { 
           ...prev.Sections.main, 
           ...allowedUpdates,
-          // الحفاظ على القيم الثابتة
           Voltage: "0",
           Cycles: "0", 
           Status: "stopped"
@@ -69,10 +69,6 @@ export default function AddRobotOnly() {
 
   const updateRobotName = (name) => {
     setRobot((prev) => ({ ...prev, RobotName: name }));
-  };
-
-  const updateMqttUrl = (url) => {
-    setRobot((prev) => ({ ...prev, mqttUrl: url }));
   };
 
   const updateImage = (file, preview) => {
@@ -86,7 +82,8 @@ export default function AddRobotOnly() {
   const handleSave = async () => {
     if (!robot.RobotName.trim())
       return toast.error("Please enter a robot name!");
-    if (!robot.mqttUrl.trim()) return toast.error("Please enter MQTT URL!");
+    if (!robot.Sections.main.mqttUrl.trim()) 
+      return toast.error("Please enter MQTT URL for Robot!");
     if (!robot.projectId) return toast.error("Project ID is missing!");
 
     setLoading(true);
@@ -94,13 +91,10 @@ export default function AddRobotOnly() {
     try {
       const fd = new FormData();
       fd.append("RobotName", robot.RobotName.trim());
-      fd.append("mqttUrl", robot.mqttUrl.trim());
       fd.append("projectId", robot.projectId);
       fd.append("isTrolley", robot.isTrolley ? 1 : 0);
       
-      // التأكد من إرسال القيم الثابتة
       const sectionsToSend = {
-        ...robot.Sections,
         main: {
           ...robot.Sections.main,
           Voltage: "0",
@@ -219,9 +213,6 @@ export default function AddRobotOnly() {
                 updateRobotName={updateRobotName}
                 imagePreview={robot.imagePreview}
                 updateImage={updateImage}
-                mqttUrl={robot.mqttUrl}
-                updateMqttUrl={updateMqttUrl}
-                // تمرير prop إضافي للإشارة إلى أن هذه الحقول ثابتة
                 fixedFields={true}
               />
             )}

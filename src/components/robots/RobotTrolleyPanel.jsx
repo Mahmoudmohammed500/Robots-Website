@@ -1,5 +1,5 @@
-import React from "react";
-import { Upload } from "lucide-react";
+import React, { useState } from "react";
+import { Upload, Eye, EyeOff } from "lucide-react";
 
 export default function RobotTrolleyPanel({ 
   carData = {}, 
@@ -7,6 +7,8 @@ export default function RobotTrolleyPanel({
   imagePreview = null,
   updateImage = () => {}
 }) {
+  const [showMqttPassword, setShowMqttPassword] = useState(false);
+
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -16,6 +18,10 @@ export default function RobotTrolleyPanel({
 
   const handleCarChange = (field, value) => {
     updateCarSection({ [field]: value });
+  };
+
+  const toggleMqttPasswordVisibility = () => {
+    setShowMqttPassword(!showMqttPassword);
   };
 
   return (
@@ -36,21 +42,46 @@ export default function RobotTrolleyPanel({
         </div>
 
         <div className="flex-1 grid grid-cols-2 gap-4">
-          {/* Voltage & Cycles */}
-          {/* <EditableField
-            label="Voltage"
-            value={carData.Voltage || ""}
-            onChange={(v) => handleCarChange("Voltage", v)}
-            type="number"
-            placeholder="Enter voltage"
-          />
+          {/* MQTT URL for Trolley */}
           <EditableField
-            label="Cycles"
-            value={carData.Cycles || ""}
-            onChange={(v) => handleCarChange("Cycles", v)}
-            type="number"
-            placeholder="Enter cycles"
-          /> */}
+            label="MQTT URL"
+            value={carData.mqttUrl || ""}
+            onChange={(v) => handleCarChange("mqttUrl", v)}
+            placeholder="Enter MQTT URL for trolley"
+          />
+
+          {/* MQTT Username for Trolley */}
+          <EditableField
+            label="MQTT Username"
+            value={carData.mqttUsername || ""}
+            onChange={(v) => handleCarChange("mqttUsername", v)}
+            placeholder="Enter MQTT username for trolley"
+          />
+
+          {/* MQTT Password for Trolley with Eye Icon */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1">MQTT Password</label>
+            <div className="relative">
+              <input
+                type={showMqttPassword ? "text" : "password"}
+                value={carData.mqttPassword || ""}
+                onChange={(e) => handleCarChange("mqttPassword", e.target.value)}
+                placeholder="Enter MQTT password for trolley"
+                className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color w-full pr-10"
+              />
+              <button
+                type="button"
+                onClick={toggleMqttPasswordVisibility}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                {showMqttPassword ? (
+                  <EyeOff size={16} />
+                ) : (
+                  <Eye size={16} />
+                )}
+              </button>
+            </div>
+          </div>
 
           {/* Topic Subscribe */}
           <EditableField
@@ -67,21 +98,6 @@ export default function RobotTrolleyPanel({
             onChange={(v) => handleCarChange("Topic_main", v)}
             placeholder="Enter publisher topic"
           />
-
-          {/* Status */}
-          <div className="flex flex-col">
-            {/* <label className="text-xs text-gray-500 mb-1">Status</label>
-            <select
-              value={carData.Status || ""}
-              onChange={(e) => handleCarChange("Status", e.target.value)}
-              className="border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-main-color"
-            >
-              <option value="">Select status</option>
-              <option value="Running">Running</option>
-              <option value="Stopped">Stopped</option>
-              <option value="Idle">Idle</option>
-            </select> */}
-          </div>
         </div>
       </div>
     </div>

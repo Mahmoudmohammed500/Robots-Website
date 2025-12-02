@@ -1,4 +1,3 @@
-
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Home from "../pages/Home";
@@ -7,7 +6,7 @@ import Robots from "../pages/Robots";
 import RobotDetails from "../pages/RobotDetails";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import DashboardRoutes from "../pages/dashboard/DashboardRoutes"; 
+import DashboardRoutes from "../pages/dashboard/DashboardRoutes";
 
 let Loading, NotFound;
 
@@ -42,7 +41,6 @@ function SimpleLayout({ children }) {
 export default function AppRoutes() {
   const { isAuthenticated, userRole, isLoading } = useAuth();
 
-    
 
   // Show loading while checking authentication
   if (isLoading) {
@@ -62,8 +60,6 @@ export default function AppRoutes() {
   };
 
   const defaultRoute = getDefaultRoute();
-
-
 
   return (
     <Routes>

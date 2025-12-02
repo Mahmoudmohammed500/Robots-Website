@@ -22,9 +22,9 @@ import { deleteData } from "@/services/deleteServices";
 import RobotImg from "../../assets/Robot1.jpeg";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import useMqtt from "@/hooks/useMqtt"; //MQTT hook
+import mqtt from "mqtt"; // Import MQTT directly
 
-// ConfirmDeleteModal component
+// ConfirmDeleteModal component (unchanged)
 function ConfirmDeleteModal({
   robot = null,
   deleteAll = false,
@@ -93,6 +93,59 @@ function ConfirmDeleteModal({
   );
 }
 
+// Function to create MQTT client for specific credentials
+const createMqttClient = (mqttUrl, mqttUsername, mqttPassword) => {
+  return new Promise((resolve, reject) => {
+    const client = mqtt.connect(`wss://${mqttUrl}:8884/mqtt`, {
+      username: mqttUsername,
+      password: mqttPassword,
+      clientId: `clientId-${Math.random().toString(16).substr(2, 8)}`,
+      reconnectPeriod: 0, // No auto-reconnect for one-time operations
+    });
+
+    client.on('connect', () => {
+      resolve(client);
+    });
+
+    client.on('error', (error) => {
+      reject(error);
+    });
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      reject(new Error('MQTT connection timeout'));
+      client.end();
+    }, 10000);
+  });
+};
+
+// Function to publish message with specific credentials
+const publishWithCredentials = async (mqttUrl, mqttUsername, mqttPassword, topic, message) => {
+  try {
+    const client = await createMqttClient(mqttUrl, mqttUsername, mqttPassword);
+    
+    return new Promise((resolve, reject) => {
+      client.publish(topic, message, (error) => {
+        client.end(); // Always close connection after publish
+        
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+
+      // Timeout for publish operation
+      setTimeout(() => {
+        client.end();
+        reject(new Error('Publish timeout'));
+      }, 5000);
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
 export default function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -107,17 +160,9 @@ export default function ProjectDetails() {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [buttonsWithColors, setButtonsWithColors] = useState([]);
+  const [isSettingTime, setIsSettingTime] = useState(false);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-  //  MQTT
-  const { client, isConnected, publishMessage } = useMqtt({
-    host: "43f3644dc69f4e39bdc98298800bf5e1.s1.eu.hivemq.cloud",
-    port: 8884,
-    clientId: "clientId-1Kyy79c7WB",
-    username: "testrobotsuser",
-    password: "Testrobotsuser@1234",
-  });
 
   // Fetch buttons colors
   useEffect(() => {
@@ -224,62 +269,92 @@ export default function ProjectDetails() {
   };
 
   const handleSetRobotsTime = async () => {
+    if (robots.length === 0) {
+      toast.warning("No robots available to set time for");
+      return;
+    }
+
+    setIsSettingTime(true);
+
+    const now = new Date();
+    const dateString = now.toLocaleDateString("en-GB");
+    const timeString = now.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+    const message = `set_time_${dateString.replace(/\//g, "-")}_${timeString.replace(/:/g, "-")}`;
+
+    let results = {
+      mainTopics: 0,
+      carTopics: 0,
+      errors: 0,
+      robotDetails: [],
+    };
+
     try {
-      if (!isConnected || !publishMessage) {
-        toast.error("MQTT connection not available");
-        return;
-      }
-
-      if (robots.length === 0) {
-        toast.warning("No robots available to set time for");
-        return;
-      }
-
-      const now = new Date();
-      const dateString = now.toLocaleDateString("en-GB");
-      const timeString = now.toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      });
-
-      const message = `set_time_${dateString.replace(/\//g, "-")}_${timeString.replace(/:/g, "-")}`;
-
-      let results = {
-        mainTopics: 0,
-        carTopics: 0,
-        errors: 0,
-        robotDetails: [],
-      };
-
+      // Process each robot sequentially to avoid too many simultaneous connections
       for (const robot of robots) {
         const robotResult = {
           name: robot.RobotName || "Unnamed Robot",
-          main: { sent: false, topic: null },
-          car: { sent: false, topic: null },
+          main: { sent: false, topic: null, error: null },
+          car: { sent: false, topic: null, error: null },
         };
 
-        try {
-          const mainTopic = robot.Sections?.main?.Topic_main;
-          if (mainTopic) {
-            publishMessage(mainTopic, message);
-            robotResult.main = { sent: true, topic: mainTopic };
+        // Process main section
+        const mainSection = robot.Sections?.main;
+        if (mainSection?.Topic_main && mainSection.mqttUrl && mainSection.mqttUsername && mainSection.mqttPassword) {
+          try {
+            await publishWithCredentials(
+              mainSection.mqttUrl,
+              mainSection.mqttUsername,
+              mainSection.mqttPassword,
+              mainSection.Topic_main,
+              message
+            );
+            robotResult.main = { 
+              sent: true, 
+              topic: mainSection.Topic_main,
+              url: mainSection.mqttUrl
+            };
             results.mainTopics++;
-          } else {
+          } catch (error) {
+            robotResult.main.error = error.message;
             results.errors++;
           }
+        } else {
+          robotResult.main.error = "Missing MQTT configuration";
+          if (mainSection?.Topic_main) results.errors++;
+        }
 
-          const carTopic = robot.Sections?.car?.Topic_main;
-          if (carTopic) {
-            publishMessage(carTopic, message);
-            robotResult.car = { sent: true, topic: carTopic };
-            results.carTopics++;
-          } else if (robot.isTrolley) {
-            results.errors++;
+        // Process car section if robot is trolley
+        if (robot.isTrolley) {
+          const carSection = robot.Sections?.car;
+          if (carSection?.Topic_main && carSection.mqttUrl && carSection.mqttUsername && carSection.mqttPassword) {
+            try {
+              await publishWithCredentials(
+                carSection.mqttUrl,
+                carSection.mqttUsername,
+                carSection.mqttPassword,
+                carSection.Topic_main,
+                message
+              );
+              robotResult.car = { 
+                sent: true, 
+                topic: carSection.Topic_main,
+                url: carSection.mqttUrl
+              };
+              results.carTopics++;
+            } catch (error) {
+              robotResult.car.error = error.message;
+              results.errors++;
+            }
+          } else {
+            robotResult.car.error = "Missing MQTT configuration";
+            if (carSection?.Topic_main) results.errors++;
           }
-        } catch (error) {
-          results.errors++;
         }
 
         results.robotDetails.push(robotResult);
@@ -298,6 +373,7 @@ export default function ProjectDetails() {
       }
 
       if (results.errors > 0) {
+        toast.warning(`Failed to set time for ${results.errors} topic(s)`);
       }
 
       if (totalSuccess === 0 && results.errors > 0) {
@@ -305,6 +381,8 @@ export default function ProjectDetails() {
       }
     } catch (err) {
       toast.error("Failed to set time for robots.");
+    } finally {
+      setIsSettingTime(false);
     }
   };
 
@@ -389,13 +467,11 @@ export default function ProjectDetails() {
             <>
               <Button
                 onClick={handleSetRobotsTime}
-                disabled={!isConnected || robots.length === 0}
+                disabled={isSettingTime || robots.length === 0}
                 className="flex items-center gap-2 cursor-pointer bg-green-600 text-white border border-green-600 hover:bg-white hover:text-green-600 px-4 py-2 rounded-xl shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Clock size={18} />
-                {isConnected
-                  ? `Set Time (${robots.length} robots)`
-                  : "Connecting..."}
+                {isSettingTime ? "Setting Time..." : `Set Time (${robots.length} robots)`}
               </Button>
 
               <Button
@@ -408,25 +484,6 @@ export default function ProjectDetails() {
           )}
         </div>
       </div>
-
-      {/* MQTT Connection Status */}
-      {robots.length > 0 && (
-        <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
-          <div className="flex items-center gap-2 text-sm">
-            <div
-              className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
-            ></div>
-            <span className={isConnected ? "text-green-700" : "text-red-700"}>
-              MQTT: {isConnected ? "Connected" : "Disconnected"}
-            </span>
-            {!isConnected && (
-              <span className="text-blue-600 text-xs">
-                - Please wait for connection to set time
-              </span>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Robots Grid */}
       {robots.length > 0 ? (
@@ -500,53 +557,6 @@ export default function ProjectDetails() {
                   </span>
                 </div>
               </CardHeader>
-
-              {/* Active Buttons (main) */}
-              {/* <CardContent className="px-4 pb-4 flex flex-wrap gap-2 mt-2">
-                {(() => {
-                  let activeBtns = [];
-                  try {
-                    if (Array.isArray(robot.Sections?.main?.ActiveBtns)) {
-                      activeBtns = robot.Sections.main.ActiveBtns;
-                    } else if (
-                      typeof robot.Sections?.main?.ActiveBtns === "string"
-                    ) {
-                      activeBtns = JSON.parse(robot.Sections.main.ActiveBtns);
-                    }
-                  } catch {
-                    activeBtns = [];
-                  }
-
-                  return activeBtns.length > 0 ? (
-                    activeBtns.map((btn, i) => {
-                      const btnLabel =
-                        typeof btn?.Name === "string"
-                          ? btn.Name
-                          : typeof btn?.name === "string"
-                            ? btn.name
-                            : "-";
-                      const color = getButtonColor(btnLabel);
-                      return (
-                        <button
-                          key={btn.id || i}
-                          className="px-4 py-1.5 rounded-lg border text-sm font-medium transition-all"
-                          style={{
-                            backgroundColor: color,
-                            borderColor: color,
-                            color: "#fff",
-                          }}
-                        >
-                          {btnLabel}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <span className="text-gray-400 text-sm italic">
-                      No active buttons
-                    </span>
-                  );
-                })()}
-              </CardContent> */}
 
               {/* Robot Actions */}
               <CardContent className="px-4 pb-4 flex gap-2 mt-2">

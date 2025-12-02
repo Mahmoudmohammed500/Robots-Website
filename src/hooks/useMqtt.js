@@ -9,18 +9,90 @@ export default function useMqtt({ host, port, clientId, username, password }) {
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState([]);
   const [robotsData, setRobotsData] = useState([]);
+  const [projectsData, setProjectsData] = useState([]);
+  const [usersData, setUsersData] = useState([]);
 
+  // Fetch robots, projects, and users data
   useEffect(() => {
-    const fetchRobots = async () => {
+    const fetchInitialData = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/robots`);
-        setRobotsData(res.data);
+        // Fetch robots data
+        const robotsRes = await axios.get(`${API_BASE}/robots`);
+        setRobotsData(robotsRes.data);
+        
+        // Fetch projects data
+        const projectsRes = await axios.get(`${API_BASE}/projects`);
+        setProjectsData(projectsRes.data);
+        
+        // Fetch users data
+        const usersRes = await axios.get(`${API_BASE}/users`);
+        setUsersData(usersRes.data);
+        
+        console.log("✅ Initial data loaded:", {
+          robots: robotsRes.data.length,
+          projects: projectsRes.data.length,
+          users: usersRes.data.length
+        });
       } catch (err) {
-        console.error("Failed to fetch robots data:", err);
+        console.error("Failed to fetch initial data:", err);
       }
     };
-    fetchRobots();
+    fetchInitialData();
   }, []);
+
+  // Helper function to send email to project users
+  const sendEmailToProjectUsers = async (projectId, robotName, voltage) => {
+    try {
+      console.log("📧 STARTING EMAIL SENDING PROCESS...", { projectId, robotName, voltage });
+      
+      // Find project by ID
+      const project = projectsData.find(p => p.projectId === projectId || p.id === projectId);
+      if (!project) {
+        console.log("❌ Project not found for ID:", projectId);
+        return;
+      }
+      
+      const projectName = project.ProjectName;
+      console.log("✅ Found project:", projectName);
+      
+      // Find users in this project
+      const projectUsers = usersData.filter(user => 
+        user.ProjectName && user.ProjectName.trim() === projectName.trim()
+      );
+      
+      if (projectUsers.length === 0) {
+        console.log("ℹ️ No users found for project:", projectName);
+        return;
+      }
+      
+      console.log(`📧 Found ${projectUsers.length} user(s) for project ${projectName}:`, 
+        projectUsers.map(u => u.Email));
+      
+      // Prepare email message
+      const emailMessage = `⚠️ Danger Alert: Robot "${robotName}" voltage is critically low (${voltage}V)!`;
+      
+      // Send email to each user
+      for (const user of projectUsers) {
+        if (user.Email) {
+          try {
+            console.log(`📧 Sending email to: ${user.Email}`);
+            
+            await axios.post(`${API_BASE}/sendEmail.php`, {
+              email: user.Email,
+              message: emailMessage
+            });
+            
+            console.log(`✅ Email sent to ${user.Email}`);
+          } catch (emailError) {
+            console.error(`❌ Failed to send email to ${user.Email}:`, emailError);
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error("❌ Error in sendEmailToProjectUsers:", error);
+    }
+  };
 
   const findActualButtonName = (topic, buttonValue) => {
     console.log("🔍 SEARCHING FOR ACTUAL BUTTON NAME:", { topic, buttonValue });
@@ -197,6 +269,17 @@ export default function useMqtt({ host, port, clientId, username, password }) {
       await axios.post(`${API_BASE}/notifications.php`, alertMessage);
       await axios.post(`${API_BASE}/logs.php`, alertMessage);
       console.log("✅ Low voltage alert saved to both databases");
+      
+      // Get projectId from robotSectionInfo
+      if (robotSectionInfo && robotSectionInfo.robot) {
+        const projectId = robotSectionInfo.robot.projectId;
+        console.log("🔍 Found projectId for email sending:", projectId);
+        
+        // Send emails to project users
+        await sendEmailToProjectUsers(projectId, robotName, voltage);
+      } else {
+        console.log("❌ No robot section info available for email sending");
+      }
       
     } catch (error) {
       console.error("❌ Failed to send low voltage alert:", error);
@@ -426,6 +509,7 @@ export default function useMqtt({ host, port, clientId, username, password }) {
               robotId: robot.id,
               sectionName,
               robotName: robot.RobotName,
+              projectId: robot.projectId,
               currentData: {
                 Voltage: section.Voltage,
                 Status: section.Status,

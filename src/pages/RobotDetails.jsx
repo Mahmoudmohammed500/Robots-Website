@@ -9,7 +9,7 @@ import axios from "axios";
 import TabsHeader from "@/components/robots/TabsHeader";
 import UserNotificationsTab from "@/components/robots/UserNotificationsTab";
 import UserLogsTab from "@/components/robots/UserLogsTab";
-import useMqtt from "@/hooks/useMqtt";
+import { useMqtt } from "@/context/MqttContext";
 import ScheduleDisplay from "@/components/robots/ScheduleDisplay";
 
 const getRobotImageSrc = (image) => {
@@ -18,7 +18,6 @@ const getRobotImageSrc = (image) => {
   return `http://localhost/robots_web_apis/${image}`;
 };
 
-// LazyImage 
 function LazyImage({ src, alt, className, fallbackSrc }) {
   const [currentSrc, setCurrentSrc] = useState(src);
   const [hasError, setHasError] = useState(false);
@@ -38,7 +37,6 @@ function LazyImage({ src, alt, className, fallbackSrc }) {
   return <img src={currentSrc} alt={alt} className={className} onError={handleError} loading="lazy" />;
 }
 
-// Helper function to load button visibility from localStorage
 const loadButtonVisibility = (robotId, section) => {
   try {
     const storageKey = section === 'main' 
@@ -53,7 +51,6 @@ const loadButtonVisibility = (robotId, section) => {
   }
 };
 
-// Helper function to load value visibility from localStorage
 const loadValueVisibility = (robotId, section) => {
   try {
     const storageKey = section === 'main' 
@@ -65,6 +62,26 @@ const loadValueVisibility = (robotId, section) => {
   } catch (error) {
     console.error("Error loading value visibility:", error);
     return {};
+  }
+};
+
+const saveTimerEndTime = (robotId, endTime) => {
+  try {
+    const storageKey = `robot_${robotId}_timer_end`;
+    localStorage.setItem(storageKey, endTime.toString());
+  } catch (error) {
+    console.error("Error saving timer end time:", error);
+  }
+};
+
+const loadTimerEndTime = (robotId) => {
+  try {
+    const storageKey = `robot_${robotId}_timer_end`;
+    const saved = localStorage.getItem(storageKey);
+    return saved ? parseInt(saved, 10) : null;
+  } catch (error) {
+    console.error("Error loading timer end time:", error);
+    return null;
   }
 };
 
@@ -86,27 +103,7 @@ export default function RobotDetails() {
   const refreshIntervalRef = useRef(null);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-  const { 
-    client, 
-    isConnected, 
-    publishButtonMessage  
-  } = useMqtt({
-    host: "43f3644dc69f4e39bdc98298800bf5e1.s1.eu.hivemq.cloud",
-    port: 8884,
-    clientId: "clientId-1Kyy79c7WB",
-    username: "testrobotsuser",
-    password: "Testrobotsuser@1234",
-  });
-
-  // MQTT subscribe helper
-  const subscribe = (topic) => {
-    if (client && client.subscribe) {
-      client.subscribe(topic);
-      console.log("Subscribed to:", topic);
-    }
-  };
-
+  const { publishButtonMessage, getConnectionStatus } = useMqtt();
   const [scheduleButton, setScheduleButton] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
@@ -134,33 +131,78 @@ export default function RobotDetails() {
     return null;
   };
 
+  const publishStatusMessages = useCallback(() => {
+    console.log("🔄 Publishing status messages via MQTT Context");
+    
+    let statusSent = false;
+    
+    const robotSection = robot?.Sections?.main;
+    if (robotSection?.Topic_main) {
+      console.log("🤖 Sending status to robot section:", robotSection.Topic_main);
+      const success = publishButtonMessage(id, "main", robotSection.Topic_main, "status");
+      if (success) {
+        statusSent = true;
+      } else {
+        console.log("❌ Failed to send status to robot");
+      }
+    } else {
+      console.log("❌ Robot MQTT topic not available for status message");
+    }
+    
+    const trolleySection = robot?.Sections?.car;
+    if (trolleySection?.Topic_main) {
+      console.log("🚗 Sending status to trolley section:", trolleySection.Topic_main);
+      const success = publishButtonMessage(id, "car", trolleySection.Topic_main, "status");
+      if (success) {
+        statusSent = true;
+      } else {
+        console.log("❌ Failed to send status to trolley");
+      }
+    } else {
+      console.log("❌ Trolley MQTT topic not available for status message");
+    }
+    
+    if (statusSent) {
+      toast.success("Status requests sent");
+    } else {
+      toast.error("No MQTT topics configured or connection failed");
+    }
+  }, [robot, id, publishButtonMessage]);
+
   const fetchRobotData = useCallback(async () => {
     try {
-      console.log(" Fetching robot data for ID:", id);
+      console.log("🔄 Fetching robot data for ID:", id);
       
       let robotData;
       if (location.state?.robot) {
         robotData = await getData(`${BASE_URL}/robots/${id}`);
         if (!robotData) {
           console.warn("Robot not found in API");
-          return;
+          return null;
         }
       } else {
         robotData = await getData(`${BASE_URL}/robots/${id}`);
         if (!robotData) {
           toast.error("Robot not found in API");
-          return;
+          return null;
         }
       }
       
-      console.log(" Robot data fetched:", robotData);
+      console.log("✅ Robot data fetched:", robotData);
       setRobot(robotData);
+      
+      const robotConnectionStatus = getConnectionStatus(id, "main");
+      const trolleyConnectionStatus = getConnectionStatus(id, "car");
+      
+      console.log("🤖 Robot MQTT Connection Status:", robotConnectionStatus);
+      console.log("🚗 Trolley MQTT Connection Status:", trolleyConnectionStatus);
+      
       return robotData;
     } catch (error) {
-      console.error(" Failed to load robot details:", error);
+      console.error("❌ Failed to load robot details:", error);
       return null;
     }
-  }, [id, location.state, BASE_URL]);
+  }, [id, location.state, BASE_URL, getConnectionStatus]);
 
   const fetchButtonColors = useCallback(async () => {
     try {
@@ -173,20 +215,26 @@ export default function RobotDetails() {
       });
       setButtonColors(colorsMap);
       setButtonsWithColors(buttonsData);
-      console.log(" Button colors updated");
+      console.log("✅ Button colors updated");
     } catch (err) {
-      console.error(" Failed to load button colors:", err);
+      console.error("❌ Failed to load button colors:", err);
     }
   }, [BASE_URL]);
 
   const fetchAllData = useCallback(async () => {
     try {
-      console.log(" Auto-refreshing all data...");
-      await fetchRobotData();
+      console.log("🔄 Auto-refreshing all data...");
+      
+      const updatedRobot = await fetchRobotData();
       await fetchButtonColors();
       await fetchScheduleData();
+      
+      console.log("✅ All data refreshed successfully");
+      
+      return updatedRobot;
     } catch (error) {
-      console.error(" Error in auto-refresh:", error);
+      console.error("❌ Error in auto-refresh:", error);
+      return null;
     }
   }, [fetchRobotData, fetchButtonColors]);
 
@@ -239,24 +287,12 @@ export default function RobotDetails() {
   }, [robot]);
 
   useEffect(() => {
-    if (!isConnected || !robot) return;
-
-    Object.values(robot.Sections || {}).forEach(section => {
-      if (section.Topic_subscribe) {
-        subscribe(section.Topic_subscribe);
-      }
-    });
-  }, [isConnected, robot]);
-
-  useEffect(() => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
         
         await fetchRobotData();
-        
         await fetchButtonColors();
-        
         await fetchScheduleData();
         
       } catch (error) {
@@ -273,6 +309,9 @@ export default function RobotDetails() {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     };
   }, []);
 
@@ -286,7 +325,7 @@ export default function RobotDetails() {
         console.log(" Auto-refreshing all robot data...");
         fetchAllData();
       }
-    }, 10000); 
+    }, 10000);
 
     return () => {
       if (refreshIntervalRef.current) {
@@ -315,33 +354,73 @@ export default function RobotDetails() {
     }
   };
 
+  const handleResetTimer = async () => {
+    setIsResetting(true);
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    publishStatusMessages();
+    
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    await fetchAllData();
+    
+    setRobot(prev => prev ? {...prev} : null);
+    
+    const endTime = Date.now() + 24 * 60 * 60 * 1000;
+    saveTimerEndTime(id, endTime);
+    
+    startTimer();
+    
+    setTimeout(() => {
+      setIsResetting(false);
+    }, 600);
+  };
+
   const startTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
 
-    const now = new Date();
-    const midnight = new Date();
-    midnight.setHours(24, 0, 0, 0); 
-    let totalSeconds = Math.floor((midnight - now) / 1000); 
+    let endTime = loadTimerEndTime(id);
     
-    if (totalSeconds < 0) {
-      totalSeconds += 24 * 60 * 60;
+    if (!endTime) {
+      endTime = Date.now() + 24 * 60 * 60 * 1000;
+      saveTimerEndTime(id, endTime);
     }
 
     const updateTimer = () => {
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
+      const now = Date.now();
+      const remainingMs = endTime - now;
       
-      setDisplayTime(
-        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      );
-      
-      if (totalSeconds > 0) {
-        totalSeconds--;
+      if (remainingMs > 0) {
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        setDisplayTime(
+          `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        );
       } else {
-        totalSeconds = 24 * 60 * 60;
+        console.log("⏰ 24-hour timer completed, sending automatic status messages...");
+        publishStatusMessages();
+        
+        setTimeout(() => {
+          fetchAllData();
+        }, 2000);
+        
+        endTime = Date.now() + 24 * 60 * 60 * 1000;
+        saveTimerEndTime(id, endTime);
+        
+        const hours = 24;
+        const minutes = 0;
+        const seconds = 0;
+        setDisplayTime(
+          `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        );
       }
     };
 
@@ -350,42 +429,64 @@ export default function RobotDetails() {
     timerRef.current = setInterval(updateTimer, 1000);
   };
 
-  const handleResetTimer = () => {
-    setIsResetting(true);
-    
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
+  useEffect(() => {
+    if (robot) {
+      console.log("🤖 Robot data updated:", {
+        robotVoltage: robot.Sections?.main?.Voltage,
+        robotStatus: robot.Sections?.main?.Status,
+        robotCycles: robot.Sections?.main?.Cycles,
+        trolleyVoltage: robot.Sections?.car?.Voltage,
+        trolleyStatus: robot.Sections?.car?.Status,
+        trolleyCycles: robot.Sections?.car?.Cycles
+      });
     }
-    
-    startTimer();
-    
-    // toast.success("Timer reset to 24:00:00");
-    
-    setTimeout(() => {
-      setIsResetting(false);
-    }, 600);
-  };
+  }, [robot]);
 
-  const handleButtonClick = (btnName, sectionType = "main") => {
-    const section = robot?.Sections?.[sectionType];
-    const topic = section?.Topic_main;
+  const handleRobotButtonClick = (btnName) => {
+    const robotSection = robot?.Sections?.main;
+    const topic = robotSection?.Topic_main;
     
     if (!topic) {
-      console.error(`No topic found for ${sectionType} section`);
-      toast.error(`No topic configured for ${sectionType} section`);
+      console.error("No topic found for robot section");
+      toast.error("No topic configured for robot section");
       return;
     }
     
-    if (publishButtonMessage) {
-      publishButtonMessage(topic, btnName);
-      toast.success(`Sent: ${btnName} to this section`);
+    const success = publishButtonMessage(id, "main", topic, btnName);
+    
+    if (success) {
+      toast.success(`Robot: ${btnName}`);
       
       setTimeout(() => {
         fetchAllData();
       }, 2000);
     } else {
-      console.log(`Would publish to ${topic}: ${btnName}`);
-      toast.info(`MQTT not connected. Would send: ${btnName}`);
+      console.log(`Failed to publish to robot ${topic}: ${btnName}`);
+      toast.error("Failed to send command via MQTT");
+    }
+  };
+
+  const handleTrolleyButtonClick = (btnName) => {
+    const trolleySection = robot?.Sections?.car;
+    const topic = trolleySection?.Topic_main;
+    
+    if (!topic) {
+      console.error("No topic found for trolley section");
+      toast.error("No topic configured for trolley section");
+      return;
+    }
+    
+    const success = publishButtonMessage(id, "car", topic, btnName);
+    
+    if (success) {
+      toast.success(`Trolley: ${btnName}`);
+      
+      setTimeout(() => {
+        fetchAllData();
+      }, 2000);
+    } else {
+      console.log(`Failed to publish to trolley ${topic}: ${btnName}`);
+      toast.error("Failed to send command via MQTT");
     }
   };
 
@@ -415,18 +516,14 @@ export default function RobotDetails() {
       activeBtns = [];
     }
 
-    // Load visibility settings from localStorage
     const visibilityMap = loadButtonVisibility(id, sectionType);
 
-    // Filter out buttons that are not visible
     const filteredBtns = activeBtns.filter(btn => {
       const btnName = btn?.Name || btn?.name || '';
       const btnId = btn.id || btnName;
       
-      // Check if button is hidden in localStorage
       const isVisible = visibilityMap[btnId] !== false;
       
-      // For car section, also filter out schedule buttons
       if (sectionType === "car") {
         return isVisible && !btnName.toLowerCase().includes('schedule');
       }
@@ -441,7 +538,7 @@ export default function RobotDetails() {
       return (
         <button
           key={btn?.id || i}
-          onClick={() => handleButtonClick(btnLabel, sectionType)}
+          onClick={() => sectionType === "main" ? handleRobotButtonClick(btnLabel) : handleTrolleyButtonClick(btnLabel)}
           className="px-6 py-4 rounded-xl text-lg font-semibold text-white border shadow-lg transition-all duration-300 transform hover:scale-105 hover:opacity-90 min-w-[150px] sm:min-w-[180px] lg:min-w-[200px] cursor-pointer"
           style={{ backgroundColor: btnColor, borderColor: btnColor }}
         >
@@ -457,7 +554,6 @@ export default function RobotDetails() {
     const { Sections = {} } = robot;
     const mainSection = Sections?.main || {};
 
-    // Load value visibility for main section
     const valueVisibility = loadValueVisibility(id, 'main');
 
     return (
@@ -466,10 +562,8 @@ export default function RobotDetails() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Info + Timer */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
           <div className="flex flex-col text-left text-base sm:text-lg font-medium text-gray-800 gap-2">
-            {/* Only show values that are visible */}
             {valueVisibility["voltage"] !== false && (
               <div>Voltage: <span className="font-semibold">{mainSection.Voltage || "0"}V</span></div>
             )}
@@ -486,7 +580,6 @@ export default function RobotDetails() {
             )}
           </div>
 
-          {/* Timer with Auto-refresh label */}
           <div className="flex flex-col items-end gap-2">
             <span className="text-sm font-medium text-gray-600">Auto-refresh in</span>
             <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
@@ -496,13 +589,12 @@ export default function RobotDetails() {
                   isResetting ? 'rotate-180' : ''
                 }`}
                 onClick={handleResetTimer}
-                title="Reset timer to 24 hours"
+                title="Reset timer and send status messages"
               />
             </div>
           </div>
         </div>
 
-        {/* Active Buttons */}
         {mainSection.ActiveBtns && mainSection.ActiveBtns.length > 0 && (
           <div className="mb-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 justify-items-center">
@@ -520,7 +612,6 @@ export default function RobotDetails() {
     const { Sections = {} } = robot;
     const carSection = Sections?.car || {};
 
-    // Load value visibility for car section
     const valueVisibility = loadValueVisibility(id, 'car');
 
     return (
@@ -530,10 +621,8 @@ export default function RobotDetails() {
         animate={{ opacity: 1, y: 0 }} 
         transition={{ duration: 0.6, delay: 0.3 }}
       >
-        {/* Trolley Data */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
           <div className="flex flex-col text-left text-base sm:text-lg font-medium text-gray-800 gap-2">
-            {/* Only show values that are visible */}
             {valueVisibility["voltage-trolley"] !== false && (
               <div>Voltage: <span className="font-semibold">{carSection.Voltage || "0"}V</span></div>
             )}
@@ -550,7 +639,6 @@ export default function RobotDetails() {
             )}
           </div>
 
-          {/* Timer with Auto-refresh label for Trolley */}
           <div className="flex flex-col items-end gap-2">
             <span className="text-sm font-medium text-gray-600">Auto-refresh in</span>
             <div className="flex items-center gap-3 text-lg sm:text-2xl font-bold text-gray-900">
@@ -560,13 +648,12 @@ export default function RobotDetails() {
                   isResetting ? 'rotate-180' : ''
                 }`}
                 onClick={handleResetTimer}
-                title="Reset timer to 24 hours"
+                title="Reset timer and send status messages"
               />
             </div>
           </div>
         </div>
 
-        {/* Trolley Buttons */}
         {carSection.ActiveBtns && carSection.ActiveBtns.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 justify-items-center">
             {getActiveButtons(carSection, "car")}
@@ -620,7 +707,6 @@ export default function RobotDetails() {
   return (
     <div className="flex flex-col min-h-screen bg-linear-to-b from-white to-gray-50">
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
-        {/* Back Button */}
         <Button
           onClick={() => navigate(-1)}
           className="left-0 flex my-5 items-center gap-2 bg-transparent text-main-color border border-main-color hover:bg-main-color/10 cursor-pointer"
@@ -635,12 +721,10 @@ export default function RobotDetails() {
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6 }}
         >
-          {/* Robot Name - Always at the very top */}
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-wider mb-6 text-gray-900 text-center">
             {robot.RobotName || "Unnamed Robot"}
           </h1>
 
-          {/* Robot Image - Smaller size, centered, appears only once */}
           <div className="relative mb-12 flex justify-center">
             <LazyImage 
               src={getRobotImageSrc(robot.Image)} 
@@ -654,14 +738,12 @@ export default function RobotDetails() {
             <>
               {activeNonControlsSection === "trolley" && hasTrolley && (
                 <>
-                  {/* Trolley Section Title */}
                   <div className="mb-6">
                     <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">
                       Trolley Section
                     </h2>
                   </div>
 
-                  {/* Trolley Tabs Header */}
                   <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
                     <TabsHeader 
                       tabs={trolleyTabs} 
@@ -671,22 +753,19 @@ export default function RobotDetails() {
                     />
                   </div>
 
-                  {/* Trolley Tab Content */}
                   <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
                     {activeTrolleyTab === "notifications" && (
                       <UserNotificationsTab 
                         robotId={id} 
                         sectionName="car" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "car", topic, message)}
                       />
                     )}
                     
                     {activeTrolleyTab === "logs" && (
                       <UserLogsTab 
                         sectionName="car" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "car", topic, message)}
                       />
                     )}
                   </div>
@@ -695,14 +774,12 @@ export default function RobotDetails() {
 
               {activeNonControlsSection === "robot" && (
                 <>
-                  {/* Robot Section Title */}
                   <div className="mb-6">
                     <h2 className="text-2xl sm:text-3xl font-bold text-main-color text-center">
                       Robot Section
                     </h2>
                   </div>
 
-                  {/* Robot Tabs Header */}
                   <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
                     <TabsHeader 
                       tabs={tabs} 
@@ -712,22 +789,19 @@ export default function RobotDetails() {
                     />
                   </div>
 
-                  {/* Robot Tab Content */}
                   <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
                     {activeTab === "notifications" && (
                       <UserNotificationsTab 
                         robotId={id} 
                         sectionName="main" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "main", topic, message)}
                       />
                     )}
                     
                     {activeTab === "logs" && (
                       <UserLogsTab 
                         sectionName="main" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "main", topic, message)}
                       />
                     )}
                   </div>
@@ -736,17 +810,14 @@ export default function RobotDetails() {
             </>
           ) : (
             <>
-              {/* Trolley Section */}
               {shouldShowTrolleySection() && hasTrolley && (
                 <>
-                  {/* Trolley Section Title */}
                   <div className="mb-6">
                     <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">
                       Trolley Section
                     </h2>
                   </div>
 
-                  {/* Trolley Tabs Header */}
                   <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
                     <TabsHeader 
                       tabs={trolleyTabs} 
@@ -756,7 +827,6 @@ export default function RobotDetails() {
                     />
                   </div>
 
-                  {/* Trolley Tab Content */}
                   <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
                     {activeTrolleyTab === "controls" && renderTrolleyControls()}
                     
@@ -764,37 +834,32 @@ export default function RobotDetails() {
                       <UserNotificationsTab 
                         robotId={id} 
                         sectionName="car" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "car", topic, message)}
                       />
                     )}
                     
                     {activeTrolleyTab === "logs" && (
                       <UserLogsTab 
                         sectionName="car" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "car", topic, message)}
                       />
                     )}
                   </div>
                 </>
               )}
 
-              {/* Schedule Section */}
               {shouldShowScheduleSection() && (
                 <>
-                  {/* Schedule Section */}
                   <div className="mb-6 mt-16">
                     <h2 className="text-2xl sm:text-3xl font-bold text-green-600 text-center">
                       Schedule Settings
                     </h2>
                   </div>
 
-                  {/* Schedule Display */}
                   <div className="bg-white rounded-3xl shadow-lg p-6 sm:p-10 border border-gray-100">
                     <ScheduleDisplay
                       scheduleButton={scheduleButton}
-                      publish={publishButtonMessage}
+                      publish={(topic, message) => publishButtonMessage(id, "car", topic, message)}
                       topic={robot?.Sections?.car?.Topic_main}
                       loading={scheduleLoading}
                     />
@@ -802,17 +867,14 @@ export default function RobotDetails() {
                 </>
               )}
 
-              {/* Robot Section */}
               {shouldShowRobotSection() && (
                 <>
-                  {/* Robot Section Title */}
                   <div className="mb-6 mt-16">
                     <h2 className="text-2xl sm:text-3xl font-bold text-main-color text-center">
                       Robot Section
                     </h2>
                   </div>
 
-                  {/* Robot Tabs Header */}
                   <div className="bg-white rounded-t-3xl shadow-lg p-6 ">
                     <TabsHeader 
                       tabs={tabs} 
@@ -822,7 +884,6 @@ export default function RobotDetails() {
                     />
                   </div>
 
-                  {/* Robot Tab Content */}
                   <div className="bg-white rounded-b-3xl shadow-lg p-6 sm:p-10 border border-gray-100 border-t-0">
                     {activeTab === "controls" && renderRobotControls()}
                     
@@ -830,16 +891,14 @@ export default function RobotDetails() {
                       <UserNotificationsTab 
                         robotId={id} 
                         sectionName="main" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "main", topic, message)}
                       />
                     )}
                     
                     {activeTab === "logs" && (
                       <UserLogsTab 
                         sectionName="main" 
-                        publish={publishButtonMessage} 
-                        client={client}
+                        publish={(topic, message) => publishButtonMessage(id, "main", topic, message)}
                       />
                     )}
                   </div>
@@ -848,7 +907,6 @@ export default function RobotDetails() {
             </>
           )}
 
-          {/* Back Button */}
           <div className="mt-8 text-center">
             <Button 
               variant="outline" 

@@ -1,21 +1,96 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { postData } from "@/services/postServices";
+import { getData } from "@/services/getServices";
+import { postData} from "@/services/postServices";
 import { useParams } from "react-router-dom";
+import mqtt from "mqtt";
+
+// Function to publish message with specific credentials
+const publishWithCredentials = async (mqttUrl, mqttUsername, mqttPassword, topic, message) => {
+  try {
+    const client = mqtt.connect(`wss://${mqttUrl}:8884/mqtt`, {
+      username: mqttUsername,
+      password: mqttPassword,
+      clientId: `clientId-${Math.random().toString(16).substr(2, 8)}`,
+      reconnectPeriod: 0,
+    });
+
+    return new Promise((resolve, reject) => {
+      client.on('connect', () => {
+        client.publish(topic, message, (error) => {
+          client.end();
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      client.on('error', (error) => {
+        client.end();
+        reject(error);
+      });
+
+      setTimeout(() => {
+        client.end();
+        reject(new Error('MQTT connection timeout'));
+      }, 10000);
+    });
+  } catch (error) {
+    throw error;
+  }
+};
 
 export default function ScheduleDisplay({ 
   scheduleButton,
-  publish, 
-  topic,
   loading = false
 }) {
   const { id: robotId } = useParams();
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const [schedule, setSchedule] = useState({ days: [], hour: "", minute: 0, active: true });
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [robotData, setRobotData] = useState(null);
+  const [robotLoading, setRobotLoading] = useState(true);
+  
   const size = 200;
   const radius = size / 2 - 20;
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // Fetch robot data
+  useEffect(() => {
+    const fetchRobotData = async () => {
+      if (!robotId) return;
+      
+      try {
+        setRobotLoading(true);
+        const data = await getData(`${BASE_URL}/robots/${robotId}`);
+        setRobotData(data);
+      } catch (err) {
+        console.error('Error fetching robot data:', err);
+      } finally {
+        setRobotLoading(false);
+      }
+    };
+
+    fetchRobotData();
+  }, [robotId, BASE_URL]);
+
+  // Get MQTT credentials from car section
+  const getMqttCredentials = () => {
+    if (!robotData?.Sections?.car) return null;
+    
+    const carSection = robotData.Sections.car;
+    return {
+      mqttUrl: carSection.mqttUrl,
+      mqttUsername: carSection.mqttUsername,
+      mqttPassword: carSection.mqttPassword,
+      topic: carSection.Topic_main
+    };
+  };
+
+  const mqttCredentials = getMqttCredentials();
 
   // Get storage key for schedule visibility
   const getScheduleVisibilityKey = () => `robot_${robotId}_schedule_visibility`;
@@ -24,7 +99,7 @@ export default function ScheduleDisplay({
   const loadScheduleVisibility = () => {
     try {
       const stored = localStorage.getItem(getScheduleVisibilityKey());
-      return stored ? JSON.parse(stored) : true; // Default to visible
+      return stored ? JSON.parse(stored) : true;
     } catch (error) {
       console.error("Error loading schedule visibility:", error);
       return true;
@@ -158,19 +233,36 @@ export default function ScheduleDisplay({
 
     try {
       setSaving(true);
+      setPublishing(true);
 
       const hourNum = parseInt(schedule.hour);
       const hour24 = String(hourNum).padStart(2, "0");
 
-      if (publish && topic) {
-        const timeString = `${hour24}_${String(schedule.minute).padStart(2, "0")}`;
-        const daysBinaryString = getDaysAsBinaryString();
-        const message = `schedule_${timeString}_${daysBinaryString}`;
-        
-        publish(topic, message);
-        console.log(`Schedule sent via MQTT: ${message} to topic: ${topic}`);
+      // Send via MQTT if credentials are available
+      let mqttSuccess = false;
+      if (mqttCredentials && mqttCredentials.mqttUrl && mqttCredentials.mqttUsername && mqttCredentials.mqttPassword && mqttCredentials.topic) {
+        try {
+          const timeString = `${hour24}_${String(schedule.minute).padStart(2, "0")}`;
+          const daysBinaryString = getDaysAsBinaryString();
+          const message = `schedule_${timeString}_${daysBinaryString}`;
+          
+          await publishWithCredentials(
+            mqttCredentials.mqttUrl,
+            mqttCredentials.mqttUsername,
+            mqttCredentials.mqttPassword,
+            mqttCredentials.topic,
+            message
+          );
+          
+          mqttSuccess = true;
+          console.log(`Schedule sent via MQTT: ${message} to topic: ${mqttCredentials.topic}`);
+        } catch (mqttError) {
+          console.error("MQTT publish failed:", mqttError);
+          // Continue with button update even if MQTT fails
+        }
       }
 
+      // Update button in database
       if (scheduleButton?.id) {
         const dayFlags = days.map((d) => (schedule.days.includes(d) ? 1 : 0));
         const btnName = `schedule_${hour24}_${String(schedule.minute).padStart(2, "0")}_${dayFlags.join("_")}`;
@@ -185,9 +277,9 @@ export default function ScheduleDisplay({
         await postData(`${BASE_URL}/buttons.php?section=car&id=${scheduleButton.id}`, updatedButton);
       }
       
-      const successMessage = topic && publish 
+      const successMessage = mqttSuccess 
         ? `Schedule updated and sent via MQTT (24-hour format: ${hour24}:${String(schedule.minute).padStart(2, "0")})`
-        : `Schedule updated`;
+        : `Schedule updated (MQTT not configured or failed)`;
       
       alert(successMessage);
       
@@ -196,6 +288,7 @@ export default function ScheduleDisplay({
       alert("Failed to save schedule");
     } finally {
       setSaving(false);
+      setPublishing(false);
     }
   };
 
@@ -206,10 +299,10 @@ export default function ScheduleDisplay({
   const isScheduleVisible = loadScheduleVisibility();
 
   if (!isScheduleVisible) {
-    return null; // Don't render anything if schedule is hidden
+    return null;
   }
 
-  if (loading) {
+  if (loading || robotLoading) {
     return (
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-main-color mx-auto"></div>
@@ -224,6 +317,24 @@ export default function ScheduleDisplay({
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
       <h4 className="text-md font-semibold text-main-color mb-3">Schedule Settings</h4>
+
+      {/* MQTT Status */}
+      {mqttCredentials ? (
+        <div className="mb-3 p-2 bg-green-50 rounded-lg border border-green-200">
+          <div className="text-sm text-green-700">
+            <strong>MQTT Connected:</strong> Using car section credentials
+          </div>
+          <div className="text-xs text-green-600 mt-1">
+            Topic: {mqttCredentials.topic}
+          </div>
+        </div>
+      ) : (
+        <div className="mb-3 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div className="text-sm text-yellow-700">
+            <strong>MQTT Not Configured:</strong> No car section MQTT credentials found
+          </div>
+        </div>
+      )}
 
       {/* Days */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -365,20 +476,12 @@ export default function ScheduleDisplay({
         </div>
         <Button 
           onClick={handleSaveAndSendSchedule} 
-          disabled={saving || !schedule.days.length || !schedule.hour || !isValidHour(schedule.hour)}
+          disabled={saving || publishing || !schedule.days.length || !schedule.hour || !isValidHour(schedule.hour)}
           className="bg-second-color text-white"
         >
-          {saving ? "Saving..." : "Send Schedule"}
+          {saving || publishing ? "Saving..." : "Send Schedule"}
         </Button>
       </div>
-
-      {!topic && (
-        <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-sm text-yellow-700">
-            <strong>Warning:</strong> No MQTT topic configured for schedule transmission
-          </p>
-        </div>
-      )}
     </div>
   );
 }
