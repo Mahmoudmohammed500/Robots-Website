@@ -275,7 +275,7 @@ export function MqttProvider({ children }) {
     }
   }, [API_BASE]);
 
-  const processAndSaveMessage = useCallback(async (topic, messageString, robotId, sectionName, isFromButton = false, buttonName = null, robotSectionInfo = null, robotName = null) => {
+  const processAndSaveMessage = useCallback(async (topic, messageString, robotId, sectionName, isFromButton = false, buttonName = null, robotSectionInfo = null, robotName = null, messageType = "info") => {
     try {
       if (isMessageDuplicate(topic, messageString, robotId, sectionName)) {
         console.log("⏭️ Skipping duplicate message (already processed)");
@@ -299,7 +299,8 @@ export function MqttProvider({ children }) {
         message: trimmed,
         robotId,
         sectionName,
-        robotName
+        robotName,
+        messageType // Log the message type
       });
 
       if (!robotSectionInfo) {
@@ -323,7 +324,7 @@ export function MqttProvider({ children }) {
       finalMessageObj = {
         topic_main: topicMain, 
         message: trimmed,
-        type: "info",
+        type: messageType, // Use the passed messageType instead of hardcoded "info"
         date: nowDate,
         time: nowTime,
         RobotId: robotId || (robotSectionInfo?.robot?.id),
@@ -631,6 +632,22 @@ export function MqttProvider({ children }) {
   const extractAllDataFromMessage = useCallback((messageString) => {
     const statusData = {};
     
+    // First, try to parse as JSON for the new format
+    try {
+      const parsedMessage = JSON.parse(messageString);
+      if (parsedMessage.type && parsedMessage.message) {
+        // Return a special marker to indicate this is a JSON message with type and message
+        return {
+          isJsonMessage: true,
+          type: parsedMessage.type,
+          message: parsedMessage.message
+        };
+      }
+    } catch (error) {
+      // Not valid JSON or not in expected format, continue with regular parsing
+    }
+    
+    // Rest of the existing code remains the same...
     const voltagePatterns = [
       /voltage:\s*(\d+)/i,
       /voltage\s*=\s*(\d+)/i,
@@ -898,6 +915,56 @@ export function MqttProvider({ children }) {
                                  messageLower.includes('half-cycle finished');
               
               const robotSectionInfo = findRobotAndSectionByTopic(topic);
+              
+              // NEW CODE: Handle JSON messages with type and message
+              try {
+                const parsedMessage = JSON.parse(messageString);
+                if (parsedMessage.type && parsedMessage.message) {
+                  console.log("📋 PROCESSING JSON MESSAGE WITH TYPE:", parsedMessage.type);
+                  
+                  const msgObj = await processAndSaveMessage(
+                    topic, 
+                    parsedMessage.message, // Use the message from JSON
+                    connection.robotId, 
+                    connection.sectionName,
+                    false, 
+                    null,
+                    robotSectionInfo,
+                    connection.robotName,
+                    parsedMessage.type // Pass the type from JSON
+                  );
+                  
+                  if (msgObj) {
+                    console.log("✅ JSON message processed and saved:", msgObj);
+                    
+                    const shouldShow = await shouldShowMessageToUser(robotSectionInfo);
+                    
+                    if (shouldShow) {
+                      const robotDisplayName = msgObj.robotName || connection.robotName;
+                      const isAlertType = parsedMessage.type.toLowerCase() === 'alert' || 
+                                         parsedMessage.type.toLowerCase() === 'error' ||
+                                         parsedMessage.type.toLowerCase() === 'warning';
+                      
+                      if (isAlertType) {
+                        toast.error(`🚨 ${robotDisplayName}`, {
+                          description: parsedMessage.message.length > 100 ? 
+                            `${parsedMessage.message.substring(0, 100)}...` : parsedMessage.message,
+                          duration: 8000,
+                        });
+                      } else {
+                        toast.info(`ℹ️ ${robotDisplayName} (${parsedMessage.type})`, {
+                          description: parsedMessage.message.length > 80 ? 
+                            `${parsedMessage.message.substring(0, 80)}...` : parsedMessage.message,
+                          duration: 5000,
+                        });
+                      }
+                    }
+                  }
+                  return; // Skip further processing for JSON messages
+                }
+              } catch (error) {
+                // Not JSON, continue with normal processing
+              }
               
               if (isHalfCycle) {
                 console.log(`🎯 HALF CYCLE FINISHED DETECTED for ${connection.robotName}`);
