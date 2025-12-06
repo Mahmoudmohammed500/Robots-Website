@@ -11,11 +11,12 @@ import UserNotificationsTab from "@/components/robots/UserNotificationsTab";
 import UserLogsTab from "@/components/robots/UserLogsTab";
 import { useMqtt } from "@/context/MqttContext";
 import ScheduleDisplay from "@/components/robots/ScheduleDisplay";
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
 
 const getRobotImageSrc = (image) => {
   if (!image || image === "" || image === "Array" || image === "null") return "/default-robot.jpg";
   if (image.startsWith('http')) return image;
-  return `http://localhost/robots_web_apis/${image}`;
+  return `${UPLOADS_URL}/${image}`;
 };
 
 function LazyImage({ src, alt, className, fallbackSrc }) {
@@ -114,7 +115,8 @@ export default function RobotDetails() {
   };
 
   const shouldShowScheduleSection = () => {
-    return isControlsTab(activeTab) && isControlsTab(activeTrolleyTab);
+    const hasTrolley = robot?.isTrolley == 1 || robot?.isTrolley === "true" || robot?.isTrolley === true;
+    return isControlsTab(activeTab) && isControlsTab(activeTrolleyTab) && hasTrolley;
   };
 
   const shouldShowRobotSection = () => {
@@ -282,7 +284,12 @@ export default function RobotDetails() {
 
   useEffect(() => {
     if (robot) {
-      findScheduleButton();
+      const hasTrolley = robot?.isTrolley == 1 || robot?.isTrolley === "true" || robot?.isTrolley === true;
+      if (hasTrolley) {
+        findScheduleButton();
+      } else {
+        setScheduleButton(null);
+      }
     }
   }, [robot]);
 
@@ -336,13 +343,18 @@ export default function RobotDetails() {
 
   const fetchScheduleData = async () => {
     try {
-      const scheduleRes = await getData(`${BASE_URL}/schedule/${id}`);
-      setScheduleData(scheduleRes || {
-        days: [],
-        hour: 8,
-        minute: 0,
-        active: true
-      });
+      const hasTrolley = robot?.isTrolley == 1 || robot?.isTrolley === "true" || robot?.isTrolley === true;
+      if (hasTrolley) {
+        const scheduleRes = await getData(`${BASE_URL}/schedule/${id}`);
+        setScheduleData(scheduleRes || {
+          days: [],
+          hour: 8,
+          minute: 0,
+          active: true
+        });
+      } else {
+        setScheduleData(null);
+      }
     } catch (error) {
       console.error("Failed to load schedule data:", error);
       setScheduleData({
@@ -437,7 +449,8 @@ export default function RobotDetails() {
         robotCycles: robot.Sections?.main?.Cycles,
         trolleyVoltage: robot.Sections?.car?.Voltage,
         trolleyStatus: robot.Sections?.car?.Status,
-        trolleyCycles: robot.Sections?.car?.Cycles
+        trolleyCycles: robot.Sections?.car?.Cycles,
+        isTrolley: robot.isTrolley 
       });
     }
   }, [robot]);
@@ -695,12 +708,14 @@ export default function RobotDetails() {
   }
 
   const { Sections = {} } = robot;
-  const hasTrolley = Sections?.car && (
+  const hasTrolleyData = Sections?.car && (
     Sections.car.Voltage || 
     Sections.car.Cycles || 
     Sections.car.Status || 
     (Sections.car.ActiveBtns && Sections.car.ActiveBtns.length > 0)
   );
+
+  const isTrolleyEnabled = robot?.isTrolley == 1 || robot?.isTrolley === "true" || robot?.isTrolley === true;
 
   const activeNonControlsSection = getActiveNonControlsSection();
 
@@ -736,7 +751,7 @@ export default function RobotDetails() {
 
           {isInNonControlsView() ? (
             <>
-              {activeNonControlsSection === "trolley" && hasTrolley && (
+              {activeNonControlsSection === "trolley" && hasTrolleyData && isTrolleyEnabled && (
                 <>
                   <div className="mb-6">
                     <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">
@@ -810,7 +825,7 @@ export default function RobotDetails() {
             </>
           ) : (
             <>
-              {shouldShowTrolleySection() && hasTrolley && (
+              {shouldShowTrolleySection() && hasTrolleyData && isTrolleyEnabled && (
                 <>
                   <div className="mb-6">
                     <h2 className="text-2xl sm:text-3xl font-bold text-second-color text-center">

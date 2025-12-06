@@ -71,11 +71,14 @@ export default function ButtonSetting() {
   const [projectId, setProjectId] = useState(10);
   const [duplicateError, setDuplicateError] = useState("");
   const [hexInput, setHexInput] = useState("#4CAF50");
+  
+  const [mqttUrl, setMqttUrl] = useState("");
+  const [topicMain, setTopicMain] = useState("");
+  const [fullOperation, setFullOperation] = useState("");
 
   const isNewButton = buttonId === "new";
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // Determine section from URL
   const getSectionFromPath = () => {
     if (location.pathname.includes("trolleySettings")) return "car";
     return "main";
@@ -83,6 +86,15 @@ export default function ButtonSetting() {
 
   const section = getSectionFromPath();
   const isTrolley = section === "car";
+
+  useEffect(() => {
+    if (mqttUrl && topicMain && operation) {
+      const mqttLink = `mqtts://${mqttUrl}:8884`;
+      const operationMessage = operation.startsWith("/") ? operation.substring(1) : operation;
+      const fullOp = `${mqttLink}/${topicMain}/${operationMessage}`;
+      setFullOperation(fullOp);
+    }
+  }, [mqttUrl, topicMain, operation]);
 
   // Check for duplicate buttons in the same section
   const checkForDuplicates = () => {
@@ -127,6 +139,12 @@ export default function ButtonSetting() {
         const robot = await getData(`${BASE_URL}/robots/${id}`);
         setRobotData(robot);
 
+        const sectionData = robot?.Sections?.[section];
+        if (sectionData) {
+          setMqttUrl(sectionData.mqttUrl || "");
+          setTopicMain(sectionData.Topic_main || "");
+        }
+
         if (!isNewButton) {
           const btn = await getData(`${BASE_URL}/buttons/${buttonId}`);
           if (btn) {
@@ -148,7 +166,7 @@ export default function ButtonSetting() {
     };
 
     fetchData();
-  }, [id, buttonId, isNewButton, BASE_URL]);
+  }, [id, buttonId, isNewButton, BASE_URL, section]);
 
   // Check for duplicates when name or color changes
   useEffect(() => {
@@ -182,8 +200,31 @@ export default function ButtonSetting() {
     });
   };
 
+  const copyFullOperation = () => {
+    copyToClipboard(fullOperation);
+    toast.success("Full operation copied to clipboard!");
+  };
+
   const useOperation = (op) => {
     setOperation(op);
+  };
+
+  const handleOperationChange = (value) => {
+    let operationValue = value;
+    
+    const mqttLink = `mqtts://${mqttUrl}:8884`;
+    if (mqttUrl && value.startsWith(mqttLink)) {
+      operationValue = value.substring(mqttLink.length + 1); 
+      if (topicMain && operationValue.startsWith(topicMain + "/")) {
+        operationValue = operationValue.substring(topicMain.length + 1);
+      }
+    }
+    
+    if (!operationValue.startsWith("/") && operationValue.trim() !== "") {
+      operationValue = "/" + operationValue;
+    }
+    
+    setOperation(operationValue);
   };
 
   // Update robot ActiveBtns
@@ -473,38 +514,83 @@ export default function ButtonSetting() {
             </div>
           </div>
 
-          {/* Operation */}
+          {/* Operation - نسخة جديدة مع Full Link */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold mb-4 text-gray-700">Button Operation</h2>
 
-            <div className="max-w-md mx-auto mb-4">
-              <div className="relative">
-                <Input
-                  value={operation}
-                  onChange={(e) => setOperation(e.target.value)}
-                  placeholder="Type operation like /start, /stop, etc."
-                  className="text-center bg-gray-50 border-gray-200 rounded-xl py-3 text-lg font-mono pr-12"
-                />
+            {/* Full Operation Preview */}
+            <div className="mb-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-semibold text-blue-700">
+                  Full Operation Link (Auto-generated from {section} section)
+                </label>
                 <Button
-                  onClick={() => copyToClipboard(operation)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2"
+                  onClick={copyFullOperation}
                   variant="ghost"
                   size="sm"
+                  className="h-7 text-xs"
                 >
-                  <Copy size={16} />
+                  <Copy size={14} /> Copy Full Link
                 </Button>
               </div>
+              <div className="bg-white rounded-lg p-3 border border-blue-100 overflow-x-auto">
+                <code className="text-sm font-mono text-gray-800 break-all">
+                  {fullOperation || "Loading..."}
+                </code>
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                This is the complete operation link that will be used when the button is pressed
+              </p>
+            </div>
+
+            {/* Operation Input */}
+            <div className="max-w-md mx-auto mb-4">
+              <div className="mb-2 flex justify-between items-center">
+                <label className="block text-sm font-medium text-gray-700">
+                  Enter Operation Message
+                </label>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  Just type the message (e.g., start, stop)
+                </span>
+              </div>
+              
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-mono text-sm pointer-events-none">
+                  /
+                </div>
+                <Input
+                  value={operation.startsWith("/") ? operation.substring(1) : operation}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    handleOperationChange(value ? `/${value}` : "");
+                  }}
+                  placeholder="start, stop, status, etc."
+                  className="pl-8 font-mono text-sm"
+                />
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                  <Button
+                    onClick={() => copyToClipboard(operation)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                  >
+                    <Copy size={14} />
+                  </Button>
+                </div>
+              </div>
+              
               {copied && (
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="text-green-600 text-sm text-center mt-2"
                 >
-                  Copied to clipboard!
+                  Operation copied to clipboard!
                 </motion.p>
               )}
             </div>
 
+            {/* Quick Select Buttons */}
             <div className="text-center">
               <p className="text-sm text-gray-600 mb-3">Quick select:</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-md mx-auto">
@@ -567,30 +653,52 @@ export default function ButtonSetting() {
             </div>
           </div>
 
-          {/* Selected Endpoint */}
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold text-gray-700">
-                API Endpoint Preview
-              </h2>
-              <Button
-                onClick={() => copyToClipboard(`/buttons${operation}`)}
-                variant="ghost"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                <Copy size={14} />
-                Copy
-              </Button>
+          {/* Fixed MQTT Configuration (Read Only) */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mt-8">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">
+              MQTT Configuration (Auto-filled from {section} Section)
+            </h2>
+            
+            <div className="text-center mb-4">
+              <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                Section: {section.toUpperCase()}
+              </span>
             </div>
-            <Input
-              value={`https/buttons/${operation}`}
-              readOnly
-              className="text-center bg-white border-gray-300 rounded-lg font-mono text-sm"
-            />
-            <p className="text-xs text-gray-500 text-center mt-2">
-              This endpoint will be called when the button is pressed
-            </p>
+
+            <div className="grid grid-cols-1 gap-4">
+              
+              {/* MQTT Broker - Read Only */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    MQTT Broker URL
+                  </label>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Auto-filled</span>
+                </div>
+                <Input
+                  value={mqttUrl ? `mqtts://${mqttUrl}:8884` : "Loading..."}
+                  readOnly
+                  className="bg-gray-100 border-gray-200 rounded-lg font-mono text-sm cursor-not-allowed"
+                />
+              </div>
+
+              {/* Topic Main - Read Only */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    MQTT Topic Main
+                  </label>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Auto-filled</span>
+                </div>
+                <Input
+                  value={topicMain || "Loading..."}
+                  readOnly
+                  className="bg-gray-100 border-gray-200 rounded-lg font-mono text-sm cursor-not-allowed"
+                />
+              </div>
+
+            </div>
+           
           </div>
         </motion.div>
       </div>

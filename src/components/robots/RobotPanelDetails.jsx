@@ -220,7 +220,7 @@ export default function RobotMainPanelView({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6">
       <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-        <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
+        {/* <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
           <img
             src={
               robot?.Image && robot.Image !== "Array"
@@ -230,7 +230,7 @@ export default function RobotMainPanelView({
             alt="Robot"
             className="h-40 w-40 object-cover rounded-xl border shadow-md"
           />
-        </div>
+        </div> */}
 
         <div className="flex-1 grid grid-cols-2 gap-4 w-full">
           <ViewField label="Robot Name" value={robot?.RobotName || "-"} />

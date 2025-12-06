@@ -4,6 +4,7 @@ import { getData } from "@/services/getServices";
 import { postData} from "@/services/postServices";
 import { useParams } from "react-router-dom";
 import mqtt from "mqtt";
+import { toast } from "sonner"; // Added import for toast
 
 // Function to publish message with specific credentials
 const publishWithCredentials = async (mqttUrl, mqttUsername, mqttPassword, topic, message) => {
@@ -210,24 +211,24 @@ export default function ScheduleDisplay({
         setSchedule({ ...schedule, hour: num.toString() });
       }
     } else if (value && !isValidHour(value)) {
-      alert("Please enter a valid hour (0-23)");
+      toast.error("Please enter a valid hour (0-23)");
       setSchedule({ ...schedule, hour: "" });
     }
   };
 
   const handleSaveAndSendSchedule = async () => {
     if (!schedule.days.length) {
-      alert("Please select at least one day");
+      toast.error("Please select at least one day");
       return;
     }
 
     if (!schedule.hour || schedule.hour === "") {
-      alert("Please enter the hour");
+      toast.error("Please enter the hour");
       return;
     }
 
     if (!isValidHour(schedule.hour)) {
-      alert("Please enter a valid hour (0-23)");
+      toast.error("Please enter a valid hour (0-23)");
       return;
     }
 
@@ -278,14 +279,14 @@ export default function ScheduleDisplay({
       }
       
       const successMessage = mqttSuccess 
-        ? `Schedule updated and sent via MQTT (24-hour format: ${hour24}:${String(schedule.minute).padStart(2, "0")})`
-        : `Schedule updated (MQTT not configured or failed)`;
+        ? "Schedule sent successfully via MQTT"
+        : "Schedule sent successfully";
       
-      alert(successMessage);
+      toast.success(successMessage);
       
     } catch (err) {
       console.error("Failed to save schedule:", err);
-      alert("Failed to save schedule");
+      toast.error("Failed to save schedule");
     } finally {
       setSaving(false);
       setPublishing(false);

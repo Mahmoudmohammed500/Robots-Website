@@ -199,13 +199,13 @@ export default function TrolleyPanelDetails({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 transition hover:shadow-lg">
       <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
+        {/* <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
           <img
             src={safeImgSrc}
             alt="trolley"
             className="w-48 h-40 object-cover rounded-xl border border-gray-200 shadow-sm"
           />
-        </div>
+        </div> */}
 
         <div className="flex-1 grid grid-cols-2 gap-4">
           <ViewFieldWithVisibility 

@@ -8,6 +8,7 @@ export default function RobotCard({ robot, onView }) {
   const [buttonsColors, setButtonsColors] = useState({}); // store BtnID -> Color map
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
 
   // Fetch button colors from buttons.php
   useEffect(() => {
@@ -60,7 +61,7 @@ export default function RobotCard({ robot, onView }) {
     } else if (Image.startsWith("http")) {
       setImageSrc(Image);
     } else {
-      setImageSrc(`${BASE_URL}/${Image}`);
+      setImageSrc(`${UPLOADS_URL}/${Image}`);
     }
   }, [Image]);
 
@@ -79,7 +80,7 @@ export default function RobotCard({ robot, onView }) {
       {/* Robot Image */}
       <div className="relative overflow-hidden">
         <img
-          src={imageError ? "/default-robot.jpg" : imageSrc}
+          src={imageSrc ? imageSrc :"/default-robot.jpg"}
           alt={RobotName || "Robot"}
           className="h-56 w-full object-cover transform group-hover:scale-105 transition-transform duration-500"
           onError={handleImageError}

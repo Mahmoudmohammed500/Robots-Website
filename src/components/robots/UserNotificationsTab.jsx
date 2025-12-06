@@ -12,6 +12,14 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
+  const getDisplaySectionName = (section) => {
+    if (section === "main") return "Robot";
+    if (section === "car") return "Trolley";
+    return section; 
+  };
+
+  const displaySectionName = getDisplaySectionName(sectionName);
+
   useEffect(() => {
     if (!robotId) {
       setError("Cannot determine robot ID");
@@ -102,7 +110,7 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
     <div className="p-4">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-main-color">
-          Notifications - {sectionName}
+          Notifications - {displaySectionName} 
         </h2>
         <button
           onClick={fetchNotesAndRobot}
@@ -175,7 +183,7 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
             <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 text-lg">No notifications found</p>
             <p className="text-gray-400 text-sm mt-1">
-              No notifications available for section "{sectionName}"
+              No notifications available for section "{displaySectionName}" 
             </p>
             <button
               onClick={fetchNotesAndRobot}
@@ -186,15 +194,6 @@ export default function UserNotificationsTab({ robotId, sectionName }) {
           </div>
         )}
       </div>
-
-      {/* Footer Info
-      {filteredNotes.length > 0 && (
-        <div className="mt-6 p-3 bg-gray-50 rounded-lg text-center">
-          <p className="text-sm text-gray-600">
-            Displaying {filteredNotes.length} of {notes.length} total notifications
-          </p>
-        </div>
-      )} */}
     </div>
   );
 }

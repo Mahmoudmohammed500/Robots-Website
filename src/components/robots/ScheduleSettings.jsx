@@ -5,6 +5,7 @@ import {getData } from "@/services/getServices";
 import { postData} from "@/services/postServices";
 import { useParams } from "react-router-dom";
 import mqtt from "mqtt";
+import { toast } from "sonner"; // Added import for toast
 
 // Function to publish message with specific credentials
 const publishWithCredentials = async (mqttUrl, mqttUsername, mqttPassword, topic, message) => {
@@ -169,17 +170,17 @@ export default function ScheduleSettings({
 
   const handleSaveAndSendSchedule = async () => {
     if (!robotId) {
-      alert("RobotId is missing!");
+      toast.error("RobotId is missing!");
       return;
     }
     
     if (!schedule.days.length) {
-      alert("Please select at least one day");
+      toast.error("Please select at least one day");
       return;
     }
     
     if (!projectId) {
-      alert("ProjectId is missing!");
+      toast.error("ProjectId is missing!");
       return;
     }
 
@@ -226,14 +227,14 @@ export default function ScheduleSettings({
       // await postData(`${BASE_URL}/buttons.php?section=car`, newButton);
       
       const successMessage = mqttSuccess 
-        ? `Schedule saved as button: ${btnName} and sent via MQTT`
-        : `Schedule saved as button: ${btnName} (MQTT not configured or failed)`;
+        ? "Schedule sent successfully via MQTT"
+        : "Schedule sent successfully";
       
-      alert(successMessage);
+      toast.success(successMessage);
       
     } catch (err) {
       console.error("Failed to save schedule:", err);
-      alert("Failed to save schedule");
+      toast.error("Failed to save schedule");
     } finally {
       setSaving(false);
       setPublishing(false);

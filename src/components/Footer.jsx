@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Mail, Phone, MapPin, Globe2, Printer } from "lucide-react";
+import { Mail, Phone, Globe2 } from "lucide-react";
 import LogoImg from "../assets/logo omega-2022.png";
 
 export default function Footer() {
@@ -23,9 +23,9 @@ export default function Footer() {
             {/* Phone */}
             <li className="flex justify-center md:justify-start gap-3">
               <div className="pt-1">
-                <Phone size={18} className="text-blue-600" />
+                <Phone size={18} className="text-second-color" />
               </div>
-              <div className="flex flex-col  text-left ">
+              <div className="flex flex-col text-left">
                 <span className="font-medium text-blue-600">Mobile:</span>
                 <span>+962 777970321</span>
                 <span>+962 798878411</span>
@@ -47,18 +47,18 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               whileHover={{ scale: 1.15 }}
-              className="p-2 rounded-full bg-blue-100 hover:bg-blue-600 transition"
+              className="p-2 rounded-full border border-second-color text-second-color hover:border-main-color hover:text-main-color transition-all duration-300"
             >
-              <Globe2 size={18} className="text-blue-600" />
+              <Globe2 size={18} />
             </motion.a>
 
             {/* Email */}
             <motion.a
               href="mailto:omega.jo@gmail.com"
               whileHover={{ scale: 1.15 }}
-              className="p-2 rounded-full bg-blue-100 hover:bg-blue-600 transition"
+              className="p-2 rounded-full border border-second-color text-second-color hover:border-main-color hover:text-main-color transition-all duration-300"
             >
-              <Mail size={18} className="text-blue-600" />
+              <Mail size={18} />
             </motion.a>
 
             {/* WhatsApp */}
@@ -67,14 +67,13 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               whileHover={{ scale: 1.15 }}
-              className="p-2 rounded-full bg-blue-100 hover:bg-blue-600 transition"
+              className="p-2 rounded-full border border-second-color text-second-color hover:border-main-color hover:text-main-color transition-all duration-300"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="18"
                 height="18"
                 fill="currentColor"
-                className="text-blue-600"
                 viewBox="0 0 16 16"
               >
                 <path d="M13.601 2.326a7.875 7.875 0 0 0-11.045 0 7.875 7.875 0 0 0-2.311 5.572c0 1.394.386 2.767 1.119 3.963l-1.15 4.196 4.29-1.133a7.87 7.87 0 0 0 3.964 1.12h.003a7.875 7.875 0 0 0 5.572-2.311 7.875 7.875 0 0 0 0-11.045zM8 14.875a6.88 6.88 0 0 1-3.543-.986l-.25-.147-2.54.669.678-2.485-.164-.263A6.876 6.876 0 1 1 8 14.875z"/>

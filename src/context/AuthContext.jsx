@@ -18,8 +18,6 @@ export function AuthProvider({ children }) {
       const project = Cookies.get("projectName");
       const name = Cookies.get("userName");
       
-      
-      
       if (token && role) {
         setIsAuthenticated(true);
         setUserRole(role);

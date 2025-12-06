@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Upload, Save, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Upload, Save, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ProjectForm() {
@@ -20,9 +20,11 @@ export default function ProjectForm() {
     Description: "",
     Image: null,
     imagePreview: null,
+    existingImage: "", 
   });
 
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchProjectData = async () => {
     if (!editing) return;
@@ -35,7 +37,8 @@ export default function ProjectForm() {
           ProjectName: data.ProjectName || "",
           Location: data.Location || "",
           Description: data.Description || "",
-          Image: null, // ملف جديد غير محدد بعد
+          Image: null,
+          existingImage: data.Image || "", 
           imagePreview: data.Image ? `${UPLOADS_URL}/${data.Image}` : null,
         });
       }
@@ -68,48 +71,125 @@ export default function ProjectForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.ProjectName || !formData.Location || !formData.Description) {
+    if (!editing && (!formData.ProjectName || !formData.Location || !formData.Description)) {
       toast.warning("Please fill all required fields!", {
         icon: <XCircle className="text-yellow-500" />,
       });
       return;
     }
 
+    setSubmitting(true);
+
     try {
-      const fd = new FormData();
-      fd.append("ProjectName", formData.ProjectName);
-      fd.append("Location", formData.Location);
-      fd.append("Description", formData.Description);
-      if (formData.Image) {
-        fd.append("Image", formData.Image); // ملف الصورة فعليًا
+      let url, options;
+      
+      if (editing) {
+        const payload = {
+          id: id,
+          ProjectName: formData.ProjectName || "",
+          Location: formData.Location || "",
+          Description: formData.Description || "",
+        };
+        
+        if (formData.Image) {
+          const base64Image = await convertToBase64(formData.Image);
+          payload.ImageBase64 = base64Image;
+          payload.imageAction = "update";
+        } else if (formData.existingImage) {
+          payload.imageAction = "keep";
+          payload.existingImage = formData.existingImage;
+        }
+        
+        url = `${BASE_URL}/projects.php/${id}`;
+        options = {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(payload)
+        };
+        
+        console.log("📤 Sending JSON payload for UPDATE:", payload);
+      } else {
+        const fd = new FormData();
+        fd.append("ProjectName", formData.ProjectName);
+        fd.append("Location", formData.Location);
+        fd.append("Description", formData.Description);
+        if (formData.Image) {
+          fd.append("Image", formData.Image);
+        }
+        
+        url = `${BASE_URL}/projects.php`;
+        options = {
+          method: "POST",
+          body: fd
+        };
+        
+        console.log("📤 Sending FormData for ADD");
       }
 
-      const method = editing ? "PUT" : "POST";
-      const url = editing
-        ? `${BASE_URL}/projects/${id}`
-        : `${BASE_URL}/projects`;
+      const res = await fetch(url, options);
+      
+      let data;
+      try {
+        const text = await res.text();
+        console.log("📥 Raw server response:", text);
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error("Failed to parse JSON:", parseError);
+        throw new Error("Invalid server response");
+      }
 
-      const res = await fetch(url, { method, body: fd });
-      const data = await res.json();
+      console.log("📥 Parsed server response:", data);
 
-      if (data.message.toLowerCase().includes("success")) {
-        toast.success(editing ? "Project updated!" : "Project added!", {
+      if (data.message && data.message.toLowerCase().includes("success")) {
+        toast.success(editing ? "Project updated successfully!" : "Project added successfully!", {
           icon: <CheckCircle2 className="text-green-500" />,
         });
-        setTimeout(() => navigate(-1), 1000);
+        setTimeout(() => navigate("/projects"), 1500);
       } else {
-        toast.error(data.message || "Something went wrong!");
+        toast.error(data.message || "Something went wrong!", {
+          icon: <XCircle className="text-red-500" />,
+        });
       }
     } catch (error) {
       console.error("❌ Error saving project:", error);
-      toast.error("Something went wrong!", {
+      toast.error("Network error. Please try again.", {
         icon: <XCircle className="text-red-500" />,
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({
+      ...formData,
+      Image: null,
+      imagePreview: null,
+    });
+  };
+
   if (loading)
-    return <p className="text-center mt-10">Loading project data...</p>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-main-color" />
+        <span className="ml-2">Loading project data...</span>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-6 sm:p-10">
@@ -117,6 +197,7 @@ export default function ProjectForm() {
         <Button
           onClick={() => navigate(-1)}
           className="cursor-pointer flex items-center gap-2 bg-main-color text-white hover:bg-white hover:text-main-color border border-main-color rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+          disabled={submitting}
         >
           <ArrowLeft size={18} /> Back
         </Button>
@@ -134,17 +215,39 @@ export default function ProjectForm() {
         </h1>
 
         <div className="flex flex-col md:flex-row gap-10">
-          <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl p-6 hover:border-main-color transition relative cursor-pointer">
+          <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl p-6 hover:border-main-color transition relative">
             {formData.imagePreview ? (
-              <img
-                src={formData.imagePreview}
-                alt="Preview"
-                className="w-full h-56 object-cover rounded-xl shadow-md mb-4"
-              />
+              <div className="w-full">
+                <img
+                  src={formData.imagePreview}
+                  alt="Preview"
+                  className="w-full h-56 object-cover rounded-xl shadow-md mb-2"
+                />
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-sm text-gray-600">
+                    {formData.Image ? "New image selected" : "Current image"}
+                  </p>
+                  {formData.Image && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                      disabled={submitting}
+                      className="text-xs"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="text-gray-400 text-center">
                 <Upload size={40} className="mx-auto mb-3" />
                 <p>Upload project image</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {editing ? "(Leave empty to keep current image)" : "(Optional)"}
+                </p>
               </div>
             )}
             <input
@@ -154,6 +257,7 @@ export default function ProjectForm() {
               accept="image/*"
               onChange={handleChange}
               className="absolute inset-0 opacity-0 cursor-pointer"
+              disabled={submitting}
             />
           </div>
 
@@ -168,7 +272,8 @@ export default function ProjectForm() {
                 value={formData.ProjectName}
                 onChange={handleChange}
                 placeholder="Enter project name"
-                required
+                required={!editing} 
+                disabled={submitting}
                 className="cursor-pointer border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
               />
             </div>
@@ -183,7 +288,8 @@ export default function ProjectForm() {
                 value={formData.Location}
                 onChange={handleChange}
                 placeholder="Enter location"
-                required
+                required={!editing} 
+                disabled={submitting}
                 className="cursor-pointer border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
               />
             </div>
@@ -198,19 +304,43 @@ export default function ProjectForm() {
                 onChange={handleChange}
                 placeholder="Describe the project..."
                 rows={5}
-                required
+                required={!editing} 
+                disabled={submitting}
                 className="cursor-pointer border-gray-300 focus:ring-2 focus:ring-main-color rounded-xl"
               />
             </div>
 
-            <div className="pt-4 flex md:justify-end">
-              <Button
-                type="submit"
-                className="cursor-pointer flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all"
-              >
-                <Save size={22} />
-                {editing ? "Save Changes" : "Add Project"}
-              </Button>
+            <div className="pt-4 flex flex-col gap-4">
+             
+              
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(-1)}
+                  disabled={submitting}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submitting || (!editing && (!formData.ProjectName || !formData.Location || !formData.Description))}
+                  className="cursor-pointer flex items-center gap-2 bg-second-color text-white border border-second-color hover:bg-white hover:text-second-color px-6 py-3 rounded-2xl shadow-md hover:shadow-lg text-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      {editing ? "Updating..." : "Adding..."}
+                    </>
+                  ) : (
+                    <>
+                      <Save size={22} />
+                      {editing ? "Update Project" : "Add Project"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

@@ -334,25 +334,24 @@ export default function useMqtt({ host, port, clientId, username, password }) {
         );
       }
       
-      // 🔥 تحديث Cycles
-      if (updatedData.cycles !== undefined) {
-        const cyclesPayload = {
-          ...currentRobot,
-          Sections: {
-            ...currentRobot.Sections,
-            [sectionName]: {
-              ...currentRobot.Sections[sectionName],
-              Cycles: updatedData.cycles
-            }
-          }
-        };
-        
-        updates.push(
-          axios.put(`${API_BASE}/robots.php/${robotId}`, cyclesPayload)
-            .then(() => console.log(`✅ CYCLES UPDATED: ${updatedData.cycles}`))
-            .catch(err => console.error(`❌ CYCLES UPDATE FAILED:`, err))
-        );
-      }
+      // if (updatedData.cycles !== undefined) {
+      //   const cyclesPayload = {
+      //     ...currentRobot,
+      //     Sections: {
+      //       ...currentRobot.Sections,
+      //       [sectionName]: {
+      //         ...currentRobot.Sections[sectionName],
+      //         Cycles: updatedData.cycles
+      //       }
+      //     }
+      //   };
+      //   
+      //   updates.push(
+      //     axios.put(`${API_BASE}/robots.php/${robotId}`, cyclesPayload)
+      //       .then(() => console.log(`✅ CYCLES UPDATED: ${updatedData.cycles}`))
+      //       .catch(err => console.error(`❌ CYCLES UPDATE FAILED:`, err))
+      //   );
+      // }
       
       for (let i = 0; i < updates.length; i++) {
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -379,7 +378,7 @@ export default function useMqtt({ host, port, clientId, username, password }) {
           ...currentRobot.Sections[sectionName],
           Voltage: updatedData.voltage !== undefined ? updatedData.voltage : currentRobot.Sections[sectionName].Voltage,
           Status: updatedData.mode !== undefined ? updatedData.mode : currentRobot.Sections[sectionName].Status,
-          Cycles: updatedData.cycles !== undefined ? updatedData.cycles : currentRobot.Sections[sectionName].Cycles
+          // Cycles: updatedData.cycles !== undefined ? updatedData.cycles : currentRobot.Sections[sectionName].Cycles
         }
       };
 
@@ -448,11 +447,11 @@ export default function useMqtt({ host, port, clientId, username, password }) {
       console.log("✅ EXTRACTED MODE:", statusData.mode);
     }
     
-    const cyclesMatch = messageString.match(/cycles:\s*(\d+)/i);
-    if (cyclesMatch) {
-      statusData.cycles = parseInt(cyclesMatch[1]);
-      console.log("✅ EXTRACTED CYCLES:", statusData.cycles);
-    }
+    // const cyclesMatch = messageString.match(/cycles:\s*(\d+)/i);
+    // if (cyclesMatch) {
+    //   statusData.cycles = parseInt(cyclesMatch[1]);
+    //   console.log("✅ EXTRACTED CYCLES:", statusData.cycles);
+    // }
     
     return Object.keys(statusData).length > 0 ? statusData : null;
   };

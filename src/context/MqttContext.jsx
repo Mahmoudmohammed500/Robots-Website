@@ -2,10 +2,13 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import mqtt from "mqtt";
 import { toast } from "sonner";
 import axios from "axios";
+import { useAuth } from "./AuthContext";
 
 const MqttContext = createContext();
 
 export function MqttProvider({ children }) {
+  const { userRole, projectName: projectNameFromCookie } = useAuth();
+  
   const [clients, setClients] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [activeConnections, setActiveConnections] = useState([]);
@@ -23,8 +26,16 @@ export function MqttProvider({ children }) {
   const processingMessagesRef = useRef(new Map());
   const messageHistoryRef = useRef(new Map());
   const lastProcessedMessageRef = useRef(null);
-
   const dangerMessagesSet = useRef(new Set());
+
+  const userRoleRef = useRef(userRole);
+  const projectNameCookieRef = useRef(projectNameFromCookie);
+
+  useEffect(() => {
+    userRoleRef.current = userRole;
+    projectNameCookieRef.current = projectNameFromCookie;
+    console.log("🔄 Updated user info in MqttContext:", { userRole, projectNameFromCookie });
+  }, [userRole, projectNameFromCookie]);
 
   const fetchInitialData = useCallback(async () => {
     try {
@@ -198,130 +209,73 @@ export function MqttProvider({ children }) {
     return null;
   }, []);
 
-  const handleHalfCycleFinished = useCallback(async (robotId, sectionName, topic, connection) => {
+  const shouldShowMessageToUser = useCallback(async (robotSectionInfo) => {
     try {
-      const processingKey = `halfcycle-${robotId}-${sectionName}`;
+      const currentUserRole = userRoleRef.current;
+      const currentProjectName = projectNameCookieRef.current;
       
-      if (processingMessagesRef.current.has(processingKey)) {
-        console.log("⏭️ Skipping duplicate half-cycle processing");
-        return;
+      console.log("🔍 CHECKING USER PROJECT FILTER:", {
+        userRole: currentUserRole,
+        projectNameFromCookie: currentProjectName,
+        robotProjectId: robotSectionInfo?.robot?.projectId
+      });
+
+      if (currentUserRole !== 'user') {
+        console.log("👨‍💼 Admin/Dashboard user - showing all messages");
+        return true;
       }
-      
-      processingMessagesRef.current.set(processingKey, true);
-      setTimeout(() => {
-        processingMessagesRef.current.delete(processingKey);
-      }, 5000);
-      
-      console.log(`🔄 HANDLING HALF CYCLE FINISHED for ${robotId}-${sectionName}`);
-      
-      let currentRobot;
+
+      if (!robotSectionInfo || !robotSectionInfo.robot) {
+        console.log("❌ No robot info - cannot filter");
+        return false;
+      }
+
+      const robotProjectId = robotSectionInfo.robot.projectId;
+      console.log("🤖 Robot's projectId from database:", robotProjectId);
+
+      if (!robotProjectId) {
+        console.log("❌ Robot has no projectId assigned");
+        return false;
+      }
+
+      if (!currentProjectName) {
+        console.log("❌ No project name in cookies");
+        return false;
+      }
+
       try {
-        const response = await axios.get(`${API_BASE}/robots/${robotId}`);
-        currentRobot = response.data;
-      } catch (error) {
-        console.error("❌ Failed to fetch robot data:", error);
-        currentRobot = robotsDataRef.current.find(r => r.id === robotId);
-      }
-      
-      if (!currentRobot || !currentRobot.Sections || !currentRobot.Sections[sectionName]) {
-        console.error("❌ Robot or section not found");
-        return;
-      }
-      
-      const currentCycles = currentRobot.Sections[sectionName]?.Cycles || 0;
-      const newCycles = parseFloat(currentCycles) + 0.5;
-      
-      console.log(`🔢 Increasing cycles: ${currentCycles} → ${newCycles}`);
-      
-      const updatedSections = {
-        ...currentRobot.Sections,
-        [sectionName]: {
-          ...currentRobot.Sections[sectionName],
-          Cycles: newCycles
+        const projectsRes = await axios.get(`${API_BASE}/projects.php`);
+        const projectsArray = Array.isArray(projectsRes.data) ? projectsRes.data : [];
+        
+        const userProject = projectsArray.find(project => {
+          const projectName = project.ProjectName || project.projectName;
+          return projectName && projectName.trim() === currentProjectName.trim();
+        });
+
+        if (!userProject) {
+          console.log("❌ No matching project found for cookie name:", currentProjectName);
+          return false;
         }
-      };
-      
-      const updatePayload = {
-        ...currentRobot,
-        Sections: updatedSections
-      };
-      
-      try {
-        const response = await axios.put(`${API_BASE}/robots.php/${robotId}`, updatePayload);
-        console.log("✅ HALF CYCLE UPDATE SUCCESS:", response.data);
+
+        const userProjectId = userProject.id || userProject.projectId;
+        console.log("✅ Found user's project ID:", userProjectId);
         
-        const updatedRobot = response.data;
-        const index = robotsDataRef.current.findIndex(r => r.id === robotId);
-        if (index !== -1) {
-          robotsDataRef.current[index] = updatedRobot;
-          setRobotsData(prev => {
-            const newData = [...prev];
-            newData[index] = updatedRobot;
-            return newData;
-          });
-        }
+        const shouldShow = String(robotProjectId) === String(userProjectId);
+        console.log(`🔁 Project comparison: ${robotProjectId} === ${userProjectId} => ${shouldShow}`);
         
-        const notificationObj = {
-          topic_main: findTopicMain(topic),
-          message: `Half cycle finished. Cycles increased to ${newCycles}`,
-          type: "info",
-          date: new Date().toISOString().slice(0, 10),
-          time: new Date().toISOString().slice(11, 19),
-          RobotId: robotId,
-          robotName: currentRobot.RobotName,
-          sectionName: sectionName
-        };
-        
-        const notificationKey = `notification-${robotId}-${sectionName}-${notificationObj.date}-${notificationObj.time}`;
-        if (!isMessageDuplicate(topic, notificationObj.message, robotId, sectionName)) {
-          await axios.post(`${API_BASE}/notifications.php`, notificationObj);
-          console.log("✅ Half cycle notification saved (ONCE)");
-        } else {
-          console.log("⏭️ Skipping duplicate half-cycle notification");
-        }
-        
-        toast.success(`Half cycle finished for ${currentRobot.RobotName}. Cycles: ${newCycles}`);
+        return shouldShow;
         
       } catch (error) {
-        console.error("❌ HALF CYCLE UPDATE FAILED:", error);
+        console.error("❌ Error fetching projects for comparison:", error);
+        return false;
       }
-      
     } catch (error) {
-      console.error("❌ Error in handleHalfCycleFinished:", error);
+      console.error("❌ Error in shouldShowMessageToUser:", error);
+      return false;
     }
-  }, [API_BASE, findTopicMain]);
+  }, [API_BASE]);
 
-  const findActualButtonName = useCallback((topic, buttonValue) => {
-    for (const robot of robotsDataRef.current) {
-      if (!robot || !robot.Sections) continue;
-      
-      for (const sectionKey in robot.Sections) {
-        const section = robot.Sections[sectionKey];
-        if (!section) continue;
-        
-        if (section.Topic_main === topic || section.Topic_subscribe === topic) {
-          if (section.ActiveBtns && Array.isArray(section.ActiveBtns)) {
-            for (const activeBtn of section.ActiveBtns) {
-              if (activeBtn && activeBtn.Name && 
-                  activeBtn.Name.toLowerCase() === buttonValue.toLowerCase()) {
-                return activeBtn.Name;
-              }
-              
-              if (activeBtn && activeBtn.Command && activeBtn.Command === buttonValue) {
-                return activeBtn.Name;
-              }
-            }
-          }
-          
-          return buttonValue;
-        }
-      }
-    }
-    
-    return buttonValue;
-  }, []);
-
-  const processAndSaveMessage = useCallback(async (topic, messageString, robotId, sectionName, isFromButton = false, buttonName = null) => {
+  const processAndSaveMessage = useCallback(async (topic, messageString, robotId, sectionName, isFromButton = false, buttonName = null, robotSectionInfo = null, robotName = null) => {
     try {
       if (isMessageDuplicate(topic, messageString, robotId, sectionName)) {
         console.log("⏭️ Skipping duplicate message (already processed)");
@@ -344,75 +298,38 @@ export function MqttProvider({ children }) {
         topic, 
         message: trimmed,
         robotId,
-        sectionName
+        sectionName,
+        robotName
       });
 
-      try {
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-          const parsed = JSON.parse(trimmed);
-          
-          if (isFromButton && buttonName) {
-            finalMessageObj = {
-              topic_main: parsed.topic_main || findTopicMain(topic),
-              message: buttonName,
-              type: parsed.type || "info",
-              date: parsed.date || nowDate,
-              time: parsed.time || nowTime,
-            };
-          } else {
-            finalMessageObj = {
-              topic_main: parsed.topic_main || findTopicMain(topic),
-              message: parsed.message || JSON.stringify(parsed),
-              type: parsed.type || "info",
-              date: parsed.date || nowDate,
-              time: parsed.time || nowTime,
-            };
-          }
-        } else {
-          if (isFromButton && buttonName) {
-            finalMessageObj = {
-              topic_main: findTopicMain(topic),
-              message: buttonName,
-              type: "info",
-              date: nowDate,
-              time: nowTime,
-            };
-          } else {
-            finalMessageObj = {
-              topic_main: findTopicMain(topic),
-              message: trimmed,
-              type: "info",
-              date: nowDate,
-              time: nowTime,
-            };
-          }
-        }
-      } catch (parseError) {
-        if (isFromButton && buttonName) {
-          finalMessageObj = {
-            topic_main: findTopicMain(topic),
-            message: buttonName,
-            type: "info",
-            date: nowDate,
-            time: nowTime,
-          };
-        } else {
-          finalMessageObj = {
-            topic_main: findTopicMain(topic),
-            message: trimmed,
-            type: "info",
-            date: nowDate,
-            time: nowTime,
-          };
-        }
+      if (!robotSectionInfo) {
+        robotSectionInfo = findRobotAndSectionByTopic(topic);
       }
 
-      const robotSectionInfo = findRobotAndSectionByTopic(topic);
-      if (robotSectionInfo) {
-        finalMessageObj.RobotId = robotSectionInfo.robot.id;
-        finalMessageObj.robotName = robotSectionInfo.robot.RobotName;
-        finalMessageObj.sectionName = robotSectionInfo.sectionName;
+      let topicMain;
+      if (robotSectionInfo && robotSectionInfo.section && robotSectionInfo.section.Topic_main) {
+        topicMain = robotSectionInfo.section.Topic_main;
+      } else {
+        topicMain = findTopicMain(topic);
       }
+
+      console.log("🔍 Topic resolution:", {
+        inputTopic: topic,
+        topicMain: topicMain,
+        hasRobotInfo: !!robotSectionInfo,
+        robotName: robotSectionInfo?.robot?.RobotName
+      });
+
+      finalMessageObj = {
+        topic_main: topicMain, 
+        message: trimmed,
+        type: "info",
+        date: nowDate,
+        time: nowTime,
+        RobotId: robotId || (robotSectionInfo?.robot?.id),
+        robotName: robotName || robotSectionInfo?.robot?.RobotName || robotSectionInfo?.robot?.robotName,
+        sectionName: sectionName || robotSectionInfo?.sectionName
+      };
 
       const isDangerMessage = finalMessageObj.message.includes('voltage is critically low') ||
                              finalMessageObj.message.includes('Danger Alert') ||
@@ -443,17 +360,13 @@ export function MqttProvider({ children }) {
 
       try {
         const notificationResponse = await axios.post(`${API_BASE}/notifications.php`, finalMessageObj);
-        console.log("✅ Notification saved to database (ONCE)");
+        console.log("✅ Notification saved to database with topic_main:", finalMessageObj.topic_main);
 
-        if (!isDangerMessage) {
-          try {
-            await axios.post(`${API_BASE}/logs.php`, finalMessageObj);
-            console.log("✅ Log saved to database (ONCE)");
-          } catch (logError) {
-            console.warn("Could not save to logs:", logError.message);
-          }
-        } else {
-          console.log("⏭️ Danger message NOT saved to logs to prevent duplication");
+        try {
+          await axios.post(`${API_BASE}/logs.php`, finalMessageObj);
+          console.log("✅ Log saved to database with topic_main:", finalMessageObj.topic_main);
+        } catch (logError) {
+          console.warn("Could not save to logs:", logError.message);
         }
 
         const newNotification = {
@@ -547,28 +460,32 @@ export function MqttProvider({ children }) {
         return;
       }
       
-      toast.error(`⚠️ Danger Alert: Robot "${robotName}" voltage is critically low (${voltage}V)!`, {
-        duration: 10000,
-        action: {
-          label: 'View',
-          onClick: () => console.log('Alert clicked'),
-        },
-      });
+      const shouldShow = await shouldShowMessageToUser(robotSectionInfo);
       
-      const alertMessage = {
-        topic_main: robotSectionInfo ? findTopicMain(topic) : topic,
-        message: `⚠️ Danger: Robot "${robotName}" voltage is critically low (${voltage}V)!`,
-        type: "alert",
-        date: new Date().toISOString().slice(0, 10),
-        time: new Date().toISOString().slice(11, 19),
-        RobotId: robotSectionInfo?.robot?.id,
-        robotName: robotName,
-        sectionName: robotSectionInfo?.sectionName
-      };
-
-      if (!isDangerMessageDuplicate(alertMessage.message, robotSectionInfo?.robot?.id, robotSectionInfo?.sectionName, voltage)) {
-        await axios.post(`${API_BASE}/notifications.php`, alertMessage);
-        console.log("✅ Low voltage alert saved to notifications (ONCE)");
+      if (shouldShow) {
+        toast.error(`⚠️ Danger Alert: Robot "${robotName}" voltage is critically low (${voltage}V)!`, {
+          duration: 10000,
+          action: {
+            label: 'View',
+            onClick: () => console.log('Alert clicked'),
+          },
+        });
+      }
+      
+      const alertMessage = `⚠️ Danger: Robot "${robotName}" voltage is critically low (${voltage}V)!`;
+      const msgObj = await processAndSaveMessage(
+        topic,
+        alertMessage,
+        robotSectionInfo?.robot?.id,
+        robotSectionInfo?.sectionName,
+        false,
+        null,
+        robotSectionInfo,
+        robotName
+      );
+      
+      if (msgObj && !isDangerMessageDuplicate(alertMessage, robotSectionInfo?.robot?.id, robotSectionInfo?.sectionName, voltage)) {
+        console.log("✅ Low voltage alert saved to notifications and logs with topic_main:", msgObj.topic_main);
         
         dangerMessagesSet.current.add(alertKey);
         setTimeout(() => {
@@ -586,7 +503,130 @@ export function MqttProvider({ children }) {
     } catch (error) {
       console.error("❌ Failed to send low voltage alert:", error);
     }
-  }, [API_BASE, findTopicMain, sendEmailToProjectUsers]);
+  }, [API_BASE, sendEmailToProjectUsers, shouldShowMessageToUser, processAndSaveMessage, isDangerMessageDuplicate]);
+
+  const handleHalfCycleFinished = useCallback(async (robotId, sectionName, topic, connection, robotSectionInfo) => {
+    try {
+      const processingKey = `halfcycle-${robotId}-${sectionName}`;
+      
+      if (processingMessagesRef.current.has(processingKey)) {
+        console.log("⏭️ Skipping duplicate half-cycle processing");
+        return;
+      }
+      
+      processingMessagesRef.current.set(processingKey, true);
+      setTimeout(() => {
+        processingMessagesRef.current.delete(processingKey);
+      }, 5000);
+      
+      console.log(`🔄 HANDLING HALF CYCLE FINISHED for ${robotId}-${sectionName}`);
+      
+      let currentRobot;
+      try {
+        const response = await axios.get(`${API_BASE}/robots/${robotId}`);
+        currentRobot = response.data;
+      } catch (error) {
+        console.error("❌ Failed to fetch robot data:", error);
+        currentRobot = robotsDataRef.current.find(r => r.id === robotId);
+      }
+      
+      if (!currentRobot || !currentRobot.Sections || !currentRobot.Sections[sectionName]) {
+        console.error("❌ Robot or section not found");
+        return;
+      }
+      
+      const currentCycles = currentRobot.Sections[sectionName]?.Cycles || 0;
+      const newCycles = parseFloat(currentCycles) + 0.5;
+      
+      console.log(`🔢 Increasing cycles: ${currentCycles} → ${newCycles}`);
+      
+      const updatedSections = {
+        ...currentRobot.Sections,
+        [sectionName]: {
+          ...currentRobot.Sections[sectionName],
+          Cycles: newCycles
+        }
+      };
+      
+      const updatePayload = {
+        ...currentRobot,
+        Sections: updatedSections
+      };
+      
+      try {
+        const response = await axios.put(`${API_BASE}/robots.php/${robotId}`, updatePayload);
+        console.log("✅ HALF CYCLE UPDATE SUCCESS:", response.data);
+        
+        const updatedRobot = response.data;
+        const index = robotsDataRef.current.findIndex(r => r.id === robotId);
+        if (index !== -1) {
+          robotsDataRef.current[index] = updatedRobot;
+          setRobotsData(prev => {
+            const newData = [...prev];
+            newData[index] = updatedRobot;
+            return newData;
+          });
+        }
+        
+        const shouldShow = await shouldShowMessageToUser(robotSectionInfo);
+        
+        if (shouldShow) {
+          const msg = `Half cycle finished for ${currentRobot.RobotName}. Cycles: ${newCycles}`;
+          
+          await processAndSaveMessage(
+            topic,
+            msg,
+            robotId,
+            sectionName,
+            false,
+            null,
+            robotSectionInfo,
+            currentRobot.RobotName
+          );
+          
+          toast.success(`Half cycle finished for ${currentRobot.RobotName}. Cycles: ${newCycles}`);
+        } else {
+          console.log("⏭️ Skipping half-cycle toast (user not in same project)");
+        }
+        
+      } catch (error) {
+        console.error("❌ HALF CYCLE UPDATE FAILED:", error);
+      }
+      
+    } catch (error) {
+      console.error("❌ Error in handleHalfCycleFinished:", error);
+    }
+  }, [API_BASE, shouldShowMessageToUser, processAndSaveMessage]);
+
+  const findActualButtonName = useCallback((topic, buttonValue) => {
+    for (const robot of robotsDataRef.current) {
+      if (!robot || !robot.Sections) continue;
+      
+      for (const sectionKey in robot.Sections) {
+        const section = robot.Sections[sectionKey];
+        if (!section) continue;
+        
+        if (section.Topic_main === topic || section.Topic_subscribe === topic) {
+          if (section.ActiveBtns && Array.isArray(section.ActiveBtns)) {
+            for (const activeBtn of section.ActiveBtns) {
+              if (activeBtn && activeBtn.Name && 
+                  activeBtn.Name.toLowerCase() === buttonValue.toLowerCase()) {
+                return activeBtn.Name;
+              }
+              
+              if (activeBtn && activeBtn.Command && activeBtn.Command === buttonValue) {
+                return activeBtn.Name;
+              }
+            }
+          }
+          
+          return buttonValue;
+        }
+      }
+    }
+    
+    return buttonValue;
+  }, []);
 
   const extractAllDataFromMessage = useCallback((messageString) => {
     const statusData = {};
@@ -621,18 +661,26 @@ export function MqttProvider({ children }) {
       }
     }
     
-    const cyclesPatterns = [
-      /cycles:\s*(\d+)/i,
-      /cycles\s*=\s*(\d+)/i,
-      /"cycles":\s*(\d+)/i,
-      /cycle.*?(\d+)/i
-    ];
+    const currentUserRole = userRoleRef.current;
+    if (currentUserRole === 'user' && messageString.includes('message_status:{cycles:')) {
+      console.log("⏭️ Skipping cycles message_status for user");
+      return null;
+    }
     
-    for (const pattern of cyclesPatterns) {
-      const cyclesMatch = messageString.match(pattern);
-      if (cyclesMatch && cyclesMatch[1]) {
-        statusData.cycles = parseInt(cyclesMatch[1]);
-        break;
+    if (currentUserRole !== 'user') {
+      const cyclesPatterns = [
+        /cycles:\s*(\d+)/i,
+        /cycles\s*=\s*(\d+)/i,
+        /"cycles":\s*(\d+)/i,
+        /cycle.*?(\d+)/i
+      ];
+      
+      for (const pattern of cyclesPatterns) {
+        const cyclesMatch = messageString.match(pattern);
+        if (cyclesMatch && cyclesMatch[1]) {
+          statusData.cycles = parseInt(cyclesMatch[1]);
+          break;
+        }
       }
     }
     
@@ -643,7 +691,6 @@ export function MqttProvider({ children }) {
         
         const voltageMatch = statusContent.match(/voltage:\s*(\d+)/i);
         const modeMatch = statusContent.match(/mode:\s*([a-zA-Z]+)/i);
-        const cyclesMatch = statusContent.match(/cycles:\s*(\d+)/i);
         
         if (voltageMatch && voltageMatch[1]) {
           statusData.voltage = parseInt(voltageMatch[1]);
@@ -653,8 +700,11 @@ export function MqttProvider({ children }) {
           statusData.mode = modeMatch[1];
         }
         
-        if (cyclesMatch && cyclesMatch[1]) {
-          statusData.cycles = parseInt(cyclesMatch[1]);
+        if (currentUserRole !== 'user') {
+          const cyclesMatch = statusContent.match(/cycles:\s*(\d+)/i);
+          if (cyclesMatch && cyclesMatch[1]) {
+            statusData.cycles = parseInt(cyclesMatch[1]);
+          }
         }
       }
     }
@@ -699,21 +749,6 @@ export function MqttProvider({ children }) {
         updates.push(axios.put(`${API_BASE}/robots.php/${robotId}`, statusPayload));
       }
       
-      if (updatedData.cycles !== undefined) {
-        const cyclesPayload = {
-          ...currentRobot,
-          Sections: {
-            ...currentRobot.Sections,
-            [sectionName]: {
-              ...currentRobot.Sections[sectionName],
-              Cycles: updatedData.cycles
-            }
-          }
-        };
-        
-        updates.push(axios.put(`${API_BASE}/robots.php/${robotId}`, cyclesPayload));
-      }
-      
       for (let i = 0; i < updates.length; i++) {
         await new Promise(resolve => setTimeout(resolve, 200));
         await updates[i];
@@ -735,7 +770,6 @@ export function MqttProvider({ children }) {
           ...currentRobot.Sections[sectionName],
           Voltage: updatedData.voltage !== undefined ? updatedData.voltage : currentRobot.Sections[sectionName].Voltage,
           Status: updatedData.mode !== undefined ? updatedData.mode : currentRobot.Sections[sectionName].Status,
-          Cycles: updatedData.cycles !== undefined ? updatedData.cycles : currentRobot.Sections[sectionName].Cycles
         }
       };
 
@@ -863,13 +897,16 @@ export function MqttProvider({ children }) {
                                  messageExact === "Half cycle finished" ||
                                  messageLower.includes('half-cycle finished');
               
+              const robotSectionInfo = findRobotAndSectionByTopic(topic);
+              
               if (isHalfCycle) {
                 console.log(`🎯 HALF CYCLE FINISHED DETECTED for ${connection.robotName}`);
                 await handleHalfCycleFinished(
                   connection.robotId, 
                   connection.sectionName, 
                   topic, 
-                  connection
+                  connection,
+                  robotSectionInfo  
                 );
                 return;
               }
@@ -880,8 +917,6 @@ export function MqttProvider({ children }) {
                 console.log("🎯 PROCESSING MESSAGE_STATUS DATA:", messageData);
                 
                 try {
-                  const robotSectionInfo = findRobotAndSectionByTopic(topic);
-                  
                   if (robotSectionInfo) {
                     const { robot, sectionName, section } = robotSectionInfo;
                     
@@ -902,37 +937,50 @@ export function MqttProvider({ children }) {
                 }
               } else {
                 console.log("📝 PROCESSING NORMAL MESSAGE...");
+                
                 const msgObj = await processAndSaveMessage(
                   topic, 
                   messageString, 
                   connection.robotId, 
                   connection.sectionName,
                   false, 
-                  null
+                  null,
+                  robotSectionInfo,
+                  connection.robotName
                 );
                 
                 if (msgObj) {
                   console.log("✅ Message processed and saved (ONCE):", msgObj);
                   
-                  const messageLower = msgObj.message.toLowerCase();
-                  if (msgObj.type === "alert" || 
-                      messageLower.includes('alert') || 
-                      messageLower.includes('error') ||
-                      messageLower.includes('critical') ||
-                      messageLower.includes('warning') ||
-                      messageLower.includes('fail')) {
+                  const shouldShow = await shouldShowMessageToUser(robotSectionInfo);
+                  
+                  const isScheduleMessage = messageString.toLowerCase().includes('schedule');
+                  
+                  if (shouldShow && !(userRoleRef.current === 'user' && isScheduleMessage)) {
+                    const messageLower = msgObj.message.toLowerCase();
+                    const robotDisplayName = msgObj.robotName || connection.robotName;
                     
-                    toast.error(`🚨 ${connection.robotName}`, {
-                      description: msgObj.message.length > 100 ? 
-                        `${msgObj.message.substring(0, 100)}...` : msgObj.message,
-                      duration: 8000,
-                    });
+                    if (msgObj.type === "alert" || 
+                        messageLower.includes('alert') || 
+                        messageLower.includes('error') ||
+                        messageLower.includes('critical') ||
+                        messageLower.includes('warning') ||
+                        messageLower.includes('fail')) {
+                      
+                      toast.error(`🚨 ${robotDisplayName}`, {
+                        description: msgObj.message.length > 100 ? 
+                          `${msgObj.message.substring(0, 100)}...` : msgObj.message,
+                        duration: 8000,
+                      });
+                    } else {
+                      toast.info(`ℹ️ ${robotDisplayName}`, {
+                        description: msgObj.message.length > 80 ? 
+                          `${msgObj.message.substring(0, 80)}...` : msgObj.message,
+                        duration: 5000,
+                      });
+                    }
                   } else {
-                    toast.info(`ℹ️ ${connection.robotName}`, {
-                      description: msgObj.message.length > 80 ? 
-                        `${msgObj.message.substring(0, 80)}...` : msgObj.message,
-                      duration: 5000,
-                    });
+                    console.log("⏭️ Skipping toast (user not in same project or schedule message for user)");
                   }
                 }
               }
@@ -991,7 +1039,7 @@ export function MqttProvider({ children }) {
       console.error("Failed to fetch robots from API:", error);
       setIsInitialized(true);
     }
-  }, [API_BASE, isInitialized, fetchInitialData, extractAllDataFromMessage, updateRobotSectionData, processAndSaveMessage, findRobotAndSectionByTopic, handleHalfCycleFinished]);
+  }, [API_BASE, isInitialized, fetchInitialData, extractAllDataFromMessage, updateRobotSectionData, processAndSaveMessage, findRobotAndSectionByTopic, handleHalfCycleFinished, shouldShowMessageToUser]);
 
   const reconnectConnection = useCallback((robotId, sectionName) => {
     const clientKey = `${robotId}-${sectionName}`;
@@ -1056,21 +1104,37 @@ export function MqttProvider({ children }) {
       
       const published = publishMessage(robotId, sectionName, topic, finalMessage);
       
-      if (published) {
-        const logMessage = {
-          topic_main: findTopicMain(topic),
-          message: `Button pressed: ${actualButtonName}`,
-          type: "info",
-          date: new Date().toISOString().slice(0, 10),
-          time: new Date().toISOString().slice(11, 19),
-          RobotId: robotId,
-          sectionName: sectionName,
-          direction: 'outgoing'
-        };
-        
-        axios.post(`${API_BASE}/logs.php`, logMessage).catch(err => {
-          console.error("❌ Failed to save button press log:", err);
+      const isScheduleButton = actualButtonName.toLowerCase().includes('schedule');
+      const currentUserRole = userRoleRef.current;
+      
+      if (published && currentUserRole === 'user' && isScheduleButton) {
+        toast.success(`Schedule command sent successfully to ${robotId}-${sectionName}`, {
+          duration: 3000,
         });
+      }
+      
+      if (published) {
+        const robotSectionInfo = findRobotAndSectionByTopic(topic);
+        const shouldShow = userRoleRef.current === 'user' ? 
+          robotSectionInfo && robotSectionInfo.robot && 
+          robotSectionInfo.robot.projectId : true;
+        
+        if (shouldShow) {
+          const logMessage = {
+            topic_main: findTopicMain(topic),
+            message: `Button pressed: ${actualButtonName}`,
+            type: "info",
+            date: new Date().toISOString().slice(0, 10),
+            time: new Date().toISOString().slice(11, 19),
+            RobotId: robotId,
+            sectionName: sectionName,
+            direction: 'outgoing'
+          };
+          
+          axios.post(`${API_BASE}/logs.php`, logMessage).catch(err => {
+            console.error("❌ Failed to save button press log:", err);
+          });
+        }
       }
       
       return published;

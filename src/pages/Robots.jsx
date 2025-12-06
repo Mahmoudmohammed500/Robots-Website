@@ -16,6 +16,7 @@ export default function Robots() {
   const [loading, setLoading] = useState(true);
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL;
 
   const fetchRobotsFromAPI = async () => {
     try {

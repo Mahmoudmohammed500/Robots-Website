@@ -4,10 +4,16 @@ import AppRoutes from "./routes/AppRoutes";
 import { AuthProvider } from "./context/AuthContext";
 import { MqttProvider } from "./context/MqttContext";
 import { BrowserRouter } from "react-router-dom";
+import { useAuth } from "./context/AuthContext"; 
 import { useMqtt } from "./context/MqttContext"; 
 
 function MqttStatusIndicator() {
   const { connectionCount, connectedCount, activeConnections, reconnectAll } = useMqtt();
+  const { userRole, isAuthenticated } = useAuth(); 
+  
+  if (!isAuthenticated || userRole !== 'admin') {
+    return null;
+  }
   
   if (connectionCount === 0) {
     return (
