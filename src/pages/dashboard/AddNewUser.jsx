@@ -144,7 +144,7 @@ export default function AddUser() {
                 <h3 className="text-lg font-semibold text-main-color mb-4 text-center">
                   Enter password to access user form
                 </h3>
-                <div className="flex gap-3 items-center">
+                <div className="flex max-md:flex-col gap-3 items-center">
                   <Input
                     type="password"
                     value={accessPassword}

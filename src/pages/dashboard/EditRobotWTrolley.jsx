@@ -276,7 +276,7 @@ export default function EditRobot() {
     >
       <div className="max-w-5xl mx-auto space-y-10">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-3">
           <div>
             <h1 className="text-3xl font-bold text-main-color">Edit Robot</h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -326,7 +326,7 @@ export default function EditRobot() {
                 <h3 className="text-lg font-semibold text-main-color mb-4">
                   Enter the password to access the robot control
                 </h3>
-                <div className="flex gap-3 items-center">
+                <div className="flex max-md:flex-col gap-3 items-center">
                   <input
                     type="password"
                     value={mainPassword}

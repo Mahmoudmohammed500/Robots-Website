@@ -29,9 +29,9 @@ export default function RobotMainPanel({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 transition hover:shadow-lg">
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="flex flex-col md:flex-row gap-6 ">
         {/* Image */}
-        <div className="flex flex-col items-center md:items-start w-full md:w-1/3">
+        <div className="flex flex-col items-center md:items-start w-full md:w-1/3 ">
           <div className="relative group">
             <img
               src={imagePreview || "/assets/placeholder-robot.jpg"}
@@ -54,7 +54,7 @@ export default function RobotMainPanel({
         </div>
 
         {/* Fields */}
-        <div className="flex-1 grid grid-cols-2 gap-4">
+        <div className="flex-1  grid grid-cols-2 gap-4">
           {/* Robot Name */}
           <div className="flex flex-col">
             <label className="text-xs text-gray-500 mb-1">Robot Name</label>

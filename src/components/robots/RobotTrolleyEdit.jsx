@@ -43,7 +43,7 @@ export default function RobotTrolleyPanel({
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-2 gap-4">
+        <div className="flex-1 grid grid-cols-2 gap-4 ">
           {/* Voltage & Cycles */}
           <EditableField
             label="Voltage"

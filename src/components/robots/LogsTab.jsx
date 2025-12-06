@@ -250,7 +250,7 @@ export default function UserLogsTab({ sectionName }) {
         <div className="mt-6 p-3 bg-gray-50 rounded-lg">
           <div className="flex justify-between items-center text-sm text-gray-600">
             <span>
-              Displaying {filteredLogs.length} of {logs.length} total logs
+              Displaying {logs.length} logs
             </span>
             <span className="text-xs bg-main-color text-white px-2 py-1 rounded">
               Read Only

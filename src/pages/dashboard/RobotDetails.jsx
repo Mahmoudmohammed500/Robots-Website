@@ -153,8 +153,8 @@ export default function RobotDetailsFull() {
     >
       <div className="max-w-5xl mx-auto space-y-10">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-5">
+        <div className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
+          <div className="flex items-center gap-5 max-md:flex-col">
             <img
               src={
                 robot?.Image && robot.Image !== "Array"
@@ -173,17 +173,17 @@ export default function RobotDetailsFull() {
               </p>
               
               {/* Connection Status */}
-              <div className="flex flex-col gap-1 text-sm mt-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${
+              <div className="flex flex-col gap-1 text-sm mt-2 text-xs">
+                <div className="flex items-center gap-2 ">
+                  <div className={`w-2 h-2 rounded-full  ${
                     robotConnectionStatus === 'connected' ? "bg-green-500" : 
                     robotConnectionStatus === 'connecting' ? "bg-yellow-500" : "bg-red-500"
                   }`} />
                   <span className={
-                    robotConnectionStatus === 'connected' ? "text-green-700" : 
-                    robotConnectionStatus === 'connecting' ? "text-yellow-700" : "text-red-700"
+                    robotConnectionStatus === 'connected' ? "text-green-700 text-xs" : 
+                    robotConnectionStatus === 'connecting' ? "text-yellow-700 text-xs" : "text-red-700"
                   }>
-                    Robot: {robotConnectionStatus}
+                    Robot:{robotConnectionStatus}
                     {hasRobotMqtt && ` (${robot.Sections.main.mqttUrl})`}
                   </span>
                 </div>
@@ -194,10 +194,10 @@ export default function RobotDetailsFull() {
                       trolleyConnectionStatus === 'connecting' ? "bg-yellow-500" : "bg-red-500"
                     }`} />
                     <span className={
-                      trolleyConnectionStatus === 'connected' ? "text-green-700" : 
-                      trolleyConnectionStatus === 'connecting' ? "text-yellow-700" : "text-red-700"
+                      trolleyConnectionStatus === 'connected' ? "text-green-700 text-xs" : 
+                      trolleyConnectionStatus === 'connecting' ? "text-yellow-700 text-xs" : "text-red-700"
                     }>
-                      Trolley: {trolleyConnectionStatus}
+                      Trolley:{trolleyConnectionStatus}
                       {hasTrolleyMqtt && ` (${robot.Sections.car.mqttUrl})`}
                     </span>
                   </div>
@@ -205,7 +205,7 @@ export default function RobotDetailsFull() {
               </div>
             </div>
           </div>
-          <Button onClick={() => navigate(-1)} className="bg-white border text-main-color">
+          <Button onClick={() => navigate(-1)} className="bg-white border text-main-color max-md:block max-md:flex-1">
             Back
           </Button>
         </div>
@@ -213,7 +213,7 @@ export default function RobotDetailsFull() {
         {/* Trolley Section */}
         {showTrolley && hasTrolleyMqtt && (
           <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-start justify-between gap-4 mb-4 max-md:flex-col">
               <div>
                 <h2 className="text-xl font-semibold text-main-color">Trolley Control</h2>
                 <p className="text-sm text-gray-500 mt-1">Trolley controls using contextMqtt</p>
@@ -292,7 +292,7 @@ export default function RobotDetailsFull() {
         {/* Robot Section */}
         {hasRobotMqtt && (
           <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-start justify-between gap-4 mb-4 max-md:flex-col">
               <div>
                 <h2 className="text-xl font-semibold text-main-color">Robot Control</h2>
                 <p className="text-sm text-gray-500 mt-1">Robot controls using contextMqtt</p>
