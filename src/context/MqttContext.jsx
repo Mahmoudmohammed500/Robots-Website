@@ -465,10 +465,10 @@ export function MqttProvider({ children }) {
       if (shouldShow) {
         toast.error(`⚠️ Danger Alert: Robot "${robotName}" voltage is critically low (${voltage}V)!`, {
           duration: 10000,
-          action: {
-            label: 'View',
-            onClick: () => console.log('Alert clicked'),
-          },
+          // action: {
+          //   label: 'View',
+          //   onClick: () => console.log('Alert clicked'),
+          // },
         });
       }
       
